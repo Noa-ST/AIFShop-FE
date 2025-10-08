@@ -32,10 +32,13 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/home" element={<Index />} />
               <Route path="/shops" element={<Placeholder title="Danh sách Shop" />} />
-              <Route path="/products" element={<Placeholder title="Danh sách Sản phẩm" />} />
+              <Route path="/products" element={<ProductList />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Placeholder title="Giỏ hàng" />} />
-              <Route path="/login" element={<Placeholder title="Đăng nhập" />} />
-              <Route path="/seller" element={<Placeholder title="Seller Dashboard" />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/seller/dashboard" element={<SellerDashboard />} />
+              <Route path="/seller" element={<SellerDashboard />} />
               <Route path="/admin" element={<Placeholder title="Admin Dashboard" />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
