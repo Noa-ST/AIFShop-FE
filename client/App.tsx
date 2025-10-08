@@ -16,6 +16,7 @@ import Register from "./pages/Auth/Register";
 import ProductList from "./pages/Products/List";
 import ProductDetail from "./pages/Products/Detail";
 import SellerDashboard from "./pages/seller/Dashboard";
+import ShopDetail from "./pages/Shop/Detail";
 
 const queryClient = new QueryClient();
 
