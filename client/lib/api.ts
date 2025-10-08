@@ -96,4 +96,14 @@ export const fetchProductById = async (id: string) => {
   return res.data;
 };
 
+export const fetchShopById = async (id: string) => {
+  const res = await api.get(`/api/shops/${id}`);
+  return res.data;
+};
+
+export const fetchProductsByShop = async (shopId: string) => {
+  const res = await api.get(`/api/products/shop/${shopId}`);
+  return res.data;
+};
+
 export default api;
