@@ -14,7 +14,7 @@ export default function ShopCard({ shop }: { shop: Shop }) {
         <img src={shop.logo} alt={shop.name} className="w-14 h-14 rounded-full object-cover" />
         <div className="flex-1">
           <h3 className="font-semibold text-slate-900">{shop.name}</h3>
-          <p className="text-sm text-slate-600 line-clamp-2">{shop.description}</p>
+          <p className="text-sm text-slate-600 overflow-hidden text-ellipsis whitespace-nowrap" title={shop.description}>{shop.description}</p>
         </div>
         <Link to={`/shops/${shop.id}`} className="px-4 py-2 rounded-full bg-rose-600 text-white text-sm hover:bg-rose-700">Xem shop</Link>
       </div>
