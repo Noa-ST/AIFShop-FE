@@ -22,7 +22,7 @@ export default function ProductCard({ product }: { product: Product }) {
         />
       </div>
       <div className="pt-3">
-        <h3 className="text-slate-900 font-medium line-clamp-1">{product.name}</h3>
+        <h3 className="text-slate-900 font-medium truncate" title={product.name}>{product.name}</h3>
         <p className="text-rose-600 font-semibold">{product.price.toLocaleString("vi-VN")}₫</p>
       </div>
       <button
