@@ -3,7 +3,7 @@ import { fetchProducts } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 
 export default function ProductList() {
-  const { data, isLoading, error } = useQuery(["products"], fetchProducts);
+  const { data, isLoading, error } = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
 
   return (
     <section className="py-12">
