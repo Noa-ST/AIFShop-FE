@@ -33,6 +33,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/home" element={<Index />} />
               <Route path="/shops" element={<Placeholder title="Danh sách Shop" />} />
+              <Route path="/shops/:id" element={<ShopDetail />} />
               <Route path="/products" element={<ProductList />} />
               <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/cart" element={<Placeholder title="Giỏ hàng" />} />
