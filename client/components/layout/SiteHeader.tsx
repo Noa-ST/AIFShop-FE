@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { ShoppingCart, Store, Home, Boxes, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -8,7 +8,6 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export default function SiteHeader() {
-  const location = useLocation();
   return (
     <div className="sticky top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-slate-200">
       <div className="container mx-auto flex items-center justify-between h-16">
