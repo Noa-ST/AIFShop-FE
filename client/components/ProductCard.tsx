@@ -22,8 +22,15 @@ export default function ProductCard({ product }: { product: Product }) {
         />
       </div>
       <div className="pt-3">
-        <h3 className="text-slate-900 font-medium truncate" title={product.name}>{product.name}</h3>
-        <p className="text-rose-600 font-semibold">{product.price.toLocaleString("vi-VN")}₫</p>
+        <h3
+          className="text-slate-900 font-medium truncate"
+          title={product.name}
+        >
+          {product.name}
+        </h3>
+        <p className="text-rose-600 font-semibold">
+          {product.price.toLocaleString("vi-VN")}₫
+        </p>
       </div>
       <button
         className="absolute right-4 bottom-4 inline-flex items-center gap-2 px-3 py-2 rounded-full bg-slate-900 text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity"

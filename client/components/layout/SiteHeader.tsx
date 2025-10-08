@@ -23,13 +23,22 @@ export default function SiteHeader() {
 
         <nav className="hidden md:flex items-center gap-1">
           <NavLink to="/home" className={navLinkClass}>
-            <div className="flex items-center gap-2"><Home size={16}/>Trang chủ</div>
+            <div className="flex items-center gap-2">
+              <Home size={16} />
+              Trang chủ
+            </div>
           </NavLink>
           <NavLink to="/shops" className={navLinkClass}>
-            <div className="flex items-center gap-2"><Store size={16}/>Shops</div>
+            <div className="flex items-center gap-2">
+              <Store size={16} />
+              Shops
+            </div>
           </NavLink>
           <NavLink to="/products" className={navLinkClass}>
-            <div className="flex items-center gap-2"><Boxes size={16}/>Sản phẩm</div>
+            <div className="flex items-center gap-2">
+              <Boxes size={16} />
+              Sản phẩm
+            </div>
           </NavLink>
         </nav>
 
@@ -38,15 +47,17 @@ export default function SiteHeader() {
             to="/login"
             className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 text-sm hover:bg-slate-50"
           >
-            <LogIn size={16}/> Đăng nhập
+            <LogIn size={16} /> Đăng nhập
           </Link>
           <Link
             to="/cart"
             className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white shadow hover:bg-rose-700"
           >
-            <ShoppingCart size={18}/>
+            <ShoppingCart size={18} />
             <span>Giỏ hàng</span>
-            <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-black text-white rounded-full">0</span>
+            <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-black text-white rounded-full">
+              0
+            </span>
           </Link>
         </div>
       </div>

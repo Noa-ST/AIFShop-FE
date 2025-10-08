@@ -36,14 +36,35 @@ export default function Login() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         <h2 className="text-2xl font-semibold mb-4">Đăng nhập</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <TextField fullWidth label="Email" type="email" {...r("email", { required: true })} />
-          <TextField fullWidth label="Mật khẩu" type="password" {...r("password", { required: true })} />
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            {...r("email", { required: true })}
+          />
+          <TextField
+            fullWidth
+            label="Mật khẩu"
+            type="password"
+            {...r("password", { required: true })}
+          />
           {error && <div className="text-sm text-red-500">{error}</div>}
           <div className="flex items-center justify-between">
-            <Button variant="contained" color="primary" type="submit" disabled={loading} className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={loading}
+              className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]"
+            >
               {loading ? "Đang xử lý..." : "Đăng nhập"}
             </Button>
-            <a href="/register" className="text-sm text-slate-600 hover:underline">Đăng ký</a>
+            <a
+              href="/register"
+              className="text-sm text-slate-600 hover:underline"
+            >
+              Đăng ký
+            </a>
           </div>
         </form>
       </div>

@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || "https://localhost:7109";
+const API_BASE =
+  (import.meta.env.VITE_API_BASE as string) || "https://localhost:7109";
 
 const ACCESS_KEY = "aifshop_token";
 const REFRESH_KEY = "aifshop_refresh";
@@ -15,12 +16,20 @@ const api = axios.create({
 // Attach token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_KEY);
-  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  if (token)
+    config.headers = {
+      ...(config.headers || {}),
+      Authorization: `Bearer ${token}`,
+    };
   return config;
 });
 
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (val?: any) => void; reject: (err?: any) => void; config: any }> = [];
+let failedQueue: Array<{
+  resolve: (val?: any) => void;
+  reject: (err?: any) => void;
+  config: any;
+}> = [];
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((p) => {
@@ -34,7 +43,11 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const originalRequest = err.config;
-    if (err.response && err.response.status === 401 && !originalRequest._retry) {
+    if (
+      err.response &&
+      err.response.status === 401 &&
+      !originalRequest._retry
+    ) {
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject, config: originalRequest });
@@ -47,7 +60,9 @@ api.interceptors.response.use(
       isRefreshing = true;
       const refreshToken = localStorage.getItem(REFRESH_KEY);
       try {
-        const resp = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken });
+        const resp = await axios.post(`${API_BASE}/api/auth/refresh`, {
+          refreshToken,
+        });
         const { accessToken, refreshToken: newRefresh } = resp.data;
         localStorage.setItem(ACCESS_KEY, accessToken);
         if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
@@ -68,7 +83,13 @@ api.interceptors.response.use(
   },
 );
 
-export const register = async (payload: { fullname: string; email: string; password: string; confirmPassword: string; role?: string }) => {
+export const register = async (payload: {
+  fullname: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  role?: string;
+}) => {
   const res = await api.post("/api/auth/register", payload);
   return res.data;
 };

@@ -32,7 +32,10 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/home" element={<Index />} />
-              <Route path="/shops" element={<Placeholder title="Danh sách Shop" />} />
+              <Route
+                path="/shops"
+                element={<Placeholder title="Danh sách Shop" />}
+              />
               <Route path="/shops/:id" element={<ShopDetail />} />
               <Route path="/products" element={<ProductList />} />
               <Route path="/products/:id" element={<ProductDetail />} />
@@ -41,7 +44,10 @@ const App = () => (
               <Route path="/register" element={<Register />} />
               <Route path="/seller/dashboard" element={<SellerDashboard />} />
               <Route path="/seller" element={<SellerDashboard />} />
-              <Route path="/admin" element={<Placeholder title="Admin Dashboard" />} />
+              <Route
+                path="/admin"
+                element={<Placeholder title="Admin Dashboard" />}
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
