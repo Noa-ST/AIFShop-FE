@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShopById, fetchProductsByShop } from "@/lib/api";
 import { useState } from "react";
-import { Tabs, TabList, Tab, TabPanels, TabPanel } from "@chakra-ui/react";
+import { Tabs, Tab, Box } from "@mui/material";
 import ProductCard from "@/components/ProductCard";
 
 export default function ShopDetail() {
