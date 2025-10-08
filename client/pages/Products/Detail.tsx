@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 
 export default function ProductDetail() {
   const { id } = useParams();
-  const { data, isLoading, error } = useQuery(["product", id], () => fetchProductById(id as string), { enabled: !!id });
+  const { data, isLoading, error } = useQuery({ queryKey: ["product", id], queryFn: () => fetchProductById(id as string), enabled: !!id });
 
   if (isLoading) return <div className="p-8">Đang tải...</div>;
   if (error) return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
