@@ -31,29 +31,32 @@ export default function ShopDetail() {
             </div>
 
             <div className="mt-6">
-              <Tabs index={tabIndex} onChange={(i) => setTabIndex(i)}>
-                <TabList className="border-b">
-                  <Tab>Sản phẩm</Tab>
-                  <Tab>Thông tin cửa hàng</Tab>
-                </TabList>
+              <Box>
+                <Tabs value={tabIndex} onChange={(_, val) => setTabIndex(val)} aria-label="shop tabs">
+                  <Tab label="Sản phẩm" />
+                  <Tab label="Thông tin cửa hàng" />
+                </Tabs>
+              </Box>
 
-                <TabPanels>
-                  <TabPanel>
+              <div className="mt-4">
+                {tabIndex === 0 && (
+                  <div>
                     {productsLoading && <p>Đang tải sản phẩm...</p>}
                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
                       {products && products.length ? products.map((p: any) => <ProductCard key={p.id} product={{ id: p.id, name: p.name || p.title, price: p.price || 0, image: p.imageUrl || p.image || "/public/placeholder.svg" }} />) : <p className="text-slate-600">Không có sản phẩm</p>}
                     </div>
-                  </TabPanel>
-                  <TabPanel>
-                    <div className="prose max-w-none">
-                      <h3>Giới thiệu</h3>
-                      <p>{shop?.description}</p>
-                      <h4 className="mt-4">Chính sách</h4>
-                      <p>{shop?.policy || "Chưa có thông tin"}</p>
-                    </div>
-                  </TabPanel>
-                </TabPanels>
-              </Tabs>
+                  </div>
+                )}
+
+                {tabIndex === 1 && (
+                  <div className="prose max-w-none">
+                    <h3>Giới thiệu</h3>
+                    <p>{shop?.description}</p>
+                    <h4 className="mt-4">Chính sách</h4>
+                    <p>{shop?.policy || "Chưa có thông tin"}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
