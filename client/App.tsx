@@ -11,6 +11,11 @@ import NotFound from "./pages/NotFound";
 import Placeholder from "./pages/Placeholder";
 import SiteHeader from "./components/layout/SiteHeader";
 import SiteFooter from "./components/layout/SiteFooter";
+import Login from "./pages/Auth/Login";
+import Register from "./pages/Auth/Register";
+import ProductList from "./pages/Products/List";
+import ProductDetail from "./pages/Products/Detail";
+import SellerDashboard from "./pages/seller/Dashboard";
 
 const queryClient = new QueryClient();
 
