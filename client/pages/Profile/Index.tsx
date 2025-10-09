@@ -11,7 +11,11 @@ export default function ProfilePage() {
       <h1 className="text-3xl font-bold mb-6">Hồ sơ cá nhân</h1>
 
       <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} aria-label="profile tabs">
+        <Tabs
+          value={tab}
+          onChange={(_, v) => setTab(v)}
+          aria-label="profile tabs"
+        >
           <Tab label="Thông tin cá nhân" />
           <Tab label="Địa chỉ" />
           <Tab label="Đơn hàng" />
@@ -24,12 +28,28 @@ export default function ProfilePage() {
             <div className="bg-white rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-medium mb-4">Cập nhật thông tin</h2>
               <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <TextField label="Họ và tên" defaultValue={user?.fullname || ""} />
-                <TextField label="Email" defaultValue={user?.email || ""} disabled />
+                <TextField
+                  label="Họ và tên"
+                  defaultValue={user?.fullname || ""}
+                />
+                <TextField
+                  label="Email"
+                  defaultValue={user?.email || ""}
+                  disabled
+                />
                 <TextField label="Số điện thoại" defaultValue={""} />
-                <TextField label="Ngày sinh" type="date" InputLabelProps={{ shrink: true }} />
+                <TextField
+                  label="Ngày sinh"
+                  type="date"
+                  InputLabelProps={{ shrink: true }}
+                />
                 <div className="md:col-span-2 flex justify-end">
-                  <Button variant="contained" className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">Lưu thay đổi</Button>
+                  <Button
+                    variant="contained"
+                    className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]"
+                  >
+                    Lưu thay đổi
+                  </Button>
                 </div>
               </form>
             </div>
