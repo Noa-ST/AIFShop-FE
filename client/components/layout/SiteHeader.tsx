@@ -1,6 +1,8 @@
 import { Link, NavLink } from "react-router-dom";
-import { ShoppingCart, Store, Home, Boxes, LogIn } from "lucide-react";
+import { ShoppingCart, Store, Home, Boxes, LogIn, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useRef, useEffect } from "react";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -8,6 +10,19 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export default function SiteHeader() {
+  const { isAuthenticated, user, logoutUser } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, []);
+
   return (
     <div className="sticky top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-slate-200">
       <div className="container mx-auto flex items-center justify-between h-16">
@@ -43,12 +58,15 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link
-            to="/login"
-            className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 text-sm hover:bg-slate-50"
-          >
-            <LogIn size={16} /> Đăng nhập
-          </Link>
+          {!isAuthenticated && (
+            <Link
+              to="/login"
+              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 text-sm hover:bg-slate-50"
+            >
+              <LogIn size={16} /> Đăng nhập
+            </Link>
+          )}
+
           <Link
             to="/cart"
             className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white shadow hover:bg-rose-700"
@@ -59,6 +77,31 @@ export default function SiteHeader() {
               0
             </span>
           </Link>
+
+          {isAuthenticated && (
+            <div className="relative" ref={ref}>
+              <button
+                onClick={() => setOpen((s) => !s)}
+                className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-full border border-slate-200 bg-white/80"
+              >
+                <User size={16} />
+                <span className="hidden sm:inline-block">{user?.fullname?.split(" ")[0] || user?.email}</span>
+              </button>
+
+              {open && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md py-2 z-50">
+                  <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-slate-50">Hồ sơ</Link>
+                  {user?.role === "Seller" && (
+                    <Link to="/seller/dashboard" className="block px-4 py-2 text-sm hover:bg-slate-50">Dashboard Seller</Link>
+                  )}
+                  {user?.role === "Admin" && (
+                    <Link to="/admin/dashboard" className="block px-4 py-2 text-sm hover:bg-slate-50">Dashboard Admin</Link>
+                  )}
+                  <button onClick={() => logoutUser()} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50">Đăng xuất</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
