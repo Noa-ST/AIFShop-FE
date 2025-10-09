@@ -35,7 +35,7 @@ export default function Register() {
     setLoading(true);
     setError(null);
     try {
-      await apiRegister({ ...data, role: data.role });
+      await registerUser({ ...data, role: data.role });
       // After register, navigate to role-based entry. Backend may or may not auto-login.
       if (data.role === "Seller") {
         navigate("/seller/dashboard");
