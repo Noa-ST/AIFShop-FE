@@ -16,11 +16,13 @@ import ProductList from "./pages/Products/List";
 import ProductDetail from "./pages/Products/Detail";
 import SellerDashboard from "./pages/seller/Dashboard";
 import ShopDetail from "./pages/Shop/Detail";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <AuthProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -55,6 +57,7 @@ const App = () => (
         </div>
       </BrowserRouter>
     </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
