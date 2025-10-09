@@ -1,8 +1,8 @@
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import { login } from "@/lib/api";
 import { useState } from "react";
 import { TextField, Button } from "@mui/material";
+import { useAuth } from "@/contexts/AuthContext";
 
 type FormData = {
   email: string;
@@ -14,13 +14,14 @@ export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { loginUser } = useAuth();
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await login(data);
-      const role = res.role || "Customer";
+      const res = await loginUser(data);
+      const role = (res.role || "Customer").toString();
       if (role.toLowerCase() === "seller") navigate("/seller/dashboard");
       else if (role.toLowerCase() === "admin") navigate("/admin/dashboard");
       else navigate("/home");
