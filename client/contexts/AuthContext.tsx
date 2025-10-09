@@ -11,7 +11,13 @@ type AuthUser = {
 };
 
 type LoginPayload = { email: string; password: string };
-type RegisterPayload = { fullname: string; email: string; password: string; confirmPassword: string; role?: Role };
+type RegisterPayload = {
+  fullname: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  role?: Role;
+};
 
 type AuthContextType = {
   user: AuthUser | null;
@@ -31,7 +37,9 @@ export const useAuth = () => {
 
 const ACCESS_KEY = "aifshop_token";
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
@@ -74,7 +82,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loginUser, logoutUser, registerUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loginUser,
+        logoutUser,
+        registerUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

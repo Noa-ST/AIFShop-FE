@@ -85,19 +85,41 @@ export default function SiteHeader() {
                 className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-full border border-slate-200 bg-white/80"
               >
                 <User size={16} />
-                <span className="hidden sm:inline-block">{user?.fullname?.split(" ")[0] || user?.email}</span>
+                <span className="hidden sm:inline-block">
+                  {user?.fullname?.split(" ")[0] || user?.email}
+                </span>
               </button>
 
               {open && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md py-2 z-50">
-                  <Link to="/profile" className="block px-4 py-2 text-sm hover:bg-slate-50">Hồ sơ</Link>
+                  <Link
+                    to="/profile"
+                    className="block px-4 py-2 text-sm hover:bg-slate-50"
+                  >
+                    Hồ sơ
+                  </Link>
                   {user?.role === "Seller" && (
-                    <Link to="/seller/dashboard" className="block px-4 py-2 text-sm hover:bg-slate-50">Dashboard Seller</Link>
+                    <Link
+                      to="/seller/dashboard"
+                      className="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                      Dashboard Seller
+                    </Link>
                   )}
                   {user?.role === "Admin" && (
-                    <Link to="/admin/dashboard" className="block px-4 py-2 text-sm hover:bg-slate-50">Dashboard Admin</Link>
+                    <Link
+                      to="/admin/dashboard"
+                      className="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                      Dashboard Admin
+                    </Link>
                   )}
-                  <button onClick={() => logoutUser()} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50">Đăng xuất</button>
+                  <button
+                    onClick={() => logoutUser()}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+                  >
+                    Đăng xuất
+                  </button>
                 </div>
               )}
             </div>
