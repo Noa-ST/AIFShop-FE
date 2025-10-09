@@ -16,11 +16,14 @@ const api = axios.create({
 // Attach token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_KEY);
-  if (token)
-    config.headers = {
-      ...(config.headers || {}),
-      Authorization: `Bearer ${token}`,
-    };
+  if (token) {
+    if (config.headers && typeof config.headers.set === "function") {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    } else if (config.headers) {
+      (config.headers as Record<string, string>)["Authorization"] =
+        `Bearer ${token}`;
+    }
+  }
   return config;
 });
 
@@ -90,12 +93,12 @@ export const register = async (payload: {
   confirmPassword: string;
   role?: string;
 }) => {
-  const res = await api.post("/api/auth/register", payload);
+  const res = await api.post("/api/Authencation/create", payload);
   return res.data;
 };
 
 export const login = async (payload: { email: string; password: string }) => {
-  const res = await api.post("/api/auth/login", payload);
+  const res = await api.post("/api/Authencation/login", payload);
   const { accessToken, refreshToken, role } = res.data;
   if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
   if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
@@ -108,22 +111,22 @@ export const logout = () => {
 };
 
 export const fetchProducts = async () => {
-  const res = await api.get("/api/products/all");
+  const res = await api.get("/api/Products/all");
   return res.data;
 };
 
 export const fetchProductById = async (id: string) => {
-  const res = await api.get(`/api/products/${id}`);
+  const res = await api.get(`/api/Products/detail/${id}`);
   return res.data;
 };
 
 export const fetchShopById = async (id: string) => {
-  const res = await api.get(`/api/shops/${id}`);
+  const res = await api.get(`/api/Shops/get-single/${id}`);
   return res.data;
 };
 
 export const fetchProductsByShop = async (shopId: string) => {
-  const res = await api.get(`/api/products/shop/${shopId}`);
+  const res = await api.get(`/api/Products/getbyshop/${shopId}`);
   return res.data;
 };
 
