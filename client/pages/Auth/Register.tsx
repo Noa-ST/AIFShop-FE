@@ -1,6 +1,5 @@
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import { register as apiRegister } from "@/lib/api";
 import { useState } from "react";
 import {
   TextField,
@@ -10,6 +9,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import { useAuth } from "@/contexts/AuthContext";
 
 type FormData = {
   fullname: string;
