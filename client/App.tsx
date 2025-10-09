@@ -45,13 +45,14 @@ const App = () => (
                   element={<Placeholder title="Giỏ hàng" />}
                 />
                 <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/seller/dashboard" element={<SellerDashboard />} />
-                <Route path="/seller" element={<SellerDashboard />} />
-                <Route
-                  path="/admin"
-                  element={<Placeholder title="Admin Dashboard" />}
-                />
+              <Route path="/register" element={<Register />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/seller/dashboard" element={<SellerDashboard />} />
+              <Route path="/seller" element={<SellerDashboard />} />
+              <Route
+                path="/admin"
+                element={<Placeholder title="Admin Dashboard" />}
+              />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
