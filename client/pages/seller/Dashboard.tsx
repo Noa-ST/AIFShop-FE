@@ -64,24 +64,24 @@ export default function SellerDashboard() {
         <div className="flex gap-6">
           <aside className="w-64 hidden md:block">
             <div className="space-y-3">
-              <Link
+              <RouterLink
                 to="/seller/dashboard"
                 className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5"
               >
                 {<Users size={18} />} Bảng điều khiển
-              </Link>
-              <Link
+              </RouterLink>
+              <RouterLink
                 to="/seller/products"
                 className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5"
               >
                 {<Box size={18} />} Sản phẩm
-              </Link>
-              <Link
+              </RouterLink>
+              <RouterLink
                 to="/seller/shop"
                 className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5"
               >
                 {<BarChart2 size={18} />} Thông tin shop
-              </Link>
+              </RouterLink>
             </div>
           </aside>
 
