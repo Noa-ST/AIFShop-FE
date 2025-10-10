@@ -1,5 +1,4 @@
 import { useParams, Link } from "react-router-dom";
-import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProductById } from "@/lib/api";
 import { motion } from "framer-motion";
