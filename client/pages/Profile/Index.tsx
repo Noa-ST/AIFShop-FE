@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, Tab, Box, Button, TextField } from "@mui/material";
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const isSeller = user?.role === "Seller";
+
+  // If seller, only show two tabs (info, address). If customer, show orders as well.
+  const maxTabs = isSeller ? 2 : 3;
   const [tab, setTab] = useState(0);
+
+  // Ensure tab index is valid when role changes
+  useEffect(() => {
+    if (tab >= maxTabs) setTab(0);
+  }, [isSeller]);
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">
@@ -18,7 +27,7 @@ export default function ProfilePage() {
         >
           <Tab label="Thông tin cá nhân" />
           <Tab label="Địa chỉ" />
-          <Tab label="Đơn hàng" />
+          {!isSeller && <Tab label="Đơn hàng" />}
         </Tabs>
       </Box>
 
@@ -76,7 +85,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {tab === 2 && (
+        {tab === 2 && !isSeller && (
           <div>
             <div className="bg-white rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-medium mb-4">Lịch sử đơn hàng</h2>
