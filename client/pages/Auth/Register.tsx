@@ -45,9 +45,25 @@ export default function Register() {
         console.warn("Auto-login after register failed:", loginErr);
       }
 
-      // After login/register, navigate to role-based entry.
+      // After login/register, try to check shop existence for seller role
       if (data.role === "Seller") {
-        navigate("/seller/dashboard");
+        // attempt to determine user id set by loginUser
+        const userId = (await Promise.resolve()) && (localStorage.getItem("aifshop_userid") || (res && (res.id || res.userId || res.user?.id)));
+        if (userId) {
+          try {
+            const shop = await fetchShopBySeller(userId as string);
+            if (!shop || (Array.isArray(shop) && shop.length === 0)) {
+              navigate("/seller/create-shop");
+            } else {
+              navigate("/seller/dashboard");
+            }
+          } catch (err) {
+            console.warn("Shop check failed after register:", err);
+            navigate("/seller/dashboard");
+          }
+        } else {
+          navigate("/seller/dashboard");
+        }
       } else {
         navigate("/home");
       }
