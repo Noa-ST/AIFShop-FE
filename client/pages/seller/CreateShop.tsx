@@ -13,8 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { createShop } from "@/lib/api";
+import { createShop, fetchShopBySeller } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 export default function CreateShopPage() {
   const navigate = useNavigate();
@@ -28,6 +29,24 @@ export default function CreateShopPage() {
   // ✅ FIX: Lấy sellerId chính xác
   const sellerId = user?.id || null;
 
+  // On mount: if seller already has shop, redirect to home
+  useEffect(() => {
+    const check = async () => {
+      if (!sellerId) return;
+      try {
+        const shop = await fetchShopBySeller(sellerId);
+        if (shop && (!(Array.isArray(shop) && shop.length === 0))) {
+          // seller already has a shop; redirect to home (logged-in)
+          window.location.href = "/";
+        }
+      } catch (err) {
+        // If 404 or not found, keep showing form
+        console.warn("Shop existence check failed:", err);
+      }
+    };
+    check();
+  }, [sellerId]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -40,7 +59,7 @@ export default function CreateShopPage() {
 
     if (!sellerId) {
       alert("Không xác định Seller ID. Vui lòng đăng nhập lại.");
-      navigate("/login"); // Chuyển hướng nếu không có ID
+      window.location.href = "/login"; // Chuyển hướng nếu không có ID
       return;
     }
 
@@ -56,8 +75,14 @@ export default function CreateShopPage() {
 
       const res = await createShop(payload);
 
-      // ✅ CHUYỂN HƯỚNG THÀNH CÔNG: Quay lại Dashboard
-      navigate("/seller/dashboard");
+      // If backend returned created shop, redirect to dashboard
+      if (res && (res.id || res.shopId || res._id || res.name)) {
+        window.location.href = "/seller/dashboard";
+        return;
+      }
+
+      // Fallback: navigate to dashboard
+      window.location.href = "/seller/dashboard";
     } catch (err: any) {
       // Xử lý lỗi từ Backend (Lỗi 400 Bad Request)
       console.error("Lỗi tạo Shop:", err);
