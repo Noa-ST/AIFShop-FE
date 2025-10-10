@@ -78,7 +78,7 @@ export default function ProductDetail() {
                       aria-label={`Chọn ảnh ${idx + 1}`}
                       className={`relative z-50 w-20 h-20 rounded-md overflow-hidden ${mainImage === img ? "border-2 border-rose-600" : "border border-slate-200"}`}
                       style={{
-                        WebkitTapHighlightColor: "transparent"
+                        WebkitTapHighlightColor: "transparent",
                       }}
                     >
                       <img
