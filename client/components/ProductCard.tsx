@@ -21,7 +21,9 @@ export type Product = {
 export default function ProductCard({ product }: { product: Product }) {
   // Use the first product image url, fallback to shop logo, then placeholder
   const imageSrc =
-    product.productImages?.[0]?.url ?? product.shop?.logoUrl ?? "/placeholder.svg";
+    product.productImages?.[0]?.url ??
+    product.shop?.logoUrl ??
+    "/placeholder.svg";
 
   return (
     <Link to={`/products/${product.id}`} className="group">
