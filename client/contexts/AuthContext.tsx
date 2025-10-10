@@ -77,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("aifshop_role");
     localStorage.removeItem("aifshop_email");
     localStorage.removeItem("aifshop_fullname");
+    localStorage.removeItem("aifshop_userid");
     setUser(null);
     // Redirect to homepage when logging out. AuthProvider sits outside Router,
     // so use a hard redirect to ensure navigation works in all cases.
