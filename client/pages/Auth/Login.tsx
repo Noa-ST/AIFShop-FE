@@ -24,7 +24,11 @@ export default function Login() {
       const res = await loginUser(data);
       const role = (res.role || "Customer").toString();
       // try to determine user id
-      const userId = res.id || res.userId || res.user?.id || localStorage.getItem("aifshop_userid");
+      const userId =
+        res.id ||
+        res.userId ||
+        res.user?.id ||
+        localStorage.getItem("aifshop_userid");
 
       if (role.toLowerCase() === "seller") {
         // if we have userId, check if seller has shop
