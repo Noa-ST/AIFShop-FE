@@ -23,7 +23,7 @@ export default function CreateShopPage() {
     logo: "",
   });
   const { user } = useAuth();
-  const sellerId = user?.id || user?.userId || null;
+  const sellerId = user?.id || user?.id || null;
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
