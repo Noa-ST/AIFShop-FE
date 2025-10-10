@@ -66,19 +66,25 @@ export default function ProductDetail() {
               </motion.div>
 
               {images && images.length > 1 && (
-                <div className="mt-4 flex gap-2 overflow-x-auto z-0">
+                <div className="mt-4 flex gap-2 overflow-x-auto relative z-50">
                   {images.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setMainImage(img)}
+                      onClick={() => {
+                        // guard and set
+                        if (img) setMainImage(img);
+                      }}
                       aria-label={`Chọn ảnh ${idx + 1}`}
-                      className={`relative z-10 w-20 h-20 rounded-md overflow-hidden ${mainImage === img ? "border-2 border-rose-600" : "border border-slate-200"}`}
+                      className={`relative z-50 w-20 h-20 rounded-md overflow-hidden ${mainImage === img ? "border-2 border-rose-600" : "border border-slate-200"}`}
+                      style={{
+                        WebkitTapHighlightColor: "transparent"
+                      }}
                     >
                       <img
                         src={img}
                         alt={`thumb-${idx}`}
-                        className="w-full h-full object-cover pointer-events-none"
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src =
                             "/placeholder.svg";
