@@ -2,15 +2,26 @@ import { motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 
+export type ProductImageDto = {
+  id: string;
+  url: string;
+};
+
 export type Product = {
   id: string;
   name: string;
   price: number;
-  image: string;
+  // support new backend shape
+  productImages?: ProductImageDto[];
+  shop?: {
+    logoUrl?: string;
+  };
 };
 
 export default function ProductCard({ product }: { product: Product }) {
-  const imageSrc = product.image || "/placeholder.svg";
+  // Use the first product image url, fallback to shop logo, then placeholder
+  const imageSrc =
+    product.productImages?.[0]?.url ?? product.shop?.logoUrl ?? "/placeholder.svg";
 
   return (
     <Link to={`/products/${product.id}`} className="group">
