@@ -37,7 +37,15 @@ export default function Register() {
     setError(null);
     try {
       await registerUser({ ...data, role: data.role });
-      // After register, navigate to role-based entry. Backend may or may not auto-login.
+      // After successful register, attempt to auto-login so AuthContext is populated.
+      try {
+        await loginUser({ email: data.email, password: data.password });
+      } catch (loginErr) {
+        // If auto-login fails, continue to navigate and let user login manually
+        console.warn("Auto-login after register failed:", loginErr);
+      }
+
+      // After login/register, navigate to role-based entry.
       if (data.role === "Seller") {
         navigate("/seller/dashboard");
       } else {
