@@ -55,7 +55,11 @@ export default function CreateShopPage() {
     } catch (err: any) {
       // Show backend validation errors when possible
       console.error("Lỗi tạo Shop:", err);
-      const msg = err?.response?.data?.message || err?.response?.data || err?.message || "Không thể tạo Shop";
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        err?.message ||
+        "Không thể tạo Shop";
       alert(`Lỗi: ${msg}`);
     } finally {
       setIsLoading(false);
