@@ -1,3 +1,5 @@
+// File: client/pages/seller/CreateShop.tsx
+
 import {
   Card,
   CardHeader,
@@ -23,7 +25,8 @@ export default function CreateShopPage() {
     logo: "",
   });
   const { user } = useAuth();
-  const sellerId = user?.id || user?.id || null;
+  // ✅ FIX: Lấy sellerId chính xác
+  const sellerId = user?.id || null;
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -33,9 +36,11 @@ export default function CreateShopPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopData.name) return;
+    if (!shopData.name) return; // Frontend Validation: Tên không được rỗng
+
     if (!sellerId) {
       alert("Không xác định Seller ID. Vui lòng đăng nhập lại.");
+      navigate("/login"); // Chuyển hướng nếu không có ID
       return;
     }
 
@@ -46,14 +51,15 @@ export default function CreateShopPage() {
         name: shopData.name,
         description: shopData.description,
         logo: shopData.logo,
-        sellerId,
+        sellerId, // Gửi Seller ID
       };
 
       const res = await createShop(payload);
 
+      // ✅ CHUYỂN HƯỚNG THÀNH CÔNG: Quay lại Dashboard
       navigate("/seller/dashboard");
     } catch (err: any) {
-      // Show backend validation errors when possible
+      // Xử lý lỗi từ Backend (Lỗi 400 Bad Request)
       console.error("Lỗi tạo Shop:", err);
       const msg =
         err?.response?.data?.message ||
@@ -89,7 +95,7 @@ export default function CreateShopPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Mô tả Cửa h��ng</Label>
+              <Label htmlFor="description">Mô tả Cửa hàng</Label>
               <Textarea
                 id="description"
                 name="description"
