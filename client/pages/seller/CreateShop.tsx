@@ -34,6 +34,11 @@ export default function CreateShopPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopData.name) return;
+    if (!sellerId) {
+      alert("Không xác định Seller ID. Vui lòng đăng nhập lại.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -44,12 +49,14 @@ export default function CreateShopPage() {
         sellerId,
       };
 
-      await createShop(payload);
+      const res = await createShop(payload);
 
       navigate("/seller/dashboard");
-    } catch (error) {
-      console.error("Lỗi tạo Shop:", error);
-      alert("Lỗi: Không thể tạo Shop. Vui lòng thử lại.");
+    } catch (err: any) {
+      // Show backend validation errors when possible
+      console.error("Lỗi tạo Shop:", err);
+      const msg = err?.response?.data?.message || err?.response?.data || err?.message || "Không thể tạo Shop";
+      alert(`Lỗi: ${msg}`);
     } finally {
       setIsLoading(false);
     }
