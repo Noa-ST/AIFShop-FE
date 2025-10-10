@@ -1,7 +1,6 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller } from "@/lib/api";
 
