@@ -29,12 +29,7 @@ export default function ProductList() {
             data.map((p: any) => (
               <ProductCard
                 key={p.id}
-                product={{
-                  id: p.id,
-                  name: p.name || p.title || "Sản phẩm",
-                  price: p.price || 0,
-                  image: p.imageUrl || p.image || "/public/placeholder.svg",
-                }}
+                product={p}
               />
             ))}
         </div>
