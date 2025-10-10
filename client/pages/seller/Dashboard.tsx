@@ -56,13 +56,22 @@ export default function SellerDashboard() {
         <div className="flex gap-6">
           <aside className="w-64 hidden md:block">
             <div className="space-y-3">
-              <a href="/seller/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5">
+              <a
+                href="/seller/dashboard"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5"
+              >
                 {<Users size={18} />} Bảng điều khiển
               </a>
-              <a href="/seller/products" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5">
+              <a
+                href="/seller/products"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5"
+              >
                 {<Box size={18} />} Sản phẩm
               </a>
-              <a href="/seller/shop" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5">
+              <a
+                href="/seller/shop"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5"
+              >
                 {<BarChart2 size={18} />} Thông tin shop
               </a>
             </div>
@@ -70,9 +79,13 @@ export default function SellerDashboard() {
 
           <main className="flex-1">
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-semibold text-white">Bảng điều khiển Người bán</h1>
+              <h1 className="text-2xl font-semibold text-white">
+                Bảng điều khiển Người bán
+              </h1>
               <div>
-                <button className="px-4 py-2 rounded-full bg-gradient-to-r from-[#0EA5E9] to-[#22D3EE] text-black font-medium">Tạo sản phẩm</button>
+                <button className="px-4 py-2 rounded-full bg-gradient-to-r from-[#0EA5E9] to-[#22D3EE] text-black font-medium">
+                  Tạo sản phẩm
+                </button>
               </div>
             </div>
 
@@ -84,8 +97,13 @@ export default function SellerDashboard() {
             </div>
 
             <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)] rounded-2xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-2">Danh sách sản phẩm gần đây</h2>
-              <p className="text-sm text-slate-400">Chưa có dữ liệu. Dữ liệu thực sẽ được hiển thị khi shop có sản phẩm và đơn hàng.</p>
+              <h2 className="text-lg font-semibold text-white mb-2">
+                Danh sách sản phẩm gần đây
+              </h2>
+              <p className="text-sm text-slate-400">
+                Chưa có dữ liệu. Dữ liệu thực sẽ được hiển thị khi shop có sản
+                phẩm và đơn hàng.
+              </p>
             </div>
           </main>
         </div>
