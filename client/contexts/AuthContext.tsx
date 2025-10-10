@@ -50,7 +50,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const fullname = localStorage.getItem("aifshop_fullname");
     const id = localStorage.getItem("aifshop_userid");
     if (token && role && email) {
-      setUser({ id: id || undefined, email, fullname: fullname || undefined, role });
+      setUser({
+        id: id || undefined,
+        email,
+        fullname: fullname || undefined,
+        role,
+      });
     }
   }, []);
 
@@ -60,7 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const role = (res.role as Role) || "Customer";
     const email = payload.email;
     const fullname = res.fullname || res.name || undefined;
-    const id = (res.id || res.userId || res.user?.id || res?.data?.id) as string | undefined;
+    const id = (res.id || res.userId || res.user?.id || res?.data?.id) as
+      | string
+      | undefined;
 
     localStorage.setItem("aifshop_role", role);
     localStorage.setItem("aifshop_email", email);
