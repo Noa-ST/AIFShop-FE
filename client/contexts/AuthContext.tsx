@@ -73,7 +73,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("aifshop_email");
     localStorage.removeItem("aifshop_fullname");
     setUser(null);
-    // optional: navigate to login handled by caller
+    // Redirect to homepage when logging out. AuthProvider sits outside Router,
+    // so use a hard redirect to ensure navigation works in all cases.
+    try {
+      window.location.href = "/";
+    } catch (e) {
+      // Fallback: in non-browser environments do nothing
+      console.warn("Redirect to home failed:", e);
+    }
   };
 
   const registerUser = async (payload: RegisterPayload) => {

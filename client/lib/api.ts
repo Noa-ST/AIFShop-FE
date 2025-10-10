@@ -130,6 +130,12 @@ export const fetchProductsByShop = async (shopId: string) => {
   return res.data;
 };
 
+export const fetchShopBySeller = async (sellerId: string) => {
+  // Try common backend endpoint; adjust if your API uses a different path
+  const res = await api.get(`/api/shops/seller/${sellerId}`);
+  return res.data;
+};
+
 export const createShop = async (payload: {
   name: string;
   description?: string;
