@@ -27,7 +27,6 @@ function StatCard({
 }
 
 export default function SellerDashboard() {
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -40,16 +39,16 @@ export default function SellerDashboard() {
       try {
         const shop = await fetchShopBySeller(sellerId);
         if (!shop || (Array.isArray(shop) && shop.length === 0)) {
-          navigate("/seller/create-shop");
+          window.location.href = "/seller/create-shop";
         }
       } catch (err) {
         console.warn("Could not determine shop for seller:", err);
-        navigate("/seller/create-shop");
+        window.location.href = "/seller/create-shop";
       }
     };
 
     checkShop();
-  }, [user, navigate]);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-[#E2E8F0]">
