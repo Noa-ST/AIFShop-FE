@@ -2,7 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProductById } from "@/lib/api";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -12,23 +12,33 @@ export default function ProductDetail() {
     enabled: !!id,
   });
 
-  if (isLoading) return <div className="p-8">Đang tải...</div>;
-  if (error) return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
+  // ----------------------------------------------------
+  // Hooks must be called unconditionally at the top-level
+  // ----------------------------------------------------
+  const [mainImage, setMainImage] = useState<string>("/placeholder.svg");
 
+  // Now safe to compute product and images (not hooks)
   const product: any = data || {};
 
   // Normalize images from multiple possible shapes
   const images: string[] =
-    product?.productImages?.map((i: any) => i.url)
-      || product?.images?.map((i: any) => i.url)
-      || (product?.imageUrl ? [product.imageUrl] : null)
-      || (product?.image ? [product.image] : null)
-      || (product?.gallery?.map((i: any) => i.url) || []);
+    product?.productImages?.map((i: any) => i.url) ||
+    product?.images?.map((i: any) => i.url) ||
+    (product?.imageUrl ? [product.imageUrl] : null) ||
+    (product?.image ? [product.image] : null) ||
+    (product?.gallery?.map((i: any) => i.url) || []);
 
-  const [mainImage, setMainImage] = useState<string>(images && images.length ? images[0] : "/placeholder.svg");
+  // Keep mainImage in sync when images change
+  useEffect(() => {
+    if (images && images.length) setMainImage(images[0]);
+  }, [images]);
 
   // Shop info may be present in several shapes
   const shop = product?.shop || product?.shopInfo || product?.seller;
+
+  // Conditional returns (safe because hooks are already declared)
+  if (isLoading) return <div className="p-8">Đang tải...</div>;
+  if (error) return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
 
   return (
     <section className="py-12">
