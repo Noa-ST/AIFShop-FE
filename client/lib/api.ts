@@ -130,8 +130,13 @@ export const fetchProductsByShop = async (shopId: string) => {
   return res.data;
 };
 
-export const createShop = async (payload: { name: string; description?: string; logo?: string; sellerId?: string; }) => {
-  const res = await api.post('/api/shops', payload);
+export const createShop = async (payload: {
+  name: string;
+  description?: string;
+  logo?: string;
+  sellerId?: string;
+}) => {
+  const res = await api.post("/api/shops", payload);
   return res.data;
 };
 
