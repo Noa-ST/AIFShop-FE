@@ -142,7 +142,7 @@ export const createShop = async (payload: {
   logo?: string;
   sellerId?: string;
 }) => {
-  const res = await api.post("/api/shops", payload);
+  const res = await api.post("/api/Shops/create", payload);
   return res.data;
 };
 
