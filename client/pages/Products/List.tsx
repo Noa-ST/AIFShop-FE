@@ -25,13 +25,7 @@ export default function ProductList() {
         {error && <p className="text-red-500">Không thể tải sản phẩm</p>}
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {data &&
-            data.map((p: any) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-              />
-            ))}
+          {data && data.map((p: any) => <ProductCard key={p.id} product={p} />)}
         </div>
       </div>
     </section>
