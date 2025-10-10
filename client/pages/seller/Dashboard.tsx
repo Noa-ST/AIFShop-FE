@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
 import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller } from "@/lib/api";
 
@@ -35,8 +36,14 @@ export default function SellerDashboard() {
     if (!user || user?.role !== "Seller") return;
 
     const checkShop = async () => {
+      const sellerId = user.id || user.userId;
+      if (!sellerId) {
+        console.warn("Seller ID missing, cannot check shop");
+        return;
+      }
+
       try {
-        const shop = await fetchShopBySeller(user.id || user.userId || "");
+        const shop = await fetchShopBySeller(sellerId);
         // If API returns null/empty or an array with length 0, redirect to create-shop
         if (!shop || (Array.isArray(shop) && shop.length === 0)) {
           navigate("/seller/create-shop");
@@ -92,7 +99,7 @@ export default function SellerDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               <StatCard title="Doanh thu" value="—" icon={<DollarSign />} />
-              <StatCard title="Sản phẩm" value="—" icon={<Box />} />
+              <StatCard title="S���n phẩm" value="—" icon={<Box />} />
               <StatCard title="Đơn hàng" value="—" icon={<Users />} />
               <StatCard title="Lượt xem" value="—" icon={<BarChart2 />} />
             </div>
