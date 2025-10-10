@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { TextField, Button } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchShopBySeller } from "@/lib/api";
 
 type FormData = {
   email: string;
@@ -22,8 +23,29 @@ export default function Login() {
     try {
       const res = await loginUser(data);
       const role = (res.role || "Customer").toString();
-      if (role.toLowerCase() === "seller") navigate("/seller/dashboard");
-      else if (role.toLowerCase() === "admin") navigate("/admin/dashboard");
+      // try to determine user id
+      const userId = res.id || res.userId || res.user?.id || localStorage.getItem("aifshop_userid");
+
+      if (role.toLowerCase() === "seller") {
+        // if we have userId, check if seller has shop
+        if (userId) {
+          try {
+            const shop = await fetchShopBySeller(userId);
+            if (!shop || (Array.isArray(shop) && shop.length === 0)) {
+              navigate("/seller/create-shop");
+            } else {
+              navigate("/seller/dashboard");
+            }
+          } catch (err) {
+            // if API check fails, fallback to dashboard which will re-check
+            console.warn("Shop check failed after login:", err);
+            navigate("/seller/dashboard");
+          }
+        } else {
+          // no userId available, go to dashboard and let it handle the check
+          navigate("/seller/dashboard");
+        }
+      } else if (role.toLowerCase() === "admin") navigate("/admin/dashboard");
       else navigate("/home");
     } catch (e: any) {
       setError(e?.response?.data?.message || "Đăng nhập thất bại");
