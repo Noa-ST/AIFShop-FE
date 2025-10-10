@@ -4,7 +4,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller } from "@/lib/api"; // Hàm gọi API GET /api/shops/seller/{sellerId}
+import { fetchShopBySeller } from "@/lib/api";
 
 // Component phụ: StatCard (Giữ nguyên)
 function StatCard({
@@ -18,13 +18,19 @@ function StatCard({
 }) {
   return (
     <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 backdrop-blur-md">
+           {" "}
       <div className="flex items-start gap-4">
+               {" "}
         <div className="p-3 rounded-lg bg-[rgba(255,255,255,0.03)]">{icon}</div>
+               {" "}
         <div>
-          <div className="text-sm text-slate-300">{title}</div>
-          <div className="text-2xl font-semibold text-white">{value}</div>
+                    <div className="text-sm text-slate-300">{title}</div>       
+            <div className="text-2xl font-semibold text-white">{value}</div>   
+             {" "}
         </div>
+             {" "}
       </div>
+         {" "}
     </div>
   );
 }
@@ -35,10 +41,10 @@ export default function SellerDashboard() {
 
   // ✅ 1. TRẠNG THÁI: Quản lý việc kiểm tra đã xong chưa và thông tin Shop
   const [isShopChecked, setIsShopChecked] = useState(false);
-  const [shopInfo, setShopInfo] = useState<any>(null); // Lưu thông tin shop nếu tìm thấy
+  const [shopInfo, setShopInfo] = useState<any>(null);
 
   useEffect(() => {
-    // 1. Kiểm tra quyền và ID
+    // 1. Kiểm tra quyền
     if (!user || user?.role !== "Seller") {
       navigate("/login");
       return;
@@ -47,34 +53,33 @@ export default function SellerDashboard() {
     const checkShop = async () => {
       const sellerId = user.id;
       if (!sellerId) {
-        setIsShopChecked(true); // Đánh dấu đã kiểm tra nếu ID không hợp lệ
+        setIsShopChecked(true);
         return;
       }
 
       try {
-        // Backend trả về Shop (200 OK) hoặc ném lỗi 404 (Không tìm thấy)
+        // Lấy Shop: API trả về Shop (200 OK) hoặc ném lỗi 404 (Không tìm thấy)
         const shop = await fetchShopBySeller(sellerId);
 
-        // Nếu fetchShopBySeller trả về dữ liệu hợp lệ (Shop tồn tại)
+        // 1. Trường hợp thành công: Shop tồn tại
         if (shop && shop.id) {
           setShopInfo(shop);
         } else {
-          // Trường hợp API trả về 200 OK nhưng body rỗng (logic DTO)
+          // 2. Trường hợp API trả về 200 OK nhưng body rỗng (chưa có Shop)
           navigate("/seller/create-shop");
-          return;
+          return; // 🛑 DỪNG THỰC THI SAU KHI CHUYỂN HƯỚNG
         }
       } catch (err: any) {
-        // 🛑 XỬ LÝ LỖI 404: Tín hiệu Seller chưa có Shop
+        // 3. Trường hợp thất bại (LỖI 404/400): Tín hiệu Seller chưa có Shop
         if (
           err.response &&
           (err.response.status === 404 || err.response.status === 400)
         ) {
-          console.warn("Seller chưa có Shop, đang chuyển hướng tạo Shop.");
-          navigate("/seller/create-shop"); // ✅ Chuyển hướng thành công
-          return; // Dừng thực thi useEffect
+          navigate("/seller/create-shop");
+          return; // 🛑 DỪNG THỰC THI SAU KHI CHUYỂN HƯỚNG
         }
 
-        // Xử lý lỗi nghiêm trọng khác (500)
+        // Lỗi nghiêm trọng khác (500)
         console.error("Lỗi nghiêm trọng khi kiểm tra Shop:", err);
         navigate("/error");
         return;
@@ -85,7 +90,7 @@ export default function SellerDashboard() {
     };
 
     checkShop();
-  }, [user, navigate]);
+  }, [user, navigate]); // Dependencies: [user, navigate]
 
   // -------------------------------------------------------------------
   // ✅ ĐIỀU KIỆN RENDER: Chặn render nếu chưa kiểm tra xong
@@ -98,10 +103,9 @@ export default function SellerDashboard() {
     );
   }
 
-  // Nếu đã kiểm tra xong nhưng shopInfo vẫn null/false (có nghĩa là đã chuyển hướng)
-  // Logic này sẽ không bao giờ chạy tới nếu navigate thành công, nhưng an toàn để giữ.
+  // Nếu đã kiểm tra xong, nhưng không có shopInfo (có nghĩa là đã chuyển hướng thành công)
   if (!shopInfo) {
-    return null;
+    return null; // Tránh render Dashboard trống trong khi navigate đang xử lý
   }
 
   // -------------------------------------------------------------------
