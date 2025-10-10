@@ -15,6 +15,7 @@ import Register from "./pages/Auth/Register";
 import ProductList from "./pages/Products/List";
 import ProductDetail from "./pages/Products/Detail";
 import SellerDashboard from "./pages/seller/Dashboard";
+import CreateShopPage from "./pages/seller/CreateShop";
 import ShopDetail from "./pages/Shop/Detail";
 import ProfilePage from "./pages/Profile/Index";
 import { AuthProvider } from "./contexts/AuthContext";
