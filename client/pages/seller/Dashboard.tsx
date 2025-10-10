@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
 import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller } from "@/lib/api";
 
@@ -98,7 +99,7 @@ export default function SellerDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               <StatCard title="Doanh thu" value="—" icon={<DollarSign />} />
-              <StatCard title="Sản phẩm" value="—" icon={<Box />} />
+              <StatCard title="S���n phẩm" value="—" icon={<Box />} />
               <StatCard title="Đơn hàng" value="—" icon={<Users />} />
               <StatCard title="Lượt xem" value="—" icon={<BarChart2 />} />
             </div>
