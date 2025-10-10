@@ -1,5 +1,8 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
+import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchShopBySeller } from "@/lib/api";
 
 function StatCard({
   title,
@@ -24,6 +27,30 @@ function StatCard({
 }
 
 export default function SellerDashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Only run check for sellers
+    if (!user || user?.role !== "Seller") return;
+
+    const checkShop = async () => {
+      try {
+        const shop = await fetchShopBySeller(user.id || user.userId || "");
+        // If API returns null/empty or an array with length 0, redirect to create-shop
+        if (!shop || (Array.isArray(shop) && shop.length === 0)) {
+          navigate("/seller/create-shop");
+        }
+      } catch (err) {
+        // If 404 or not found, redirect to create shop; otherwise log
+        console.warn("Could not determine shop for seller:", err);
+        navigate("/seller/create-shop");
+      }
+    };
+
+    checkShop();
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-[#E2E8F0]">
       <div className="container mx-auto py-8">
