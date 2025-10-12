@@ -75,7 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         // Primary: backend expects path-based refresh: /api/Authencation/refresh/{refreshToken}
-        const resp = await api.post(`/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`);
+        const resp = await api.post(
+          `/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`,
+        );
         const {
           accessToken,
           refreshToken: newRefresh,
@@ -91,7 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
           if (newRole) localStorage.setItem("aifshop_role", newRole);
           if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-          if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+          if (newFullname)
+            localStorage.setItem("aifshop_fullname", newFullname);
           const finalId = newId || userId || id;
           if (finalId) localStorage.setItem("aifshop_userid", finalId);
 
@@ -107,7 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             role: finalRole,
           });
 
-          api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+          api.defaults.headers.common["Authorization"] =
+            `Bearer ${accessToken}`;
           return true;
         }
       } catch (err) {
@@ -135,7 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
             if (newRole) localStorage.setItem("aifshop_role", newRole);
             if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-            if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+            if (newFullname)
+              localStorage.setItem("aifshop_fullname", newFullname);
             const finalId = newId || userId || id;
             if (finalId) localStorage.setItem("aifshop_userid", finalId);
 
@@ -144,8 +149,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             const finalFullname = newFullname || fullname || undefined;
             const finalUserId = finalId || id || undefined;
 
-            setUser({ id: finalUserId, email: finalEmail, fullname: finalFullname, role: finalRole });
-            api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+            setUser({
+              id: finalUserId,
+              email: finalEmail,
+              fullname: finalFullname,
+              role: finalRole,
+            });
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${accessToken}`;
             return true;
           }
         } catch (err) {
