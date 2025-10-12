@@ -35,7 +35,7 @@ export default function Login() {
         if (userId) {
           try {
             const shop = await fetchShopBySeller(userId);
-            if (!shop || (Array.isArray(shop) && shop.length === 0)) {
+            if (!isShopPresent(shop)) {
               navigate("/seller/create-shop");
             } else {
               navigate("/seller/dashboard");
@@ -71,7 +71,7 @@ export default function Login() {
           />
           <TextField
             fullWidth
-            label="M��t khẩu"
+            label="Mật khẩu"
             type="password"
             {...r("password", { required: true })}
           />
