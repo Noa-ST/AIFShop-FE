@@ -52,25 +52,27 @@ export default function SellerDashboard() {
 
     const checkShop = async () => {
       const sellerId = user.id;
+      // Reset trạng thái tải
+      setIsShopChecked(false);
+      setShopInfo(null);
+
       if (!sellerId) {
         setIsShopChecked(true);
         return;
       }
 
       try {
-        // Lấy Shop: API trả về Shop (200 OK) hoặc ném lỗi 404 (Không tìm thấy)
         const shop = await fetchShopBySeller(sellerId);
 
-        // 1. Trường hợp thành công: Shop tồn tại
         if (shop && shop.id) {
           setShopInfo(shop);
         } else {
-          // 2. Trường hợp API trả về 200 OK nhưng body rỗng (chưa có Shop)
+          // Trường hợp API trả về 200 OK nhưng body rỗng (chưa có Shop)
           navigate("/seller/create-shop");
           return; // 🛑 DỪNG THỰC THI SAU KHI CHUYỂN HƯỚNG
         }
       } catch (err: any) {
-        // 3. Trường hợp thất bại (LỖI 404/400): Tín hiệu Seller chưa có Shop
+        // Trường hợp thất bại: LỖI 404/400 (Chưa có Shop)
         if (
           err.response &&
           (err.response.status === 404 || err.response.status === 400)
@@ -79,7 +81,6 @@ export default function SellerDashboard() {
           return; // 🛑 DỪNG THỰC THI SAU KHI CHUYỂN HƯỚNG
         }
 
-        // Lỗi nghiêm trọng khác (500)
         console.error("Lỗi nghiêm trọng khi kiểm tra Shop:", err);
         navigate("/error");
         return;
@@ -105,11 +106,11 @@ export default function SellerDashboard() {
 
   // Nếu đã kiểm tra xong, nhưng không có shopInfo (có nghĩa là đã chuyển hướng thành công)
   if (!shopInfo) {
-    return null; // Tránh render Dashboard trống trong khi navigate đang xử lý
+    return null;
   }
 
   // -------------------------------------------------------------------
-  // ✅ RENDER DASHBOARD CHỈ KHI isShopChecked LÀ TRUE VÀ shopInfo CÓ DỮ LIỆU
+  // ✅ RENDER DASHBOARD CHỈ KHI CÓ SHOP INFO
   // -------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-[#0F172A] text-[#E2E8F0]">
