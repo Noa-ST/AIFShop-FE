@@ -52,16 +52,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const email = localStorage.getItem("aifshop_email");
     const fullname = localStorage.getItem("aifshop_fullname");
     const id = localStorage.getItem("aifshop_userid");
-    if (token && role && email) {
-      setUser({
-        id: id || undefined,
-        email,
-        fullname: fullname || undefined,
-        role,
-      });
-    }
-    // mark initialized regardless so pages don't redirect prematurely
-    setInitialized(true);
+
+    const tryRefresh = async (refreshToken: string) => {
+      try {
+        // Use api (axios) to call refresh endpoint; it uses baseURL
+        const resp = await api.post("/api/auth/refresh", { refreshToken });
+        const { accessToken, refreshToken: newRefresh, role: newRole, fullname: newFullname, email: newEmail, id: newId, userId } = resp.data;
+        if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
+        if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
+        if (newRole) localStorage.setItem("aifshop_role", newRole);
+        if (newEmail) localStorage.setItem("aifshop_email", newEmail);
+        if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+        const finalId = newId || userId || id;
+        if (finalId) localStorage.setItem("aifshop_userid", finalId);
+
+        // Set user from refreshed data if available
+        const finalRole = (newRole as Role) || role || "Customer";
+        const finalEmail = newEmail || email || "";
+        const finalFullname = newFullname || fullname || undefined;
+        const finalUserId = finalId || id || undefined;
+
+        setUser({ id: finalUserId, email: finalEmail, fullname: finalFullname, role: finalRole });
+        return true;
+      } catch (err) {
+        console.warn("Refresh token failed:", err);
+        // clear tokens
+        localStorage.removeItem(ACCESS_KEY);
+        localStorage.removeItem(REFRESH_KEY);
+        localStorage.removeItem("aifshop_role");
+        localStorage.removeItem("aifshop_email");
+        localStorage.removeItem("aifshop_fullname");
+        localStorage.removeItem("aifshop_userid");
+        return false;
+      }
+    };
+
+    (async () => {
+      if (token && role && email) {
+        setUser({ id: id || undefined, email, fullname: fullname || undefined, role });
+        setInitialized(true);
+        return;
+      }
+
+      const refresh = localStorage.getItem(REFRESH_KEY);
+      if (refresh) {
+        const ok = await tryRefresh(refresh);
+        setInitialized(true);
+        return;
+      }
+
+      // no tokens
+      setInitialized(true);
+    })();
   }, []);
 
   const loginUser = async (payload: LoginPayload) => {
