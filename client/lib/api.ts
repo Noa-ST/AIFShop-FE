@@ -165,6 +165,22 @@ export const fetchShopBySeller = async (sellerId: string) => {
   throw new Error("Shop not found for seller: " + sellerId);
 };
 
+// Utility: Normalize a variety of backend responses into a boolean: does the seller have a shop?
+export const isShopPresent = (shop: any) => {
+  if (!shop) return false;
+  // If backend returns an array of shops
+  if (Array.isArray(shop)) return shop.length > 0;
+  // If backend returns a boolean flag
+  if (typeof shop === "boolean") return shop;
+  // If backend returns an object with common identifiers
+  if (typeof shop === "object") {
+    return Boolean(
+      shop.id || shop._id || shop.shopId || shop.name || shop.name?.length
+    );
+  }
+  return false;
+};
+
 export const createShop = async (payload: {
   name: string;
   description?: string;
