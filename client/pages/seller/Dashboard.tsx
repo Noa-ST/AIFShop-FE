@@ -117,22 +117,41 @@ export default function SellerDashboard() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
       <div className="container mx-auto py-10">
         <h1 className="text-3xl font-bold mb-6">
-          Tổng quan Cửa hàng: <span className="text-primary">{shopInfo.name}</span>
+          Tổng quan Cửa hàng:{" "}
+          <span className="text-primary">{shopInfo.name}</span>
         </h1>
 
         {/* KPI */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-          <StatCard title="Doanh thu Tháng này" value="15,200,000₫" icon={<DollarSign size={20} />} />
-          <StatCard title="Đơn hàng mới" value="12" icon={<Users size={20} />} />
-          <StatCard title="SP đang hoạt động" value="150" icon={<Box size={20} />} />
-          <StatCard title="Đánh giá TB" value="4.7 / 5" icon={<BarChart2 size={20} />} />
+          <StatCard
+            title="Doanh thu Tháng này"
+            value="15,200,000₫"
+            icon={<DollarSign size={20} />}
+          />
+          <StatCard
+            title="Đơn hàng mới"
+            value="12"
+            icon={<Users size={20} />}
+          />
+          <StatCard
+            title="SP đang hoạt động"
+            value="150"
+            icon={<Box size={20} />}
+          />
+          <StatCard
+            title="Đánh giá TB"
+            value="4.7 / 5"
+            icon={<BarChart2 size={20} />}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow p-4">
               <div className="px-4 py-3 border-b">
-                <h3 className="text-lg font-semibold">Doanh thu 30 ngày gần nhất</h3>
+                <h3 className="text-lg font-semibold">
+                  Doanh thu 30 ngày gần nhất
+                </h3>
               </div>
               <div className="p-4 h-64 bg-slate-50 flex items-center justify-center text-slate-500">
                 <svg viewBox="0 0 100 30" className="w-full h-40">
@@ -149,24 +168,40 @@ export default function SellerDashboard() {
 
           <div className="space-y-4">
             <RouterLink to="/seller/products/create" className="block">
-              <button className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-md font-semibold">+ TẠO SẢN PHẨM MỚI</button>
+              <button className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-md font-semibold">
+                + TẠO SẢN PHẨM MỚI
+              </button>
             </RouterLink>
 
             <RouterLink to="/seller/orders?status=pending" className="block">
-              <button className="w-full h-12 border rounded-md">Xử lý Đơn hàng (12)</button>
+              <button className="w-full h-12 border rounded-md">
+                Xử lý Đơn hàng (12)
+              </button>
             </RouterLink>
 
             <div className="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded-md">
               <div className="font-semibold">Cảnh báo tồn kho!</div>
-              <div className="text-sm mt-1">Có 5 sản phẩm sắp hết hàng. <RouterLink to="/seller/products" className="font-semibold underline">Kiểm tra ngay.</RouterLink></div>
+              <div className="text-sm mt-1">
+                Có 5 sản phẩm sắp hết hàng.{" "}
+                <RouterLink
+                  to="/seller/products"
+                  className="font-semibold underline"
+                >
+                  Kiểm tra ngay.
+                </RouterLink>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Danh sách sản phẩm gần đây</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Danh sách sản phẩm gần đây
+          </h2>
           <div className="bg-white rounded-2xl p-6 shadow">
-            <p className="text-sm text-slate-600">Chưa có dữ liệu. Shop: {shopInfo.name} đang hoạt động.</p>
+            <p className="text-sm text-slate-600">
+              Chưa có dữ liệu. Shop: {shopInfo.name} đang hoạt động.
+            </p>
           </div>
         </div>
       </div>

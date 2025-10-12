@@ -23,19 +23,30 @@ export default function ProfilePage() {
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-6">
           <TabsTrigger value="info">Thông tin cá nhân</TabsTrigger>
           <TabsTrigger value="address">Địa chỉ giao hàng</TabsTrigger>
-          {!isSeller && <TabsTrigger value="orders">Đ��n hàng của tôi</TabsTrigger>}
+          {!isSeller && (
+            <TabsTrigger value="orders">Đ��n hàng của tôi</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="info">
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-medium mb-4">Cập nhật thông tin</h2>
             <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input placeholder="Họ và tên" defaultValue={user?.fullname || ""} />
-              <Input placeholder="Email" defaultValue={user?.email || ""} disabled />
+              <Input
+                placeholder="Họ và tên"
+                defaultValue={user?.fullname || ""}
+              />
+              <Input
+                placeholder="Email"
+                defaultValue={user?.email || ""}
+                disabled
+              />
               <Input placeholder="Số điện thoại" defaultValue={""} />
               <Input type="date" placeholder="Ngày sinh" />
               <div className="md:col-span-2 flex justify-end">
-                <Button className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">Lưu thay đổi</Button>
+                <Button className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">
+                  Lưu thay đổi
+                </Button>
               </div>
             </form>
           </div>
