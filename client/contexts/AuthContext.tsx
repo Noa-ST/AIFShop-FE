@@ -78,6 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (import.meta.env.VITE_API_BASE as string) ||
         "https://localhost:7109";
 
+      if (!refreshToken) return false;
+
       try {
         // 1) Try path-based GET using raw axios to avoid interceptor recursion
         try {

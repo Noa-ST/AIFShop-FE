@@ -159,7 +159,7 @@ api.interceptors.response.use(
 );
 
 export const register = async (payload: any) => {
-  const res = await api.post("/api/Authencation/register", payload);
+  const res = await api.post("/api/Authencation/create", payload);
   return res.data;
 };
 
