@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { TextField, Button } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, isShopPresent } from "@/lib/api";
 
 type FormData = {
   email: string;
@@ -23,34 +22,14 @@ export default function Login() {
     try {
       const res = await loginUser(data);
       const role = (res.role || "Customer").toString();
-      // try to determine user id
-      const userId =
-        res.id ||
-        res.userId ||
-        res.user?.id ||
-        localStorage.getItem("aifshop_userid");
 
       if (role.toLowerCase() === "seller") {
-        // if we have userId, check if seller has shop
-        if (userId) {
-          try {
-            const shop = await fetchShopBySeller(userId);
-            if (!isShopPresent(shop)) {
-              navigate("/seller/create-shop");
-            } else {
-              navigate("/seller/dashboard");
-            }
-          } catch (err) {
-            // if API check fails, fallback to dashboard which will re-check
-            console.warn("Shop check failed after login:", err);
-            navigate("/seller/dashboard");
-          }
-        } else {
-          // no userId available, go to dashboard and let it handle the check
-          navigate("/seller/dashboard");
-        }
-      } else if (role.toLowerCase() === "admin") navigate("/admin/dashboard");
-      else navigate("/home");
+        navigate("/seller/dashboard");
+      } else if (role.toLowerCase() === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/home");
+      }
     } catch (e: any) {
       setError(e?.response?.data?.message || "Đăng nhập thất bại");
     } finally {
@@ -61,7 +40,7 @@ export default function Login() {
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-20">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-        <h2 className="text-2xl font-semibold mb-4">Đăng nhập</h2>
+        <h2 className="text-2xl font-semibold mb-4">Đăng nhập</h2>     {" "}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             fullWidth
@@ -90,11 +69,11 @@ export default function Login() {
               href="/register"
               className="text-sm text-slate-600 hover:underline"
             >
-              Đăng ký
-            </a>
-          </div>
-        </form>
-      </div>
+              Đăng ký{" "}
+            </a>{" "}
+          </div>{" "}
+        </form>{" "}
+      </div>{" "}
     </div>
   );
 }
