@@ -74,7 +74,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       let lastErr: any = null;
 
       try {
-        // Primary: backend expects path-based refresh: /api/Authencation/refresh/{refreshToken}
         const resp = await api.post(
           `/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`,
         );
