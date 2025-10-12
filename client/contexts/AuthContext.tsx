@@ -42,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     // initialize from localStorage if token exists
@@ -58,6 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         role,
       });
     }
+    // mark initialized regardless so pages don't redirect prematurely
+    setInitialized(true);
   }, []);
 
   const loginUser = async (payload: LoginPayload) => {
