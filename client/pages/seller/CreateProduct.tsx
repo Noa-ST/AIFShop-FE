@@ -40,10 +40,13 @@ export default function CreateProduct() {
     onSuccess: () => {
       navigate("/seller/products");
     },
-    onError: (err: any) => alert(err?.response?.data?.message || "Tạo sản phẩm thất bại"),
+    onError: (err: any) =>
+      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại"),
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -58,7 +61,10 @@ export default function CreateProduct() {
       price: Number(form.price || 0),
       stockQuantity: Number(form.stockQuantity || 0),
       description: form.description,
-      productImages: (form.images || "").split(",").map((u) => ({ url: u.trim() })).filter((u) => u.url),
+      productImages: (form.images || "")
+        .split(",")
+        .map((u) => ({ url: u.trim() }))
+        .filter((u) => u.url),
       shopId,
     };
     mutation.mutate(payload);
@@ -67,7 +73,10 @@ export default function CreateProduct() {
   return (
     <div className="container py-8 max-w-2xl">
       <h1 className="text-3xl font-bold mb-6">Tạo Sản phẩm mới</h1>
-      <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-2xl shadow">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 bg-white p-6 rounded-2xl shadow"
+      >
         <div>
           <label className="block text-sm font-medium mb-1">Tên sản phẩm</label>
           <Input name="name" value={form.name} onChange={handleChange} />
@@ -79,15 +88,26 @@ export default function CreateProduct() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Tồn kho</label>
-            <Input name="stockQuantity" value={form.stockQuantity} onChange={handleChange} />
+            <Input
+              name="stockQuantity"
+              value={form.stockQuantity}
+              onChange={handleChange}
+            />
           </div>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Mô tả</label>
-          <Textarea name="description" rows={6} value={form.description} onChange={handleChange} />
+          <Textarea
+            name="description"
+            rows={6}
+            value={form.description}
+            onChange={handleChange}
+          />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Hình ảnh (URL, cách nhau bằng ,)</label>
+          <label className="block text-sm font-medium mb-1">
+            Hình ảnh (URL, cách nhau bằng ,)
+          </label>
           <Input name="images" value={form.images} onChange={handleChange} />
         </div>
         <div className="flex justify-end">
