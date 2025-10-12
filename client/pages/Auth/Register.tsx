@@ -10,7 +10,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller } from "@/lib/api";
+import { fetchShopBySeller, isShopPresent } from "@/lib/api";
 
 type FormData = {
   fullname: string;
