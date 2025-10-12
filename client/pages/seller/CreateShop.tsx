@@ -78,14 +78,14 @@ export default function CreateShopPage() {
 
       // If backend returned created shop, redirect to dashboard
       if (res && (res.id || res.shopId || res._id || res.name)) {
-        window.location.href = "/seller/dashboard";
+        navigate("/seller/dashboard");
         return;
       }
 
       // Fallback: navigate to dashboard
-      window.location.href = "/seller/dashboard";
+      navigate("/seller/dashboard");
     } catch (err: any) {
-      // Xử lý lỗi từ Backend (L���i 400 Bad Request)
+      // Xử lý lỗi từ Backend (Lỗi 400 Bad Request)
       console.error("Lỗi tạo Shop:", err);
       const msg =
         err?.response?.data?.message ||
