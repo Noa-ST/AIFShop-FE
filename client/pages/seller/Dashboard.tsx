@@ -64,8 +64,9 @@ export default function SellerDashboard() {
       try {
         const shop = await fetchShopBySeller(sellerId);
 
-        if (shop && shop.id) {
-          setShopInfo(shop);
+        // Use helper to decide presence and normalize shape
+        if (isShopPresent(shop)) {
+          setShopInfo(Array.isArray(shop) ? shop[0] : shop);
         } else {
           // Trường hợp API trả về 200 OK nhưng body rỗng (chưa có Shop)
           navigate("/seller/create-shop");
