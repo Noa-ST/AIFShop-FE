@@ -10,7 +10,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export default function SiteHeader() {
-  const { isAuthenticated, user, logoutUser } = useAuth();
+  const { isAuthenticated, user, logoutUser, initialized } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
