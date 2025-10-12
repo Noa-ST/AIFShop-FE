@@ -38,6 +38,7 @@ export const useAuth = () => {
 };
 
 const ACCESS_KEY = "aifshop_token";
+const REFRESH_KEY = "aifshop_refresh";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
