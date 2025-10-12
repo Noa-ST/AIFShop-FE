@@ -1,3 +1,5 @@
+// File: client/pages/Auth/Register.tsx
+
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -10,7 +12,8 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, isShopPresent } from "@/lib/api";
+// ❌ FIX: Loại bỏ import fetchShopBySeller, isShopPresent (gây lỗi)
+// import { fetchShopBySeller, isShopPresent } from "@/lib/api";
 
 type FormData = {
   fullname: string;
@@ -37,34 +40,17 @@ export default function Register() {
     setLoading(true);
     setError(null);
     try {
-      await registerUser({ ...data, role: data.role });
-      // After successful register, attempt to auto-login so AuthContext is populated.
+      await registerUser({ ...data, role: data.role }); // After successful register, attempt to auto-login so AuthContext is populated.
       try {
         await loginUser({ email: data.email, password: data.password });
       } catch (loginErr) {
         // If auto-login fails, continue to navigate and let user login manually
         console.warn("Auto-login after register failed:", loginErr);
-      }
+      } // ✅ FIX: Đơn giản hóa logic chuyển hướng.
 
-      // After login/register, try to check shop existence for seller role
+      // Để Dashboard.tsx tự kiểm tra Shop và chuyển hướng đến trang Tạo Shop.
       if (data.role === "Seller") {
-        // Determine user id from localStorage that AuthContext/loginUser should have set
-        const userId = localStorage.getItem("aifshop_userid");
-        if (userId) {
-          try {
-            const shop = await fetchShopBySeller(userId as string);
-            if (!isShopPresent(shop)) {
-              navigate("/seller/create-shop");
-            } else {
-              navigate("/seller/dashboard");
-            }
-          } catch (err) {
-            console.warn("Shop check failed after register:", err);
-            navigate("/seller/dashboard");
-          }
-        } else {
-          navigate("/seller/dashboard");
-        }
+        navigate("/seller/dashboard");
       } else {
         navigate("/home");
       }
@@ -77,20 +63,24 @@ export default function Register() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-20">
+           {" "}
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-        <h2 className="text-2xl font-semibold mb-4">Đăng ký</h2>
+                <h2 className="text-2xl font-semibold mb-4">Đăng ký</h2>       {" "}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                   {" "}
           <TextField
             fullWidth
             label="Họ tên"
             {...r("fullname", { required: "Vui lòng nhập họ tên" })}
           />
+                   {" "}
           <TextField
             fullWidth
             label="Email"
             type="email"
             {...r("email", { required: "Vui lòng nhập email" })}
           />
+                   {" "}
           <TextField
             fullWidth
             label="Mật khẩu"
@@ -100,6 +90,7 @@ export default function Register() {
               minLength: { value: 8, message: "Mật khẩu ít nhất 8 ký tự" },
             })}
           />
+                   {" "}
           <TextField
             fullWidth
             label="Xác nhận mật khẩu"
@@ -109,23 +100,28 @@ export default function Register() {
               validate: (v) => v === password || "Mật khẩu không khớp",
             })}
           />
-
+                   {" "}
           <FormControl fullWidth>
-            <InputLabel id="role-label">Vai trò</InputLabel>
+                        <InputLabel id="role-label">Vai trò</InputLabel>       
+               {" "}
             <Select
               labelId="role-label"
               defaultValue="Customer"
               label="Vai trò"
               {...r("role")}
             >
-              <MenuItem value="Customer">Customer (Khách hàng)</MenuItem>
-              <MenuItem value="Seller">Seller (Người bán)</MenuItem>
+                           {" "}
+              <MenuItem value="Customer">Customer (Khách hàng)</MenuItem>       
+                    <MenuItem value="Seller">Seller (Người bán)</MenuItem>     
+                   {" "}
             </Select>
+                     {" "}
           </FormControl>
-
-          {error && <div className="text-sm text-red-500">{error}</div>}
-
+                   {" "}
+          {error && <div className="text-sm text-red-500">{error}</div>}       
+           {" "}
           <div className="flex items-center justify-between">
+                       {" "}
             <Button
               variant="contained"
               color="primary"
@@ -133,14 +129,20 @@ export default function Register() {
               disabled={loading}
               className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]"
             >
-              {loading ? "Đang xử lý..." : "Đăng ký"}
+                            {loading ? "Đang xử lý..." : "Đăng ký"}         
+               {" "}
             </Button>
+                       {" "}
             <a href="/login" className="text-sm text-slate-600 hover:underline">
-              Đã có tài khoản?
+                            Đã có tài khoản?            {" "}
             </a>
+                     {" "}
           </div>
+                 {" "}
         </form>
+             {" "}
       </div>
+         {" "}
     </div>
   );
 }
