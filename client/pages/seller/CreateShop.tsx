@@ -35,7 +35,7 @@ export default function CreateShopPage() {
       if (!sellerId) return;
       try {
         const shop = await fetchShopBySeller(sellerId);
-        if (shop && (!(Array.isArray(shop) && shop.length === 0))) {
+        if (shop && !(Array.isArray(shop) && shop.length === 0)) {
           // seller already has a shop; redirect to seller dashboard
           navigate("/seller/dashboard");
           return;
