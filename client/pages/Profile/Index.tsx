@@ -20,22 +20,40 @@ export default function ProfilePage() {
       <h1 className="text-3xl font-bold mb-6">Hồ sơ cá nhân</h1>
 
       <Tabs defaultValue={tab} onValueChange={(v) => setTab(v)}>
-        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: isSeller ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)' }}>
+        <TabsList
+          className="grid w-full mb-6"
+          style={{
+            gridTemplateColumns: isSeller ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
+          }}
+        >
           <TabsTrigger value="info">Thông tin cơ bản</TabsTrigger>
-          <TabsTrigger value="secondary">{isSeller ? "Thông tin Shop" : "Địa chỉ giao hàng"}</TabsTrigger>
-          {!isSeller && <TabsTrigger value="orders">Đơn hàng của tôi</TabsTrigger>}
+          <TabsTrigger value="secondary">
+            {isSeller ? "Thông tin Shop" : "Địa chỉ giao hàng"}
+          </TabsTrigger>
+          {!isSeller && (
+            <TabsTrigger value="orders">Đơn hàng của tôi</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="info">
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-medium mb-4">Cập nhật thông tin</h2>
             <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input placeholder="Họ và tên" defaultValue={user?.fullname || ""} />
-              <Input placeholder="Email" defaultValue={user?.email || ""} disabled />
+              <Input
+                placeholder="Họ và tên"
+                defaultValue={user?.fullname || ""}
+              />
+              <Input
+                placeholder="Email"
+                defaultValue={user?.email || ""}
+                disabled
+              />
               <Input placeholder="Số điện thoại" defaultValue={""} />
               <Input type="date" placeholder="Ngày sinh" />
               <div className="md:col-span-2 flex justify-end">
-                <Button className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">Lưu thay đổi</Button>
+                <Button className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">
+                  Lưu thay đổi
+                </Button>
               </div>
             </form>
           </div>
