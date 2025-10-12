@@ -60,7 +60,7 @@ export default function CreateShopPage() {
 
     if (!sellerId) {
       alert("Không xác định Seller ID. Vui lòng đăng nhập lại.");
-      window.location.href = "/login"; // Chuyển hướng nếu không có ID
+      navigate("/login"); // Chuyển hướng nếu không có ID
       return;
     }
 
