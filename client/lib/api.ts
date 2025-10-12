@@ -78,7 +78,8 @@ api.interceptors.response.use(
             if (accessToken) {
               localStorage.setItem(ACCESS_KEY, accessToken);
               if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-              api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+              api.defaults.headers.common["Authorization"] =
+                `Bearer ${accessToken}`;
               processQueue(null, accessToken);
               refreshed = true;
               break;

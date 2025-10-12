@@ -34,7 +34,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    console.warn("useAuth called outside AuthProvider - returning safe defaults");
+    console.warn(
+      "useAuth called outside AuthProvider - returning safe defaults",
+    );
     const noopAsync = async () => {
       throw new Error("AuthProvider is not mounted");
     };
