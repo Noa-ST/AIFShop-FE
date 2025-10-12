@@ -73,7 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const tryRefresh = async (refreshToken: string) => {
       let lastErr: any = null;
-      const base = (api && (api.defaults as any).baseURL) || (import.meta.env.VITE_API_BASE as string) || "https://localhost:7109";
+      const base =
+        (api && (api.defaults as any).baseURL) ||
+        (import.meta.env.VITE_API_BASE as string) ||
+        "https://localhost:7109";
 
       try {
         // 1) Try path-based GET using raw axios to avoid interceptor recursion
@@ -96,7 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
             if (newRole) localStorage.setItem("aifshop_role", newRole);
             if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-            if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+            if (newFullname)
+              localStorage.setItem("aifshop_fullname", newFullname);
             const finalId = newId || userId || id;
             if (finalId) localStorage.setItem("aifshop_userid", finalId);
 
@@ -112,7 +116,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               role: finalRole,
             });
 
-            api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${accessToken}`;
             return true;
           }
         } catch (err) {
@@ -139,7 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
             if (newRole) localStorage.setItem("aifshop_role", newRole);
             if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-            if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+            if (newFullname)
+              localStorage.setItem("aifshop_fullname", newFullname);
             const finalId = newId || userId || id;
             if (finalId) localStorage.setItem("aifshop_userid", finalId);
 
@@ -155,7 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               role: finalRole,
             });
 
-            api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${accessToken}`;
             return true;
           }
         } catch (err) {
@@ -182,7 +189,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
               if (newRole) localStorage.setItem("aifshop_role", newRole);
               if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-              if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+              if (newFullname)
+                localStorage.setItem("aifshop_fullname", newFullname);
               const finalId = newId || userId || id;
               if (finalId) localStorage.setItem("aifshop_userid", finalId);
 
@@ -198,7 +206,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 role: finalRole,
               });
 
-              api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+              api.defaults.headers.common["Authorization"] =
+                `Bearer ${accessToken}`;
               return true;
             }
           } catch (err) {
