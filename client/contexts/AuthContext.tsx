@@ -122,6 +122,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           fullname: fullname || undefined,
           role,
         });
+        // set axios header to use token
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         setInitialized(true);
         return;
       }
@@ -129,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const refresh = localStorage.getItem(REFRESH_KEY);
       if (refresh) {
         const ok = await tryRefresh(refresh);
+        // tryRefresh already sets axios header when successful
         setInitialized(true);
         return;
       }
