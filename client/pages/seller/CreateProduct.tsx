@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 export default function CreateProduct() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
   const navigate = useNavigate();
+  if (!initialized) return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
   const sellerId = user?.id;
 
   const { data: shop } = useQuery({
