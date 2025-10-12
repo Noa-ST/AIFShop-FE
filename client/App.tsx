@@ -58,6 +58,7 @@ const App = () => (
                   element={<ProductManagement />}
                 />
                 <Route path="/seller/shop" element={<ShopInfo />} />
+                <Route path="/seller/shop-management" element={<ShopManagement />} />
                 <Route
                   path="/seller/create-shop"
                   element={<CreateShopPage />}
