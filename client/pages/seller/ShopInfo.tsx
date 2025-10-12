@@ -29,7 +29,8 @@ export default function ShopInfo() {
   });
 
   const { initialized } = useAuth();
-  if (!initialized) return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
+  if (!initialized)
+    return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
 
   const normalized = shop && (Array.isArray(shop) ? shop[0] : shop);
 

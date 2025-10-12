@@ -95,7 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           });
           // ensure axios uses the new access token
           const savedToken = localStorage.getItem(ACCESS_KEY);
-          if (savedToken) api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+          if (savedToken)
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${savedToken}`;
           return true;
         } catch (err) {
           lastErr = err;
@@ -158,7 +160,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // ensure axios header is set
     const savedToken = localStorage.getItem(ACCESS_KEY);
-    if (savedToken) api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+    if (savedToken)
+      api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
 
     setUser({ id: id || undefined, email, fullname, role });
     return res;
