@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { TextField, Button } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller } from "@/lib/api";
+import { fetchShopBySeller, isShopPresent } from "@/lib/api";
 
 type FormData = {
   email: string;
@@ -71,7 +71,7 @@ export default function Login() {
           />
           <TextField
             fullWidth
-            label="Mật khẩu"
+            label="M��t khẩu"
             type="password"
             {...r("password", { required: true })}
           />
