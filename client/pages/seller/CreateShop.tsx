@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { createShop, fetchShopBySeller } from "@/lib/api";
+import { createShop, fetchShopBySeller, isShopPresent } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
