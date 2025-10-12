@@ -63,15 +63,38 @@ api.interceptors.response.use(
       isRefreshing = true;
       const refreshToken = localStorage.getItem(REFRESH_KEY);
       try {
-        const resp = await axios.post(`${API_BASE}/api/auth/refresh`, {
-          refreshToken,
-        });
-        const { accessToken, refreshToken: newRefresh } = resp.data;
-        localStorage.setItem(ACCESS_KEY, accessToken);
-        if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-        api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-        processQueue(null, accessToken);
-        return api(originalRequest);
+        const candidates = [
+          `${API_BASE}/api/auth/refresh`,
+          `${API_BASE}/api/Authencation/refresh`,
+          `${API_BASE}/api/Auth/refresh`,
+          `${API_BASE}/api/Authencation/Refresh`,
+        ];
+        let refreshed = false;
+        let lastErr: any = null;
+        for (const url of candidates) {
+          try {
+            const resp = await axios.post(url, { refreshToken });
+            const { accessToken, refreshToken: newRefresh } = resp.data;
+            if (accessToken) {
+              localStorage.setItem(ACCESS_KEY, accessToken);
+              if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
+              api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+              processQueue(null, accessToken);
+              refreshed = true;
+              break;
+            }
+          } catch (err) {
+            lastErr = err;
+            continue;
+          }
+        }
+
+        if (refreshed) return api(originalRequest);
+
+        processQueue(lastErr, null);
+        localStorage.removeItem(ACCESS_KEY);
+        localStorage.removeItem(REFRESH_KEY);
+        return Promise.reject(lastErr);
       } catch (e) {
         processQueue(e, null);
         localStorage.removeItem(ACCESS_KEY);
