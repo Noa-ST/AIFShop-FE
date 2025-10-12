@@ -156,18 +156,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (fullname) localStorage.setItem("aifshop_fullname", fullname);
     if (id) localStorage.setItem("aifshop_userid", id);
 
+    // ensure axios header is set
+    const savedToken = localStorage.getItem(ACCESS_KEY);
+    if (savedToken) api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+
     setUser({ id: id || undefined, email, fullname, role });
     return res;
   };
 
   const logoutUser = () => {
     localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem("aifshop_refresh");
+    localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem("aifshop_role");
     localStorage.removeItem("aifshop_email");
     localStorage.removeItem("aifshop_fullname");
     localStorage.removeItem("aifshop_userid");
     setUser(null);
+    // clear axios header
+    try {
+      delete api.defaults.headers.common["Authorization"];
+    } catch {}
+
     // Redirect to homepage when logging out. AuthProvider sits outside Router,
     // so use a hard redirect to ensure navigation works in all cases.
     try {
