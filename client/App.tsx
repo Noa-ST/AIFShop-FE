@@ -18,6 +18,7 @@ import SellerDashboard from "./pages/seller/Dashboard";
 import CreateShopPage from "./pages/seller/CreateShop";
 import ProductManagement from "./pages/seller/ProductManagement";
 import ShopInfo from "./pages/seller/ShopInfo";
+import ShopManagement from "./pages/seller/ShopManagement";
 import ShopDetail from "./pages/Shop/Detail";
 import ProfilePage from "./pages/Profile/Index";
 import { AuthProvider } from "./contexts/AuthContext";
