@@ -4,7 +4,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller } from "@/lib/api";
+import { fetchShopBySeller, isShopPresent } from "@/lib/api";
 
 // Component phụ: StatCard (Giữ nguyên)
 function StatCard({
