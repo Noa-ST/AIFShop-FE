@@ -63,23 +63,27 @@ api.interceptors.response.use(
       isRefreshing = true;
       const refreshToken = localStorage.getItem(REFRESH_KEY);
       try {
+        // Try multiple common refresh endpoints (covers different backend spellings)
         const candidates = [
+          `${API_BASE}/api/auth/refreshToken`,
           `${API_BASE}/api/auth/refresh`,
           `${API_BASE}/api/Authencation/refresh`,
-          `${API_BASE}/api/Auth/refresh`,
           `${API_BASE}/api/Authencation/Refresh`,
+          `${API_BASE}/api/Auth/refresh`,
+          `${API_BASE}/api/Auth/refreshToken`,
         ];
+
         let refreshed = false;
         let lastErr: any = null;
+
         for (const url of candidates) {
           try {
             const resp = await axios.post(url, { refreshToken });
-            const { accessToken, refreshToken: newRefresh } = resp.data;
+            const { accessToken, refreshToken: newRefresh } = resp.data || {};
             if (accessToken) {
               localStorage.setItem(ACCESS_KEY, accessToken);
               if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-              api.defaults.headers.common["Authorization"] =
-                `Bearer ${accessToken}`;
+              api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
               processQueue(null, accessToken);
               refreshed = true;
               break;
@@ -90,7 +94,9 @@ api.interceptors.response.use(
           }
         }
 
-        if (refreshed) return api(originalRequest);
+        if (refreshed) {
+          return api(originalRequest);
+        }
 
         processQueue(lastErr, null);
         localStorage.removeItem(ACCESS_KEY);
