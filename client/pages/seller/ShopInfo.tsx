@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, updateShop } from "@/lib/api";
+import { useEffect } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Card,
   CardContent,
