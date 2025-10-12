@@ -19,6 +19,7 @@ import CreateShopPage from "./pages/seller/CreateShop";
 import ProductManagement from "./pages/seller/ProductManagement";
 import ShopInfo from "./pages/seller/ShopInfo";
 import ShopManagement from "./pages/seller/ShopManagement";
+import CreateProduct from "./pages/seller/CreateProduct";
 import ShopDetail from "./pages/Shop/Detail";
 import ProfilePage from "./pages/Profile/Index";
 import { AuthProvider } from "./contexts/AuthContext";
