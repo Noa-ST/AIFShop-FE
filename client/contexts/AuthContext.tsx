@@ -93,6 +93,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             fullname: finalFullname,
             role: finalRole,
           });
+          // ensure axios uses the new access token
+          const savedToken = localStorage.getItem(ACCESS_KEY);
+          if (savedToken) api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
           return true;
         } catch (err) {
           lastErr = err;
