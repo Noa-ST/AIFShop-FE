@@ -36,8 +36,9 @@ export default function CreateShopPage() {
       try {
         const shop = await fetchShopBySeller(sellerId);
         if (shop && (!(Array.isArray(shop) && shop.length === 0))) {
-          // seller already has a shop; redirect to home (logged-in)
-          window.location.href = "/";
+          // seller already has a shop; redirect to seller dashboard
+          navigate("/seller/dashboard");
+          return;
         }
       } catch (err) {
         // If 404 or not found, keep showing form
