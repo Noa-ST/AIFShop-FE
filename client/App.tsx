@@ -52,6 +52,8 @@ const App = () => (
                 <Route path="/register" element={<Register />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/seller/dashboard" element={<SellerDashboard />} />
+                <Route path="/seller/products" element={<ProductManagement />} />
+                <Route path="/seller/shop" element={<ShopInfo />} />
                 <Route
                   path="/seller/create-shop"
                   element={<CreateShopPage />}
