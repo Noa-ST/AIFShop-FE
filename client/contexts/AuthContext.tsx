@@ -71,25 +71,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const id = localStorage.getItem("aifshop_userid");
 
     const tryRefresh = async (refreshToken: string) => {
-      const candidates = [
-        "/api/auth/refresh",
-        "/api/Authencation/refresh",
-        "/api/Auth/refresh",
-      ];
       let lastErr: any = null;
-      for (const path of candidates) {
-        try {
-          const resp = await api.post(path, { refreshToken });
-          const {
-            accessToken,
-            refreshToken: newRefresh,
-            role: newRole,
-            fullname: newFullname,
-            email: newEmail,
-            id: newId,
-            userId,
-          } = resp.data;
-          if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
+
+      try {
+        // Primary: backend expects path-based refresh: /api/Authencation/refresh/{refreshToken}
+        const resp = await api.post(
+          `/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`,
+        );
+        const {
+          accessToken,
+          refreshToken: newRefresh,
+          role: newRole,
+          fullname: newFullname,
+          email: newEmail,
+          id: newId,
+          userId,
+        } = resp.data || {};
+
+        if (accessToken) {
+          localStorage.setItem(ACCESS_KEY, accessToken);
           if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
           if (newRole) localStorage.setItem("aifshop_role", newRole);
           if (newEmail) localStorage.setItem("aifshop_email", newEmail);
@@ -109,12 +109,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             fullname: finalFullname,
             role: finalRole,
           });
-          // ensure axios uses the new access token
-          const savedToken = localStorage.getItem(ACCESS_KEY);
-          if (savedToken)
-            api.defaults.headers.common["Authorization"] =
-              `Bearer ${savedToken}`;
+
+          api.defaults.headers.common["Authorization"] =
+            `Bearer ${accessToken}`;
           return true;
+        }
+      } catch (err) {
+        lastErr = err;
+        // fallback handled below
+      }
+
+      // Fallbacks: try body-based refresh endpoints
+      const candidates = ["/api/auth/refresh", "/api/Auth/refresh"];
+      for (const path of candidates) {
+        try {
+          const resp = await api.post(path, { refreshToken });
+          const {
+            accessToken,
+            refreshToken: newRefresh,
+            role: newRole,
+            fullname: newFullname,
+            email: newEmail,
+            id: newId,
+            userId,
+          } = resp.data || {};
+
+          if (accessToken) {
+            localStorage.setItem(ACCESS_KEY, accessToken);
+            if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
+            if (newRole) localStorage.setItem("aifshop_role", newRole);
+            if (newEmail) localStorage.setItem("aifshop_email", newEmail);
+            if (newFullname)
+              localStorage.setItem("aifshop_fullname", newFullname);
+            const finalId = newId || userId || id;
+            if (finalId) localStorage.setItem("aifshop_userid", finalId);
+
+            const finalRole = (newRole as Role) || role || "Customer";
+            const finalEmail = newEmail || email || "";
+            const finalFullname = newFullname || fullname || undefined;
+            const finalUserId = finalId || id || undefined;
+
+            setUser({
+              id: finalUserId,
+              email: finalEmail,
+              fullname: finalFullname,
+              role: finalRole,
+            });
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${accessToken}`;
+            return true;
+          }
         } catch (err) {
           lastErr = err;
           continue;

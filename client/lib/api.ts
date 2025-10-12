@@ -62,21 +62,25 @@ api.interceptors.response.use(
       isRefreshing = true;
       const refreshToken = localStorage.getItem(REFRESH_KEY);
       try {
-        const resp = await axios.post(`${API_BASE}/api/Authencation/refresh`, {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefresh } = resp.data || {};
-        if (accessToken) {
-          localStorage.setItem(ACCESS_KEY, accessToken);
-          if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-          api.defaults.headers.common["Authorization"] =
-            `Bearer ${accessToken}`;
-          processQueue(null, accessToken);
-          return api(originalRequest);
-        } else {
-          throw new Error("Refresh failed: No new token.");
+        if (refreshToken) {
+          const resp = await axios.post(
+            `${API_BASE}/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`,
+          );
+          const { accessToken, refreshToken: newRefresh } = resp.data || {};
+          if (accessToken) {
+            localStorage.setItem(ACCESS_KEY, accessToken);
+            if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${accessToken}`;
+            processQueue(null, accessToken);
+            return api(originalRequest);
+          }
         }
+
+        // If path-based refresh didn't succeed, fall back to trying endpoints (handled later)
+        throw new Error(
+          "Refresh failed: No new token from path-based endpoint.",
+        );
       } catch (e) {
         processQueue(e, null);
         localStorage.removeItem(ACCESS_KEY);
