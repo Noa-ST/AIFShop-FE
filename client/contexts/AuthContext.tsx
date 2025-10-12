@@ -22,6 +22,7 @@ type RegisterPayload = {
 type AuthContextType = {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  initialized: boolean;
   loginUser: (payload: LoginPayload) => Promise<any>;
   logoutUser: () => void;
   registerUser: (payload: RegisterPayload) => Promise<any>;
