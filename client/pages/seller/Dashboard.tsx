@@ -135,7 +135,14 @@ export default function SellerDashboard() {
                 <h3 className="text-lg font-semibold">Doanh thu 30 ngày gần nhất</h3>
               </div>
               <div className="p-4 h-64 bg-slate-50 flex items-center justify-center text-slate-500">
-                [Biểu đồ Doanh thu (Component Chart)]
+                <svg viewBox="0 0 100 30" className="w-full h-40">
+                  <polyline
+                    fill="none"
+                    stroke="#06b6d4"
+                    strokeWidth="2"
+                    points="0,20 10,18 20,12 30,14 40,8 50,6 60,10 70,12 80,9 90,7 100,5"
+                  />
+                </svg>
               </div>
             </div>
           </div>
