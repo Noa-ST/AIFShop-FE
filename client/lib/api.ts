@@ -175,7 +175,7 @@ export const isShopPresent = (shop: any) => {
   // If backend returns an object with common identifiers
   if (typeof shop === "object") {
     return Boolean(
-      shop.id || shop._id || shop.shopId || shop.name || shop.name?.length
+      shop.id || shop._id || shop.shopId || shop.name || shop.name?.length,
     );
   }
   return false;
