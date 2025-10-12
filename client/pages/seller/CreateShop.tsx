@@ -46,7 +46,7 @@ export default function CreateShopPage() {
       }
     };
     check();
-  }, [sellerId]);
+  }, [sellerId, navigate]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -85,7 +85,7 @@ export default function CreateShopPage() {
       // Fallback: navigate to dashboard
       window.location.href = "/seller/dashboard";
     } catch (err: any) {
-      // Xử lý lỗi từ Backend (Lỗi 400 Bad Request)
+      // Xử lý lỗi từ Backend (L���i 400 Bad Request)
       console.error("Lỗi tạo Shop:", err);
       const msg =
         err?.response?.data?.message ||
