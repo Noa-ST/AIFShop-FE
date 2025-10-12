@@ -58,7 +58,7 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {!isAuthenticated && (
+          {initialized && !isAuthenticated && (
             <Link
               to="/login"
               className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 text-sm hover:bg-slate-50"
