@@ -191,4 +191,18 @@ export const createShop = async (payload: {
   return res.data;
 };
 
+export const updateShop = async (payload: any) => {
+  // Expecting backend to accept PUT /api/Shops/update or PATCH /api/Shops/{id}
+  if (payload?.id) {
+    const res = await api.put(`/api/Shops/update/${payload.id}`, payload).catch(async (e) => {
+      // fallback to generic update endpoint
+      return await api.put(`/api/Shops/update`, payload);
+    });
+    return res.data;
+  }
+
+  const res = await api.put(`/api/Shops/update`, payload);
+  return res.data;
+};
+
 export default api;
