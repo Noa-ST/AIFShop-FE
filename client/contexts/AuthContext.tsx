@@ -110,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         user,
         isAuthenticated: !!user,
+        initialized,
         loginUser,
         logoutUser,
         registerUser,
