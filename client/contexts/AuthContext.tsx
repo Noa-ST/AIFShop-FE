@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import axios from "axios";
 import { login as apiLogin, register as apiRegister } from "@/lib/api";
 import api from "@/lib/api";
 
