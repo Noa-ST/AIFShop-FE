@@ -34,7 +34,7 @@ function StatCard({
 
 export default function SellerDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
 
   const [isShopChecked, setIsShopChecked] = useState(false);
   const [shopInfo, setShopInfo] = useState<any>(null);
