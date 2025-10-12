@@ -26,8 +26,8 @@ export default function CreateShopPage() {
     logo: "",
   });
   const { user } = useAuth();
-  // ✅ FIX: Lấy sellerId chính xác
-  const sellerId = user?.id || null;
+  // ✅ FIX: Lấy sellerId chính xác — fallback to localStorage when AuthContext hasn't initialized yet
+  const sellerId = user?.id || localStorage.getItem("aifshop_userid") || null;
 
   // On mount: if seller already has shop, redirect to home
   useEffect(() => {
