@@ -29,10 +29,21 @@ export default function ShopInfo() {
   const normalized = shop && (Array.isArray(shop) ? shop[0] : shop);
 
   const [form, setForm] = useState({
-    name: normalized?.name || "",
-    description: normalized?.description || "",
-    logo: normalized?.logo || "",
+    name: "",
+    description: "",
+    logo: "",
   });
+
+  // When shop data is loaded, initialize the form
+  useEffect(() => {
+    if (normalized) {
+      setForm({
+        name: normalized.name || "",
+        description: normalized.description || "",
+        logo: normalized.logo || "",
+      });
+    }
+  }, [normalized]);
 
   const mutation = useMutation({
     mutationFn: async (payload: any) => {
