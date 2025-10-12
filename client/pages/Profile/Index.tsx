@@ -1,101 +1,75 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tabs, Tab, Box, Button, TextField } from "@mui/material";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function ProfilePage() {
   const { user } = useAuth();
   const isSeller = user?.role === "Seller";
 
-  // If seller, only show two tabs (info, address). If customer, show orders as well.
-  const maxTabs = isSeller ? 2 : 3;
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState("info");
 
-  // Ensure tab index is valid when role changes
   useEffect(() => {
-    if (tab >= maxTabs) setTab(0);
+    if (isSeller && tab === "orders") setTab("info");
   }, [isSeller]);
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
+    <div className="container py-8 max-w-5xl">
       <h1 className="text-3xl font-bold mb-6">Hồ sơ cá nhân</h1>
 
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          aria-label="profile tabs"
-        >
-          <Tab label="Thông tin cá nhân" />
-          <Tab label="Địa chỉ" />
-          {!isSeller && <Tab label="Đơn hàng" />}
-        </Tabs>
-      </Box>
+      <Tabs defaultValue={tab} onValueChange={(v) => setTab(v)}>
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-6">
+          <TabsTrigger value="info">Thông tin cá nhân</TabsTrigger>
+          <TabsTrigger value="address">Địa chỉ giao hàng</TabsTrigger>
+          {!isSeller && <TabsTrigger value="orders">Đ��n hàng của tôi</TabsTrigger>}
+        </TabsList>
 
-      <div className="mt-6">
-        {tab === 0 && (
-          <div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-medium mb-4">Cập nhật thông tin</h2>
-              <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <TextField
-                  label="Họ và tên"
-                  defaultValue={user?.fullname || ""}
-                />
-                <TextField
-                  label="Email"
-                  defaultValue={user?.email || ""}
-                  disabled
-                />
-                <TextField label="Số điện thoại" defaultValue={""} />
-                <TextField
-                  label="Ngày sinh"
-                  type="date"
-                  InputLabelProps={{ shrink: true }}
-                />
-                <div className="md:col-span-2 flex justify-end">
-                  <Button
-                    variant="contained"
-                    className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]"
-                  >
-                    Lưu thay đổi
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {tab === 1 && (
-          <div>
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-medium">Địa chỉ nhận hàng</h2>
-                <Button variant="outlined">+ Thêm địa chỉ mới</Button>
+        <TabsContent value="info">
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <h2 className="text-lg font-medium mb-4">Cập nhật thông tin</h2>
+            <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input placeholder="Họ và tên" defaultValue={user?.fullname || ""} />
+              <Input placeholder="Email" defaultValue={user?.email || ""} disabled />
+              <Input placeholder="Số điện thoại" defaultValue={""} />
+              <Input type="date" placeholder="Ngày sinh" />
+              <div className="md:col-span-2 flex justify-end">
+                <Button className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]">Lưu thay đổi</Button>
               </div>
-              <div className="border p-4 rounded-md">
-                <p className="font-semibold">Địa chỉ mặc định</p>
-                <p>Nguyễn Văn A | 090xxxxxxx</p>
-                <p>Số nhà 123, đường XYZ, Phường, Quận, Thành phố</p>
-                <div className="mt-2 space-x-2">
-                  <Button variant="contained">Chỉnh sửa</Button>
-                  <Button variant="outlined">Xóa</Button>
-                </div>
+            </form>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="address">
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium">Địa chỉ nhận hàng</h2>
+              <Button variant="outline">+ Thêm địa chỉ mới</Button>
+            </div>
+            <div className="border p-4 rounded-md">
+              <p className="font-semibold">Địa chỉ mặc định</p>
+              <p>Nguyễn Văn A | 090xxxxxxx</p>
+              <p>Số nhà 123, đường XYZ, Phường, Quận, Thành phố</p>
+              <div className="mt-2 space-x-2">
+                <Button>Chỉnh sửa</Button>
+                <Button variant="outline">Xóa</Button>
               </div>
             </div>
           </div>
-        )}
+        </TabsContent>
 
-        {tab === 2 && !isSeller && (
-          <div>
+        {!isSeller && (
+          <TabsContent value="orders">
             <div className="bg-white rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-medium mb-4">Lịch sử đơn hàng</h2>
               <div className="border p-4 rounded-md">
                 <p>Không có đơn hàng.</p>
               </div>
             </div>
-          </div>
+          </TabsContent>
         )}
-      </div>
+      </Tabs>
     </div>
   );
 }
