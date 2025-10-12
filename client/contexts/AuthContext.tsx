@@ -54,17 +54,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const id = localStorage.getItem("aifshop_userid");
 
     const tryRefresh = async (refreshToken: string) => {
-      const candidates = ["/api/auth/refresh", "/api/Authencation/refresh", "/api/Auth/refresh"];
+      const candidates = [
+        "/api/auth/refresh",
+        "/api/Authencation/refresh",
+        "/api/Auth/refresh",
+      ];
       let lastErr: any = null;
       for (const path of candidates) {
         try {
           const resp = await api.post(path, { refreshToken });
-          const { accessToken, refreshToken: newRefresh, role: newRole, fullname: newFullname, email: newEmail, id: newId, userId } = resp.data;
+          const {
+            accessToken,
+            refreshToken: newRefresh,
+            role: newRole,
+            fullname: newFullname,
+            email: newEmail,
+            id: newId,
+            userId,
+          } = resp.data;
           if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
           if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
           if (newRole) localStorage.setItem("aifshop_role", newRole);
           if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-          if (newFullname) localStorage.setItem("aifshop_fullname", newFullname);
+          if (newFullname)
+            localStorage.setItem("aifshop_fullname", newFullname);
           const finalId = newId || userId || id;
           if (finalId) localStorage.setItem("aifshop_userid", finalId);
 
@@ -73,7 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const finalFullname = newFullname || fullname || undefined;
           const finalUserId = finalId || id || undefined;
 
-          setUser({ id: finalUserId, email: finalEmail, fullname: finalFullname, role: finalRole });
+          setUser({
+            id: finalUserId,
+            email: finalEmail,
+            fullname: finalFullname,
+            role: finalRole,
+          });
           return true;
         } catch (err) {
           lastErr = err;
@@ -94,7 +112,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (async () => {
       if (token && role && email) {
-        setUser({ id: id || undefined, email, fullname: fullname || undefined, role });
+        setUser({
+          id: id || undefined,
+          email,
+          fullname: fullname || undefined,
+          role,
+        });
         setInitialized(true);
         return;
       }
