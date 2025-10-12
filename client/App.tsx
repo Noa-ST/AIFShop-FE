@@ -66,6 +66,7 @@ const App = () => (
                   path="/seller/create-shop"
                   element={<CreateShopPage />}
                 />
+                <Route path="/seller/products/create" element={<CreateProduct />} />
                 <Route path="/seller" element={<SellerDashboard />} />
                 <Route
                   path="/admin"
