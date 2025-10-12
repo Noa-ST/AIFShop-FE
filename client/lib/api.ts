@@ -164,4 +164,17 @@ export const fetchShopBySeller = async (sellerId: string) => {
   }
 };
 
+// Utility: Normalize a variety of backend responses into a boolean: does the seller have a shop?
+export const isShopPresent = (shop: any) => {
+  if (!shop) return false;
+  if (Array.isArray(shop)) return shop.length > 0;
+  if (typeof shop === "boolean") return shop;
+  if (typeof shop === "object") {
+    return Boolean(
+      shop.id || shop._id || shop.shopId || shop.name || (shop.name && shop.name.length),
+    );
+  }
+  return false;
+};
+
 export default api;
