@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { login as apiLogin, register as apiRegister } from "@/lib/api";
+import api from "@/lib/api";
 
 type Role = "Customer" | "Seller" | "Admin";
 
