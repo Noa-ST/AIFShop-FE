@@ -131,9 +131,38 @@ export const fetchProductsByShop = async (shopId: string) => {
 };
 
 export const fetchShopBySeller = async (sellerId: string) => {
-  // Try common backend endpoint; adjust if your API uses a different path
-  const res = await api.get(`/api/shops/seller/${sellerId}`);
-  return res.data;
+  // Try several common backend endpoint shapes to be resilient across different APIs
+  const candidates = [
+    `/api/Shops/get-by-seller/${sellerId}`,
+    `/api/Shops/seller/${sellerId}`,
+    `/api/shops/seller/${sellerId}`,
+    `/api/Shops/by-seller/${sellerId}`,
+    `/api/Shops/get-single-by-seller/${sellerId}`,
+    `/api/Shops/getbyseller/${sellerId}`,
+    `/api/Shops/get-by-seller?sellerId=${sellerId}`,
+    `/api/Shops?sellerId=${sellerId}`,
+  ];
+
+  let lastError: any = null;
+  for (const path of candidates) {
+    try {
+      const res = await api.get(path);
+      // If API returns 200 but empty body, return it (caller will interpret)
+      if (res && (res.status === 200 || res.status === 201)) {
+        return res.data;
+      }
+    } catch (err: any) {
+      lastError = err;
+      // If 404, try next candidate
+      if (err?.response?.status === 404) continue;
+      // For other errors (network, 5xx), keep trying other endpoints but remember lastError
+      continue;
+    }
+  }
+
+  // If none matched, throw the last error or a generic not found
+  if (lastError) throw lastError;
+  throw new Error("Shop not found for seller: " + sellerId);
 };
 
 export const createShop = async (payload: {
