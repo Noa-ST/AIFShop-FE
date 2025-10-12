@@ -22,7 +22,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, fetchProductsByShop } from "@/lib/api";
 
 export default function ProductManagement() {
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
+  if (!initialized) return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
   const sellerId = user?.id;
   const [query, setQuery] = useState("");
 
