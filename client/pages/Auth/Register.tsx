@@ -48,15 +48,12 @@ export default function Register() {
 
       // After login/register, try to check shop existence for seller role
       if (data.role === "Seller") {
-        // attempt to determine user id set by loginUser
-        const userId =
-          (await Promise.resolve()) &&
-          (localStorage.getItem("aifshop_userid") ||
-            (res && (res.id || res.userId || res.user?.id)));
+        // Determine user id from localStorage that AuthContext/loginUser should have set
+        const userId = localStorage.getItem("aifshop_userid");
         if (userId) {
           try {
             const shop = await fetchShopBySeller(userId as string);
-            if (!shop || (Array.isArray(shop) && shop.length === 0)) {
+            if (!isShopPresent(shop)) {
               navigate("/seller/create-shop");
             } else {
               navigate("/seller/dashboard");
