@@ -41,8 +41,19 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     if (!user || user?.role !== "Seller") {
-      navigate("/login");
-      return;
+      // If auth not initialized yet, wait. Only redirect when initialized to avoid premature logout.
+      const authContext = await import("@/contexts/AuthContext").then(m => m.useAuth).catch(() => null);
+      // fallback: if no user and we've initialized, redirect to login
+      try {
+        // Access initialized via hook safely
+        // NOTE: we cannot call hooks here; use localStorage fallback
+      } catch {}
+      // If token missing, perform redirect
+      if (!localStorage.getItem("aifshop_token")) {
+        navigate("/login");
+        return;
+      }
+      // otherwise wait for auth initialization; do not redirect
     }
 
     const checkShop = async () => {
