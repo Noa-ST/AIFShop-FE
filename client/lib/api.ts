@@ -191,6 +191,11 @@ export const createShop = async (payload: {
   return res.data;
 };
 
+export const createProduct = async (payload: any) => {
+  const res = await api.post(`/api/Products/create`, payload);
+  return res.data;
+};
+
 export const updateShop = async (payload: any) => {
   // Expecting backend to accept PUT /api/Shops/update or PATCH /api/Shops/{id}
   if (payload?.id) {
