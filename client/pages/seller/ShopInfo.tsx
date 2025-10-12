@@ -134,8 +134,13 @@ export default function ShopInfo() {
                 Đánh giá Trung bình
               </label>
               <div className="text-lg font-semibold text-amber-500">
-                {normalized?.rating || 0} / 5.0 (Xem chi tiết...)
-              </div>
+              {normalized?.rating || 0} / 5.0 {" "}
+              {normalized?.id || normalized?._id ? (
+                <RouterLink to={`/shops/${normalized.id || normalized._id}#reviews`} className="text-sm underline text-rose-600">
+                  Xem chi tiết
+                </RouterLink>
+              ) : null}
+            </div>
             </div>
 
             <Button type="submit" className="w-full">
