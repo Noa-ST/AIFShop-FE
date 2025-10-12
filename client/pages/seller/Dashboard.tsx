@@ -1,37 +1,24 @@
-// File: client/pages/seller/Dashboard.tsx
-
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { BarChart2, Box, Users, DollarSign } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, isShopPresent } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
-// Component phụ: StatCard (Giữ nguyên)
-function StatCard({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: string;
-  icon: any;
-}) {
+function StatCard({ title, value, icon }: { title: string; value: string; icon: any }) {
   return (
-    <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 backdrop-blur-md">
-           {" "}
-      <div className="flex items-start gap-4">
-               {" "}
-        <div className="p-3 rounded-lg bg-[rgba(255,255,255,0.03)]">{icon}</div>
-               {" "}
-        <div>
-                    <div className="text-sm text-slate-300">{title}</div>       
-            <div className="text-2xl font-semibold text-white">{value}</div>   
-             {" "}
-        </div>
-             {" "}
-      </div>
-         {" "}
-    </div>
+    <Card className="shadow-lg transition-shadow duration-300 hover:shadow-xl hover:shadow-rose-600/20">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-slate-400">{title}</CardTitle>
+        <div className="text-rose-400">{icon}</div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-slate-900">{value}</div>
+        <p className="text-xs text-slate-500 pt-1">+20.1% so với tháng trước</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -39,12 +26,10 @@ export default function SellerDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // ✅ 1. TRẠNG THÁI: Quản lý việc kiểm tra đã xong chưa và thông tin Shop
   const [isShopChecked, setIsShopChecked] = useState(false);
   const [shopInfo, setShopInfo] = useState<any>(null);
 
   useEffect(() => {
-    // 1. Kiểm tra quyền
     if (!user || user?.role !== "Seller") {
       navigate("/login");
       return;
@@ -52,7 +37,6 @@ export default function SellerDashboard() {
 
     const checkShop = async () => {
       const sellerId = user.id;
-      // Reset trạng thái tải
       setIsShopChecked(false);
       setShopInfo(null);
 
@@ -63,146 +47,118 @@ export default function SellerDashboard() {
 
       try {
         const shop = await fetchShopBySeller(sellerId);
-
-        // Use helper to decide presence and normalize shape
         if (isShopPresent(shop)) {
           setShopInfo(Array.isArray(shop) ? shop[0] : shop);
         } else {
-          // Trường hợp API trả về 200 OK nhưng body rỗng (chưa có Shop)
           navigate("/seller/create-shop");
-          return; // 🛑 DỪNG THỰC THI SAU KHI CHUYỂN HƯỚNG
+          return;
         }
       } catch (err: any) {
-        // Trường hợp thất bại: LỖI 404/400 (Chưa có Shop)
-        if (
-          err.response &&
-          (err.response.status === 404 || err.response.status === 400)
-        ) {
+        if (err.response && (err.response.status === 404 || err.response.status === 400)) {
           navigate("/seller/create-shop");
-          return; // 🛑 DỪNG THỰC THI SAU KHI CHUYỂN HƯỚNG
+          return;
         }
-
-        console.error("Lỗi nghiêm trọng khi kiểm tra Shop:", err);
+        console.error("Lỗi khi kiểm tra shop:", err);
         navigate("/error");
         return;
       } finally {
-        // ✅ Đánh dấu đã kiểm tra chỉ sau khi logic kết thúc
         setIsShopChecked(true);
       }
     };
 
     checkShop();
-  }, [user, navigate]); // Dependencies: [user, navigate]
+  }, [user, navigate]);
 
-  // -------------------------------------------------------------------
-  // ✅ ĐIỀU KIỆN RENDER: Chặn render nếu chưa kiểm tra xong
-  // -------------------------------------------------------------------
   if (!isShopChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0F172A] text-[#E2E8F0] text-xl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-100 text-xl">
         Đang kiểm tra trạng thái Cửa hàng...
       </div>
     );
   }
 
-  // Nếu đã kiểm tra xong, nhưng không có shopInfo (có nghĩa là đã chuyển hướng thành công)
-  if (!shopInfo) {
-    return null;
-  }
+  if (!shopInfo) return null;
 
-  // -------------------------------------------------------------------
-  // ✅ RENDER DASHBOARD CHỈ KHI CÓ SHOP INFO
-  // -------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+    <div className="min-h-screen bg-slate-900 text-slate-100">
       <div className="container mx-auto py-10">
-        <h1 className="text-3xl font-bold mb-6">
-          Tổng quan Cửa hàng:{" "}
-          <span className="text-primary">{shopInfo.name}</span>
+        <h1 className="text-3xl font-bold mb-8">
+          Bảng điều khiển Shop: <span className="text-rose-400">{shopInfo.name}</span>
         </h1>
 
-        {/* KPI */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-          <StatCard
-            title="Doanh thu Tháng này"
-            value="15,200,000₫"
-            icon={<DollarSign size={20} />}
-          />
-          <StatCard
-            title="Đơn hàng mới"
-            value="12"
-            icon={<Users size={20} />}
-          />
-          <StatCard
-            title="SP đang hoạt động"
-            value="150"
-            icon={<Box size={20} />}
-          />
-          <StatCard
-            title="Đánh giá TB"
-            value="4.7 / 5"
-            icon={<BarChart2 size={20} />}
-          />
-        </div>
+        <div className="flex gap-8">
+          <aside className="w-64 hidden md:block border-r border-slate-800 pr-6">
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">Điều hướng</h4>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow p-4">
-              <div className="px-4 py-3 border-b">
-                <h3 className="text-lg font-semibold">
-                  Doanh thu 30 ngày gần nhất
-                </h3>
-              </div>
-              <div className="p-4 h-64 bg-slate-50 flex items-center justify-center text-slate-500">
-                <svg viewBox="0 0 100 30" className="w-full h-40">
-                  <polyline
-                    fill="none"
-                    stroke="#06b6d4"
-                    strokeWidth="2"
-                    points="0,20 10,18 20,12 30,14 40,8 50,6 60,10 70,12 80,9 90,7 100,5"
-                  />
-                </svg>
-              </div>
+              <RouterLink to="/seller/dashboard" className="flex items-center gap-3 p-3 rounded-lg bg-rose-600 text-white font-medium">
+                <BarChart2 size={18} /> Tổng quan
+              </RouterLink>
+
+              <RouterLink to="/seller/shop-management" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 text-slate-200">
+                <Box size={18} /> Quản lý Shop
+              </RouterLink>
+
+              <RouterLink to="/seller/orders" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 text-slate-200">
+                <DollarSign size={18} /> Đơn hàng
+              </RouterLink>
             </div>
-          </div>
+          </aside>
 
-          <div className="space-y-4">
-            <RouterLink to="/seller/products/create" className="block">
-              <button className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-md font-semibold">
-                + TẠO SẢN PHẨM MỚI
-              </button>
-            </RouterLink>
+          <main className="flex-1">
+            <Alert variant="default" className="mb-6 border-l-4 border-yellow-400 bg-yellow-50 text-slate-900">
+              <AlertTitle className="font-semibold">Đơn hàng mới!</AlertTitle>
+              <AlertDescription>
+                Bạn có 3 đơn hàng mới đang chờ xử lý. <RouterLink to="/seller/orders" className="font-semibold underline text-rose-600">Xử lý ngay.</RouterLink>
+              </AlertDescription>
+            </Alert>
 
-            <RouterLink to="/seller/orders?status=pending" className="block">
-              <button className="w-full h-12 border rounded-md">
-                Xử lý Đơn hàng (12)
-              </button>
-            </RouterLink>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+              <StatCard title="Doanh thu Tháng này" value="15,200,000₫" icon={<DollarSign size={20} />} />
+              <StatCard title="Đơn hàng chờ xử lý" value="3" icon={<Users size={20} />} />
+              <StatCard title="SP đang hoạt động" value="150" icon={<Box size={20} />} />
+              <StatCard title="Đánh giá TB" value="4.7" icon={<BarChart2 size={20} />} />
+            </div>
 
-            <div className="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded-md">
-              <div className="font-semibold">Cảnh báo tồn kho!</div>
-              <div className="text-sm mt-1">
-                Có 5 sản phẩm sắp hết hàng.{" "}
-                <RouterLink
-                  to="/seller/products"
-                  className="font-semibold underline"
-                >
-                  Kiểm tra ngay.
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <Card className="shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Doanh thu theo thời gian</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 bg-slate-800 flex items-center justify-center text-slate-400 border rounded-lg">
+                      <svg viewBox="0 0 100 30" className="w-full h-40">
+                        <polyline fill="none" stroke="#fb7185" strokeWidth="2" points="0,20 10,18 20,12 30,14 40,8 50,6 60,10 70,12 80,9 90,7 100,5" />
+                      </svg>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <RouterLink to="/seller/products/create" className="block">
+                  <Button className="w-full h-12 bg-green-600 hover:bg-green-700 text-white">+ TẠO SẢN PHẨM MỚI</Button>
                 </RouterLink>
+
+                <RouterLink to="/seller/orders?status=pending" className="block">
+                  <Button variant="outline" className="w-full h-12">Xử lý Đơn hàng (12)</Button>
+                </RouterLink>
+
+                <div className="border-l-4 border-yellow-400 bg-yellow-50 p-4 rounded-md text-slate-900">
+                  <div className="font-semibold">Cảnh báo tồn kho!</div>
+                  <div className="text-sm mt-1">Có 5 sản phẩm sắp hết hàng. <RouterLink to="/seller/products" className="font-semibold underline">Kiểm tra ngay.</RouterLink></div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">
-            Danh sách sản phẩm gần đây
-          </h2>
-          <div className="bg-white rounded-2xl p-6 shadow">
-            <p className="text-sm text-slate-600">
-              Chưa có dữ liệu. Shop: {shopInfo.name} đang hoạt động.
-            </p>
-          </div>
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">Danh sách sản phẩm gần đây</h2>
+              <div className="bg-slate-800 rounded-2xl p-6">
+                <p className="text-sm text-slate-300">Chưa có dữ liệu. Shop: {shopInfo.name} đang hoạt động.</p>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     </div>
