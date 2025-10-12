@@ -171,7 +171,11 @@ export const isShopPresent = (shop: any) => {
   if (typeof shop === "boolean") return shop;
   if (typeof shop === "object") {
     return Boolean(
-      shop.id || shop._id || shop.shopId || shop.name || (shop.name && shop.name.length),
+      shop.id ||
+        shop._id ||
+        shop.shopId ||
+        shop.name ||
+        (shop.name && shop.name.length),
     );
   }
   return false;
