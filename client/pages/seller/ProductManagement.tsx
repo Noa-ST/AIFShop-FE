@@ -117,7 +117,15 @@ export default function ProductManagement() {
     e.preventDefault();
     if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
     const payload = { ...categoryForm, shopId };
-    categoryMutation.mutate(payload);
+    try {
+      await createCategory(payload);
+      alert("Tạo category thành công");
+      try { queryClient.invalidateQueries({ queryKey: ["categories"] }); } catch (e) {}
+      setShowCategoryForm(false);
+      setCategoryForm({ name: "", description: "" });
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Tạo category thất bại");
+    }
   };
 
   const submitProduct = async (e: React.FormEvent) => {
@@ -135,7 +143,23 @@ export default function ProductManagement() {
         .map((u) => u.trim())
         .filter(Boolean),
     };
-    productMutation.mutate(payload);
+    try {
+      await createProduct(payload);
+      alert("Tạo sản phẩm thành công");
+      try { queryClient.invalidateQueries({ queryKey: ["productsByShop", shopId] }); } catch (e) {}
+      try { queryClient.invalidateQueries({ queryKey: ["products"] }); } catch (e) {}
+      setShowProductForm(false);
+      setProductForm({
+        name: "",
+        description: "",
+        price: "",
+        stockQuantity: "",
+        categoryId: "",
+        imageUrls: "",
+      });
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
+    }
   };
 
   return (
