@@ -79,39 +79,6 @@ export default function ProductManagement() {
     imageUrls: "",
   });
 
-  const categoryMutation = useMutation({
-    mutationFn: (payload: any) => createCategory(payload),
-    onSuccess: () => {
-      alert("Tạo category thành công");
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-      setShowCategoryForm(false);
-      setCategoryForm({ name: "", description: "" });
-    },
-    onError: (err: any) => {
-      alert(err?.response?.data?.message || "Tạo category thất bại");
-    },
-  });
-
-  const productMutation = useMutation({
-    mutationFn: (payload: any) => createProduct(payload),
-    onSuccess: () => {
-      alert("Tạo sản phẩm thành công");
-      queryClient.invalidateQueries({ queryKey: ["productsByShop", shopId] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      setShowProductForm(false);
-      setProductForm({
-        name: "",
-        description: "",
-        price: "",
-        stockQuantity: "",
-        categoryId: "",
-        imageUrls: "",
-      });
-    },
-    onError: (err: any) => {
-      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
-    },
-  });
 
   const submitCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +247,7 @@ export default function ProductManagement() {
           <div className="mt-3 flex gap-2">
             <Button type="submit">Tạo Sản phẩm</Button>
             <Button variant="outline" onClick={() => setShowProductForm(false)}>
-              Hủy
+              H��y
             </Button>
           </div>
         </form>
