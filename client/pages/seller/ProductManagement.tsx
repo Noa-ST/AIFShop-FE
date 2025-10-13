@@ -80,20 +80,18 @@ export default function ProductManagement() {
     imageUrls: "",
   });
 
-  const categoryMutation = useMutation(
-    (payload: any) => createCategory(payload),
-    {
-      onSuccess: () => {
-        alert("Tạo category thành công");
-        queryClient.invalidateQueries(["categories"]);
-        setShowCategoryForm(false);
-        setCategoryForm({ name: "", description: "" });
-      },
-      onError: (err: any) => {
-        alert(err?.response?.data?.message || "Tạo category thất bại");
-      },
+  const categoryMutation = useMutation({
+    mutationFn: (payload: any) => createCategory(payload),
+    onSuccess: () => {
+      alert("Tạo category thành công");
+      queryClient.invalidateQueries(["categories"]);
+      setShowCategoryForm(false);
+      setCategoryForm({ name: "", description: "" });
     },
-  );
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || "Tạo category thất bại");
+    },
+  });
 
   const productMutation = useMutation(
     (payload: any) => createProduct(payload),
