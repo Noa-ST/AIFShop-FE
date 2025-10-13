@@ -83,21 +83,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         // 1) Try path-based GET using raw axios to avoid interceptor recursion
         try {
+          // ✅ CHỈ GIỮ LẠI PHƯƠNG THỨC GET: Khớp với [HttpGet("refresh/{refreshToken}")] của BE
           const resp = await axios.get(
             `${base}/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`,
-          );
+          ); // BE của bạn trả về data bọc trong result (ví dụ: { success: true, data: {...} })
+          // Chúng ta cần truy cập data bên trong. Tôi giả định data nằm ở .data.data hoặc .data
+          const responseData = resp.data.data || resp.data; // Thử lấy data từ data.data trước
           const {
-            accessToken,
+            accessToken, // Key accessToken có thể là 'token'
+            token: tokenFromResponse, // Thêm tokenFromResponse để lấy nếu BE dùng 'token'
             refreshToken: newRefresh,
             role: newRole,
             fullname: newFullname,
             email: newEmail,
             id: newId,
             userId,
-          } = resp.data || {};
+          } = responseData || {};
 
-          if (accessToken) {
-            localStorage.setItem(ACCESS_KEY, accessToken);
+          const finalAccessToken = accessToken || tokenFromResponse;
+
+          if (finalAccessToken) {
+            localStorage.setItem(ACCESS_KEY, finalAccessToken);
             if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
             if (newRole) localStorage.setItem("aifshop_role", newRole);
             if (newEmail) localStorage.setItem("aifshop_email", newEmail);
@@ -119,107 +125,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             });
 
             api.defaults.headers.common["Authorization"] =
-              `Bearer ${accessToken}`;
+              `Bearer ${finalAccessToken}`;
             return true;
           }
         } catch (err) {
           lastErr = err;
-        }
-
+        } // 🚫 [ĐÃ XÓA/VÔ HIỆU HÓA]: Loại bỏ các lần thử gọi bằng POST để tránh lỗi 405.
+        // Logic cũ:
         // 2) Try path-based POST
-        try {
-          const resp = await axios.post(
-            `${base}/api/Authencation/refresh/${encodeURIComponent(refreshToken)}`,
-          );
-          const {
-            accessToken,
-            refreshToken: newRefresh,
-            role: newRole,
-            fullname: newFullname,
-            email: newEmail,
-            id: newId,
-            userId,
-          } = resp.data || {};
-
-          if (accessToken) {
-            localStorage.setItem(ACCESS_KEY, accessToken);
-            if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-            if (newRole) localStorage.setItem("aifshop_role", newRole);
-            if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-            if (newFullname)
-              localStorage.setItem("aifshop_fullname", newFullname);
-            const finalId = newId || userId || id;
-            if (finalId) localStorage.setItem("aifshop_userid", finalId);
-
-            const finalRole = (newRole as Role) || role || "Customer";
-            const finalEmail = newEmail || email || "";
-            const finalFullname = newFullname || fullname || undefined;
-            const finalUserId = finalId || id || undefined;
-
-            setUser({
-              id: finalUserId,
-              email: finalEmail,
-              fullname: finalFullname,
-              role: finalRole,
-            });
-
-            api.defaults.headers.common["Authorization"] =
-              `Bearer ${accessToken}`;
-            return true;
-          }
-        } catch (err) {
-          lastErr = err;
-        }
-
         // 3) Fallbacks: try body-based refresh endpoints
-        const candidates = ["/api/auth/refresh", "/api/Auth/refresh"];
-        for (const path of candidates) {
-          try {
-            const resp = await axios.post(`${base}${path}`, { refreshToken });
-            const {
-              accessToken,
-              refreshToken: newRefresh,
-              role: newRole,
-              fullname: newFullname,
-              email: newEmail,
-              id: newId,
-              userId,
-            } = resp.data || {};
 
-            if (accessToken) {
-              localStorage.setItem(ACCESS_KEY, accessToken);
-              if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-              if (newRole) localStorage.setItem("aifshop_role", newRole);
-              if (newEmail) localStorage.setItem("aifshop_email", newEmail);
-              if (newFullname)
-                localStorage.setItem("aifshop_fullname", newFullname);
-              const finalId = newId || userId || id;
-              if (finalId) localStorage.setItem("aifshop_userid", finalId);
-
-              const finalRole = (newRole as Role) || role || "Customer";
-              const finalEmail = newEmail || email || "";
-              const finalFullname = newFullname || fullname || undefined;
-              const finalUserId = finalId || id || undefined;
-
-              setUser({
-                id: finalUserId,
-                email: finalEmail,
-                fullname: finalFullname,
-                role: finalRole,
-              });
-
-              api.defaults.headers.common["Authorization"] =
-                `Bearer ${accessToken}`;
-              return true;
-            }
-          } catch (err) {
-            lastErr = err;
-            continue;
-          }
-        }
-
-        console.warn("Refresh token failed for all endpoints:", lastErr);
-        // clear tokens
+        // Ghi log cảnh báo nếu lần thử duy nhất (GET) thất bại
+        console.warn("Refresh token failed for the GET endpoint:", lastErr); // clear tokens
         localStorage.removeItem(ACCESS_KEY);
         localStorage.removeItem(REFRESH_KEY);
         localStorage.removeItem("aifshop_role");
@@ -240,8 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           email,
           fullname: fullname || undefined,
           role,
-        });
-        // set axios header to use token
+        }); // set axios header to use token
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         setInitialized(true);
         return;
@@ -249,20 +165,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const refresh = localStorage.getItem(REFRESH_KEY);
       if (refresh) {
-        const ok = await tryRefresh(refresh);
-        // tryRefresh already sets axios header when successful
+        const ok = await tryRefresh(refresh); // tryRefresh already sets axios header when successful
         setInitialized(true);
         return;
-      }
+      } // no tokens
 
-      // no tokens
       setInitialized(true);
     })();
-  }, []);
+  }, []); // ... (Các hàm loginUser, logoutUser, registerUser không đổi)
 
   const loginUser = async (payload: LoginPayload) => {
-    const res = await apiLogin(payload);
-    // apiLogin stores tokens in localStorage already
+    const res = await apiLogin(payload); // apiLogin stores tokens in localStorage already
     const role = (res.role as Role) || "Customer";
     const email = payload.email;
     const fullname = res.fullname || res.name || undefined;
@@ -273,9 +186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("aifshop_role", role);
     localStorage.setItem("aifshop_email", email);
     if (fullname) localStorage.setItem("aifshop_fullname", fullname);
-    if (id) localStorage.setItem("aifshop_userid", id);
+    if (id) localStorage.setItem("aifshop_userid", id); // ensure axios header is set
 
-    // ensure axios header is set
     const savedToken = localStorage.getItem(ACCESS_KEY);
     if (savedToken)
       api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
@@ -291,14 +203,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("aifshop_email");
     localStorage.removeItem("aifshop_fullname");
     localStorage.removeItem("aifshop_userid");
-    setUser(null);
-    // clear axios header
+    setUser(null); // clear axios header
     try {
       delete api.defaults.headers.common["Authorization"];
-    } catch {}
-
-    // Redirect to homepage when logging out. AuthProvider sits outside Router,
+    } catch {} // Redirect to homepage when logging out. AuthProvider sits outside Router,
     // so use a hard redirect to ensure navigation works in all cases.
+
     try {
       window.location.href = "/";
     } catch (e) {
@@ -323,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         registerUser,
       }}
     >
-      {children}
+            {children}   {" "}
     </AuthContext.Provider>
   );
 };

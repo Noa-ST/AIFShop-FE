@@ -85,49 +85,6 @@ api.interceptors.response.use(
         } catch (e) {
           lastErr = e;
         }
-
-        // 2) Try path-based POST as some backends accept POST on the same path
-        try {
-          const resp = await axios.post(
-            `${API_BASE}/api/Authencation/refresh/${encodeURIComponent(
-              refreshToken,
-            )}`,
-          );
-          const { accessToken, refreshToken: newRefresh } = resp.data || {};
-          if (accessToken) {
-            localStorage.setItem(ACCESS_KEY, accessToken);
-            if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-            api.defaults.headers.common["Authorization"] =
-              `Bearer ${accessToken}`;
-            processQueue(null, accessToken);
-            return api(originalRequest);
-          }
-        } catch (e) {
-          lastErr = e;
-        }
-
-        // 3) Fallback: try common body-based refresh endpoints
-        const candidates = ["/api/auth/refresh", "/api/Auth/refresh"];
-        for (const path of candidates) {
-          try {
-            const resp = await axios.post(`${API_BASE}${path}`, {
-              refreshToken,
-            });
-            const { accessToken, refreshToken: newRefresh } = resp.data || {};
-            if (accessToken) {
-              localStorage.setItem(ACCESS_KEY, accessToken);
-              if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-              api.defaults.headers.common["Authorization"] =
-                `Bearer ${accessToken}`;
-              processQueue(null, accessToken);
-              return api(originalRequest);
-            }
-          } catch (e) {
-            lastErr = e;
-            continue;
-          }
-        }
-
         throw lastErr || new Error("Refresh failed for all endpoints");
       } catch (e) {
         processQueue(e, null);
