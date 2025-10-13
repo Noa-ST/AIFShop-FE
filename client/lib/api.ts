@@ -205,4 +205,10 @@ export const isShopPresent = (shop: any) => {
   return false;
 };
 
+export const updateCategory = async (id: string, payload: any) => {
+  if (!id) throw new Error("Category ID is required");
+  const res = await api.put(`/api/Category/update/${id}`, payload);
+  return res.data;
+};
+
 export default api;
