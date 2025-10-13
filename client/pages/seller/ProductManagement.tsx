@@ -93,28 +93,26 @@ export default function ProductManagement() {
     },
   });
 
-  const productMutation = useMutation(
-    (payload: any) => createProduct(payload),
-    {
-      onSuccess: () => {
-        alert("Tạo sản phẩm thành công");
-        queryClient.invalidateQueries(["productsByShop"]);
-        queryClient.invalidateQueries(["products"]);
-        setShowProductForm(false);
-        setProductForm({
-          name: "",
-          description: "",
-          price: "",
-          stockQuantity: "",
-          categoryId: "",
-          imageUrls: "",
-        });
-      },
-      onError: (err: any) => {
-        alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
-      },
+  const productMutation = useMutation({
+    mutationFn: (payload: any) => createProduct(payload),
+    onSuccess: () => {
+      alert("Tạo sản phẩm thành công");
+      queryClient.invalidateQueries(["productsByShop"]);
+      queryClient.invalidateQueries(["products"]);
+      setShowProductForm(false);
+      setProductForm({
+        name: "",
+        description: "",
+        price: "",
+        stockQuantity: "",
+        categoryId: "",
+        imageUrls: "",
+      });
     },
-  );
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
+    },
+  });
 
   const submitCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +144,7 @@ export default function ProductManagement() {
       <div className="flex justify-between mb-6">
         <div className="flex gap-2">
           <Button onClick={() => setShowProductForm((s) => !s)}>
-            + Tạo Sản phẩm
+            + Tạo Sản ph���m
           </Button>
           <Button onClick={() => setShowCategoryForm((s) => !s)}>
             + Tạo Category
@@ -263,7 +261,7 @@ export default function ProductManagement() {
         <TableHeader>
           <TableRow>
             <TableHead className="w-[80px]">Ảnh</TableHead>
-            <TableHead>Tên Sản phẩm</TableHead>
+            <TableHead>Tên Sản ph��m</TableHead>
             <TableHead>Giá</TableHead>
             <TableHead>Tồn kho</TableHead>
             <TableHead>Trạng thái</TableHead>
