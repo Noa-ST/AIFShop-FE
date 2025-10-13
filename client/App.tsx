@@ -71,6 +71,15 @@ const App = () => (
                   path="/seller/products/create"
                   element={<CreateProduct />}
                 />
+                <Route
+                  path="/seller/category/create"
+                  element={
+                    // Lazy load new CreateCategory page if needed
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <CreateCategory />
+                    </React.Suspense>
+                  }
+                />
                 <Route path="/seller" element={<SellerDashboard />} />
                 <Route
                   path="/admin"
