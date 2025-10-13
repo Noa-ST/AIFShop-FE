@@ -120,7 +120,9 @@ export default function ProductManagement() {
     try {
       await createCategory(payload);
       alert("Tạo category thành công");
-      try { queryClient.invalidateQueries({ queryKey: ["categories"] }); } catch (e) {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ["categories"] });
+      } catch (e) {}
       setShowCategoryForm(false);
       setCategoryForm({ name: "", description: "" });
     } catch (err: any) {
@@ -146,8 +148,12 @@ export default function ProductManagement() {
     try {
       await createProduct(payload);
       alert("Tạo sản phẩm thành công");
-      try { queryClient.invalidateQueries({ queryKey: ["productsByShop", shopId] }); } catch (e) {}
-      try { queryClient.invalidateQueries({ queryKey: ["products"] }); } catch (e) {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ["productsByShop", shopId] });
+      } catch (e) {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+      } catch (e) {}
       setShowProductForm(false);
       setProductForm({
         name: "",
