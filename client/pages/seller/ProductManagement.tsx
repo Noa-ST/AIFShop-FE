@@ -57,14 +57,36 @@ export default function ProductManagement() {
     (p.name || "").toLowerCase().includes(query.toLowerCase()),
   );
 
+  const queryClient = useQueryClient();
+
+  const handleCreateCategory = async () => {
+    const name = prompt("Tên category mới:");
+    if (!name) return;
+    const description = prompt("Mô tả (tùy chọn):") || "";
+    const id = typeof crypto !== "undefined" && (crypto as any).randomUUID
+      ? (crypto as any).randomUUID()
+      : String(Date.now());
+    try {
+      await updateCategory(id, { name, description, id });
+      alert("Tạo category thành công");
+      // invalidate categories if used elsewhere
+      try {
+        queryClient.invalidateQueries(["categories"]);
+      } catch (e) {
+        // ignore
+      }
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "Tạo category thất bại");
+    }
+  };
+
   return (
     <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-6">Quản lý Sản phẩm</h1>
 
       <div className="flex justify-between mb-6">
-        <Link to="/seller/products/create">
-          <Button>+ Tạo Sản phẩm mới</Button>
-        </Link>
+        <div>
+          <Button onClick={handleCreateCategory}>+ Tạo Category</Button>
+        </div>
         <div className="flex gap-4">
           <Input
             placeholder="Tìm kiếm theo tên..."
