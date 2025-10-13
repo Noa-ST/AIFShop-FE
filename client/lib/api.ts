@@ -139,7 +139,7 @@ export const fetchProducts = async () => {
 };
 
 export const fetchProductById = async (id: string) => {
-  const res = await api.get(`/api/Products/${id}`);
+  const res = await api.get(`/api/Products/detail/${id}`);
   return res.data;
 };
 
@@ -165,7 +165,7 @@ export const createShop = async (payload: any) => {
 
 export const updateShop = async (payload: any) => {
   if (payload?.id) {
-    const res = await api.put(`/api/Shops/update/${payload.id}`, payload);
+    const res = await api.put(`/api/Shops/${payload.id}`, payload);
     return res.data;
   }
   throw new Error("Shop ID is required for update.");
