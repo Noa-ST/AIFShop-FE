@@ -21,9 +21,10 @@ export default function ShopManagement() {
     const name = prompt("Tên category mới:");
     if (!name) return;
     const description = prompt("Mô tả (tùy chọn):") || "";
-    const id = typeof crypto !== "undefined" && (crypto as any).randomUUID
-      ? (crypto as any).randomUUID()
-      : String(Date.now());
+    const id =
+      typeof crypto !== "undefined" && (crypto as any).randomUUID
+        ? (crypto as any).randomUUID()
+        : String(Date.now());
     try {
       await updateCategory(id, { name, description, id });
       alert("Tạo category thành công");

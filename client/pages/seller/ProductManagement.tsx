@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Box, Edit, Trash2, Filter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, fetchProductsByShop, updateCategory } from "@/lib/api";
+import {
+  fetchShopBySeller,
+  fetchProductsByShop,
+  updateCategory,
+} from "@/lib/api";
 
 export default function ProductManagement() {
   const { user, initialized } = useAuth();
@@ -62,9 +66,10 @@ export default function ProductManagement() {
     const name = prompt("Tên category mới:");
     if (!name) return;
     const description = prompt("Mô tả (tùy chọn):") || "";
-    const id = typeof crypto !== "undefined" && (crypto as any).randomUUID
-      ? (crypto as any).randomUUID()
-      : String(Date.now());
+    const id =
+      typeof crypto !== "undefined" && (crypto as any).randomUUID
+        ? (crypto as any).randomUUID()
+        : String(Date.now());
     try {
       await updateCategory(id, { name, description, id });
       alert("Tạo category thành công");
@@ -81,7 +86,6 @@ export default function ProductManagement() {
 
   return (
     <div className="container py-8">
-
       <div className="flex justify-between mb-6">
         <div>
           <Button onClick={handleCreateCategory}>+ Tạo Category</Button>
