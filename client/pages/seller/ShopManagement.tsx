@@ -62,11 +62,8 @@ export default function ShopManagement() {
 
         <TabsContent value="products" className="mt-6">
           <Card>
-            <CardHeader className="flex justify-between items-center">
+            <CardHeader>
               <CardTitle>Danh sách Sản phẩm</CardTitle>
-              <div>
-                <Button onClick={handleCreateCategory}>+ Tạo Category</Button>
-              </div>
             </CardHeader>
             <CardContent>
               <ProductManagement />
