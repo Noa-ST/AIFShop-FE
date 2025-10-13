@@ -37,7 +37,6 @@ export default function ShopInfo() {
     logo: "",
   });
 
-
   // When shop data is loaded, initialize the form
   useEffect(() => {
     if (normalized) {
@@ -78,7 +77,8 @@ export default function ShopInfo() {
     mutation.mutate(payload);
   };
 
-  if (!initialized) return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
+  if (!initialized)
+    return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
 
   if (isLoading) return <div className="p-6">Đang tải...</div>;
 
