@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, createCategory } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -11,7 +17,8 @@ export default function CreateCategoryPage() {
   const { user, initialized } = useAuth();
   const navigate = useNavigate();
 
-  if (!initialized) return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
+  if (!initialized)
+    return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
 
   const sellerId = user?.id;
 
@@ -65,7 +72,9 @@ export default function CreateCategoryPage() {
             <Input
               placeholder="Mô tả (tùy chọn)"
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
             />
             <div className="flex justify-end">
               <Button type="submit" disabled={loading || !form.name}>

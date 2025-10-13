@@ -19,10 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Box, Edit, Trash2, Filter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  fetchShopBySeller,
-  fetchProductsByShop,
-} from "@/lib/api";
+import { fetchShopBySeller, fetchProductsByShop } from "@/lib/api";
 
 export default function ProductManagement() {
   const { user, initialized } = useAuth();
@@ -61,25 +58,23 @@ export default function ProductManagement() {
 
   const queryClient = useQueryClient();
 
-
-
   return (
     <div className="container py-8">
       <div className="flex justify-between mb-6">
-    <div />
-    <div className="flex gap-4">
-      <Input
-        placeholder="Tìm kiếm theo tên..."
-        className="w-64"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <Button variant="outline">
-        <Filter className="w-4 h-4 mr-2" />
-        Lọc
-      </Button>
-    </div>
-  </div>
+        <div />
+        <div className="flex gap-4">
+          <Input
+            placeholder="Tìm kiếm theo tên..."
+            className="w-64"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Button variant="outline">
+            <Filter className="w-4 h-4 mr-2" />
+            Lọc
+          </Button>
+        </div>
+      </div>
 
       <div className="mb-6 flex gap-2">
         <Link to="/seller/products/create">
