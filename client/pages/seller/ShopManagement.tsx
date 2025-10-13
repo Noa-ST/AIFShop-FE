@@ -1,4 +1,3 @@
-import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Card,
