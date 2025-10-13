@@ -63,21 +63,6 @@ export default function ProductManagement() {
 
   const queryClient = useQueryClient();
 
-  const [showCategoryForm, setShowCategoryForm] = useState(false);
-  const [showProductForm, setShowProductForm] = useState(false);
-
-  const [categoryForm, setCategoryForm] = useState({
-    name: "",
-    description: "",
-  });
-  const [productForm, setProductForm] = useState({
-    name: "",
-    description: "",
-    price: "",
-    stockQuantity: "",
-    categoryId: "",
-    imageUrls: "",
-  });
 
   const submitCategory = async (e: React.FormEvent) => {
     e.preventDefault();
