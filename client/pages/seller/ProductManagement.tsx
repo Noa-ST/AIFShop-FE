@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Box, Edit, Trash2, Filter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, fetchProductsByShop } from "@/lib/api";
+import { fetchShopBySeller, fetchProductsByShop, updateCategory } from "@/lib/api";
 
 export default function ProductManagement() {
   const { user, initialized } = useAuth();
@@ -116,7 +117,7 @@ export default function ProductManagement() {
               </TableCell>
               <TableCell>
                 {product.status === 0
-                  ? "Đang hoạt động"
+                  ? "Đang ho��t động"
                   : product.status === 1
                     ? "Bản nháp"
                     : String(product.status)}
