@@ -22,8 +22,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchShopBySeller,
   fetchProductsByShop,
-  createCategory,
-  createProduct,
 } from "@/lib/api";
 
 export default function ProductManagement() {
