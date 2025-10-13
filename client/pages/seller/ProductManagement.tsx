@@ -67,7 +67,10 @@ export default function ProductManagement() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
 
-  const [categoryForm, setCategoryForm] = useState({ name: "", description: "" });
+  const [categoryForm, setCategoryForm] = useState({
+    name: "",
+    description: "",
+  });
   const [productForm, setProductForm] = useState({
     name: "",
     description: "",
@@ -77,30 +80,43 @@ export default function ProductManagement() {
     imageUrls: "",
   });
 
-  const categoryMutation = useMutation((payload: any) => createCategory(payload), {
-    onSuccess: () => {
-      alert("Tạo category thành công");
-      queryClient.invalidateQueries(["categories"]);
-      setShowCategoryForm(false);
-      setCategoryForm({ name: "", description: "" });
+  const categoryMutation = useMutation(
+    (payload: any) => createCategory(payload),
+    {
+      onSuccess: () => {
+        alert("Tạo category thành công");
+        queryClient.invalidateQueries(["categories"]);
+        setShowCategoryForm(false);
+        setCategoryForm({ name: "", description: "" });
+      },
+      onError: (err: any) => {
+        alert(err?.response?.data?.message || "Tạo category thất bại");
+      },
     },
-    onError: (err: any) => {
-      alert(err?.response?.data?.message || "Tạo category thất bại");
-    },
-  });
+  );
 
-  const productMutation = useMutation((payload: any) => createProduct(payload), {
-    onSuccess: () => {
-      alert("Tạo sản phẩm thành công");
-      queryClient.invalidateQueries(["productsByShop"]);
-      queryClient.invalidateQueries(["products"]);
-      setShowProductForm(false);
-      setProductForm({ name: "", description: "", price: "", stockQuantity: "", categoryId: "", imageUrls: "" });
+  const productMutation = useMutation(
+    (payload: any) => createProduct(payload),
+    {
+      onSuccess: () => {
+        alert("Tạo sản phẩm thành công");
+        queryClient.invalidateQueries(["productsByShop"]);
+        queryClient.invalidateQueries(["products"]);
+        setShowProductForm(false);
+        setProductForm({
+          name: "",
+          description: "",
+          price: "",
+          stockQuantity: "",
+          categoryId: "",
+          imageUrls: "",
+        });
+      },
+      onError: (err: any) => {
+        alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
+      },
     },
-    onError: (err: any) => {
-      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
-    },
-  });
+  );
 
   const submitCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,8 +147,12 @@ export default function ProductManagement() {
     <div className="container py-8">
       <div className="flex justify-between mb-6">
         <div className="flex gap-2">
-          <Button onClick={() => setShowProductForm((s) => !s)}>+ Tạo Sản phẩm</Button>
-          <Button onClick={() => setShowCategoryForm((s) => !s)}>+ Tạo Category</Button>
+          <Button onClick={() => setShowProductForm((s) => !s)}>
+            + Tạo Sản phẩm
+          </Button>
+          <Button onClick={() => setShowCategoryForm((s) => !s)}>
+            + Tạo Category
+          </Button>
         </div>
         <div className="flex gap-4">
           <Input
@@ -155,17 +175,29 @@ export default function ProductManagement() {
             <Input
               placeholder="Tên category"
               value={categoryForm.name}
-              onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+              onChange={(e) =>
+                setCategoryForm({ ...categoryForm, name: e.target.value })
+              }
             />
             <Input
               placeholder="Mô tả"
               value={categoryForm.description}
-              onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+              onChange={(e) =>
+                setCategoryForm({
+                  ...categoryForm,
+                  description: e.target.value,
+                })
+              }
             />
           </div>
           <div className="mt-3 flex gap-2">
             <Button type="submit">Tạo Category</Button>
-            <Button variant="outline" onClick={() => setShowCategoryForm(false)}>Hủy</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowCategoryForm(false)}
+            >
+              Hủy
+            </Button>
           </div>
         </form>
       )}
@@ -174,16 +206,57 @@ export default function ProductManagement() {
         <form onSubmit={submitProduct} className="mb-6 bg-white p-4 rounded">
           <h3 className="text-lg font-medium mb-2">Tạo Sản phẩm mới</h3>
           <div className="grid grid-cols-2 gap-4">
-            <Input placeholder="Tên sản phẩm" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
-            <Input placeholder="Giá" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} />
-            <Input placeholder="Tồn kho" value={productForm.stockQuantity} onChange={(e) => setProductForm({ ...productForm, stockQuantity: e.target.value })} />
-            <Input placeholder="Category ID (tùy chọn)" value={productForm.categoryId} onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })} />
-            <Input placeholder="Hình ảnh (URLs, cách nhau bằng ,)" value={productForm.imageUrls} onChange={(e) => setProductForm({ ...productForm, imageUrls: e.target.value })} />
-            <Input placeholder="Mô tả ngắn" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} />
+            <Input
+              placeholder="Tên sản phẩm"
+              value={productForm.name}
+              onChange={(e) =>
+                setProductForm({ ...productForm, name: e.target.value })
+              }
+            />
+            <Input
+              placeholder="Giá"
+              value={productForm.price}
+              onChange={(e) =>
+                setProductForm({ ...productForm, price: e.target.value })
+              }
+            />
+            <Input
+              placeholder="Tồn kho"
+              value={productForm.stockQuantity}
+              onChange={(e) =>
+                setProductForm({
+                  ...productForm,
+                  stockQuantity: e.target.value,
+                })
+              }
+            />
+            <Input
+              placeholder="Category ID (tùy chọn)"
+              value={productForm.categoryId}
+              onChange={(e) =>
+                setProductForm({ ...productForm, categoryId: e.target.value })
+              }
+            />
+            <Input
+              placeholder="Hình ảnh (URLs, cách nhau bằng ,)"
+              value={productForm.imageUrls}
+              onChange={(e) =>
+                setProductForm({ ...productForm, imageUrls: e.target.value })
+              }
+            />
+            <Input
+              placeholder="Mô tả ngắn"
+              value={productForm.description}
+              onChange={(e) =>
+                setProductForm({ ...productForm, description: e.target.value })
+              }
+            />
           </div>
           <div className="mt-3 flex gap-2">
             <Button type="submit">Tạo Sản phẩm</Button>
-            <Button variant="outline" onClick={() => setShowProductForm(false)}>Hủy</Button>
+            <Button variant="outline" onClick={() => setShowProductForm(false)}>
+              Hủy
+            </Button>
           </div>
         </form>
       )}
