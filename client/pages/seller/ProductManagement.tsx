@@ -144,98 +144,14 @@ export default function ProductManagement() {
         </div>
       </div>
 
-      {showCategoryForm && (
-        <form onSubmit={submitCategory} className="mb-6 bg-white p-4 rounded">
-          <h3 className="text-lg font-medium mb-2">Tạo Category mới</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              placeholder="Tên category"
-              value={categoryForm.name}
-              onChange={(e) =>
-                setCategoryForm({ ...categoryForm, name: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Mô tả"
-              value={categoryForm.description}
-              onChange={(e) =>
-                setCategoryForm({
-                  ...categoryForm,
-                  description: e.target.value,
-                })
-              }
-            />
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Button type="submit">Tạo Category</Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowCategoryForm(false)}
-            >
-              Hủy
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {showProductForm && (
-        <form onSubmit={submitProduct} className="mb-6 bg-white p-4 rounded">
-          <h3 className="text-lg font-medium mb-2">Tạo Sản phẩm mới</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              placeholder="Tên sản phẩm"
-              value={productForm.name}
-              onChange={(e) =>
-                setProductForm({ ...productForm, name: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Giá"
-              value={productForm.price}
-              onChange={(e) =>
-                setProductForm({ ...productForm, price: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Tồn kho"
-              value={productForm.stockQuantity}
-              onChange={(e) =>
-                setProductForm({
-                  ...productForm,
-                  stockQuantity: e.target.value,
-                })
-              }
-            />
-            <Input
-              placeholder="Category ID (tùy chọn)"
-              value={productForm.categoryId}
-              onChange={(e) =>
-                setProductForm({ ...productForm, categoryId: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Hình ảnh (URLs, cách nhau bằng ,)"
-              value={productForm.imageUrls}
-              onChange={(e) =>
-                setProductForm({ ...productForm, imageUrls: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Mô tả ngắn"
-              value={productForm.description}
-              onChange={(e) =>
-                setProductForm({ ...productForm, description: e.target.value })
-              }
-            />
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Button type="submit">Tạo Sản phẩm</Button>
-            <Button variant="outline" onClick={() => setShowProductForm(false)}>
-              H��y
-            </Button>
-          </div>
-        </form>
-      )}
+      <div className="mb-6 flex gap-2">
+        <Link to="/seller/products/create">
+          <Button>+ Tạo Sản phẩm</Button>
+        </Link>
+        <Link to="/seller/category/create">
+          <Button>+ Tạo Category</Button>
+        </Link>
+      </div>
 
       <Table>
         <TableHeader>
