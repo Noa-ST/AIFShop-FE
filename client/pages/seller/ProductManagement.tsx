@@ -79,7 +79,6 @@ export default function ProductManagement() {
     imageUrls: "",
   });
 
-
   const submitCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
