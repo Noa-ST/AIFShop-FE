@@ -62,60 +62,6 @@ export default function ProductManagement() {
   const queryClient = useQueryClient();
 
 
-  const submitCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
-    const payload = { ...categoryForm, shopId };
-    try {
-      await createCategory(payload);
-      alert("Tạo category thành công");
-      try {
-        queryClient.invalidateQueries({ queryKey: ["categories"] });
-      } catch (e) {}
-      setShowCategoryForm(false);
-      setCategoryForm({ name: "", description: "" });
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Tạo category thất bại");
-    }
-  };
-
-  const submitProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
-    const payload = {
-      name: productForm.name,
-      description: productForm.description,
-      price: Number(productForm.price || 0),
-      stockQuantity: Number(productForm.stockQuantity || 0),
-      shopId,
-      categoryId: productForm.categoryId || undefined,
-      imageUrls: (productForm.imageUrls || "")
-        .split(",")
-        .map((u) => u.trim())
-        .filter(Boolean),
-    };
-    try {
-      await createProduct(payload);
-      alert("Tạo sản phẩm thành công");
-      try {
-        queryClient.invalidateQueries({ queryKey: ["productsByShop", shopId] });
-      } catch (e) {}
-      try {
-        queryClient.invalidateQueries({ queryKey: ["products"] });
-      } catch (e) {}
-      setShowProductForm(false);
-      setProductForm({
-        name: "",
-        description: "",
-        price: "",
-        stockQuantity: "",
-        categoryId: "",
-        imageUrls: "",
-      });
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
-    }
-  };
 
   return (
     <div className="container py-8">
