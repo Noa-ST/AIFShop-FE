@@ -97,8 +97,8 @@ export default function ProductManagement() {
     mutationFn: (payload: any) => createProduct(payload),
     onSuccess: () => {
       alert("Tạo sản phẩm thành công");
-      queryClient.invalidateQueries(["productsByShop"]);
-      queryClient.invalidateQueries(["products"]);
+      queryClient.invalidateQueries({ queryKey: ["productsByShop", shopId] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       setShowProductForm(false);
       setProductForm({
         name: "",
