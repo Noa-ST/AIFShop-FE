@@ -66,27 +66,20 @@ export default function ProductManagement() {
   return (
     <div className="container py-8">
       <div className="flex justify-between mb-6">
-        <div className="flex gap-2">
-          <Button onClick={() => setShowProductForm((s) => !s)}>
-            + Tạo Sản phẩm
-          </Button>
-          <Button onClick={() => setShowCategoryForm((s) => !s)}>
-            + Tạo Category
-          </Button>
-        </div>
-        <div className="flex gap-4">
-          <Input
-            placeholder="Tìm kiếm theo tên..."
-            className="w-64"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Lọc
-          </Button>
-        </div>
-      </div>
+    <div />
+    <div className="flex gap-4">
+      <Input
+        placeholder="Tìm kiếm theo tên..."
+        className="w-64"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <Button variant="outline">
+        <Filter className="w-4 h-4 mr-2" />
+        Lọc
+      </Button>
+    </div>
+  </div>
 
       <div className="mb-6 flex gap-2">
         <Link to="/seller/products/create">
