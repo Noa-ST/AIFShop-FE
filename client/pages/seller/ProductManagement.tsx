@@ -84,7 +84,7 @@ export default function ProductManagement() {
     mutationFn: (payload: any) => createCategory(payload),
     onSuccess: () => {
       alert("Tạo category thành công");
-      queryClient.invalidateQueries(["categories"]);
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       setShowCategoryForm(false);
       setCategoryForm({ name: "", description: "" });
     },
@@ -144,7 +144,7 @@ export default function ProductManagement() {
       <div className="flex justify-between mb-6">
         <div className="flex gap-2">
           <Button onClick={() => setShowProductForm((s) => !s)}>
-            + Tạo Sản ph���m
+            + Tạo Sản phẩm
           </Button>
           <Button onClick={() => setShowCategoryForm((s) => !s)}>
             + Tạo Category
@@ -261,7 +261,7 @@ export default function ProductManagement() {
         <TableHeader>
           <TableRow>
             <TableHead className="w-[80px]">Ảnh</TableHead>
-            <TableHead>Tên Sản ph��m</TableHead>
+            <TableHead>Tên Sản phẩm</TableHead>
             <TableHead>Giá</TableHead>
             <TableHead>Tồn kho</TableHead>
             <TableHead>Trạng thái</TableHead>
