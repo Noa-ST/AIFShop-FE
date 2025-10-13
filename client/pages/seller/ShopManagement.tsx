@@ -10,8 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import ShopInfo from "./ShopInfo";
 import ProductManagement from "./ProductManagement";
-import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { updateCategory } from "@/lib/api";
 
 export default function ShopManagement() {
