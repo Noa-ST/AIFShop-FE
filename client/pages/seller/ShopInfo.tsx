@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function ShopInfo() {
-  const { user } = useAuth();
+  // Combine auth usage to avoid calling hooks conditionally
+  const { user, initialized } = useAuth();
   const sellerId = user?.id;
 
   const { data: shop, isLoading } = useQuery({
@@ -28,10 +29,6 @@ export default function ShopInfo() {
     enabled: !!sellerId,
   });
 
-  const { initialized } = useAuth();
-  if (!initialized)
-    return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
-
   const normalized = shop && (Array.isArray(shop) ? shop[0] : shop);
 
   const [form, setForm] = useState({
@@ -39,6 +36,7 @@ export default function ShopInfo() {
     description: "",
     logo: "",
   });
+
 
   // When shop data is loaded, initialize the form
   useEffect(() => {
