@@ -10,9 +10,31 @@ import {
 import { Button } from "@/components/ui/button";
 import ShopInfo from "./ShopInfo";
 import ProductManagement from "./ProductManagement";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { updateCategory } from "@/lib/api";
 
 export default function ShopManagement() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const handleCreateCategory = async () => {
+    const name = prompt("Tên category mới:");
+    if (!name) return;
+    const description = prompt("Mô tả (tùy chọn):") || "";
+    const id = typeof crypto !== "undefined" && (crypto as any).randomUUID
+      ? (crypto as any).randomUUID()
+      : String(Date.now());
+    try {
+      await updateCategory(id, { name, description, id });
+      alert("Tạo category thành công");
+      try {
+        queryClient.invalidateQueries(["categories"]);
+      } catch (e) {}
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "Tạo category thất bại");
+    }
+  };
 
   return (
     <div className="container py-8">
@@ -21,7 +43,7 @@ export default function ShopManagement() {
       <Tabs defaultValue="shop-info">
         <TabsList className="grid w-full grid-cols-2 max-w-lg">
           <TabsTrigger value="shop-info">1. Thông tin Shop</TabsTrigger>
-          <TabsTrigger value="products">2. Quản lý Sản phẩm</TabsTrigger>
+          <TabsTrigger value="products">2. Sản phẩm</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shop-info" className="mt-6">
@@ -43,9 +65,7 @@ export default function ShopManagement() {
             <CardHeader className="flex justify-between items-center">
               <CardTitle>Danh sách Sản phẩm</CardTitle>
               <div>
-                <Button asChild>
-                  <a href="/seller/products/create">+ Tạo Sản phẩm mới</a>
-                </Button>
+                <Button onClick={handleCreateCategory}>+ Tạo Category</Button>
               </div>
             </CardHeader>
             <CardContent>
