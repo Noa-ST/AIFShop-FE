@@ -211,4 +211,9 @@ export const updateCategory = async (id: string, payload: any) => {
   return res.data;
 };
 
+export const createCategory = async (payload: any) => {
+  const res = await api.post(`/api/Category/create`, payload);
+  return res.data;
+};
+
 export default api;
