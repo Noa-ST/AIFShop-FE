@@ -64,26 +64,67 @@ export default function ProductManagement() {
 
   const queryClient = useQueryClient();
 
-  const handleCreateCategory = async () => {
-    const name = prompt("Tên category mới:");
-    if (!name) return;
-    const description = prompt("Mô tả (tùy chọn):") || "";
-    const id =
-      typeof crypto !== "undefined" && (crypto as any).randomUUID
-        ? (crypto as any).randomUUID()
-        : String(Date.now());
-    try {
-      await updateCategory(id, { name, description, id });
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [showProductForm, setShowProductForm] = useState(false);
+
+  const [categoryForm, setCategoryForm] = useState({ name: "", description: "" });
+  const [productForm, setProductForm] = useState({
+    name: "",
+    description: "",
+    price: "",
+    stockQuantity: "",
+    categoryId: "",
+    imageUrls: "",
+  });
+
+  const categoryMutation = useMutation((payload: any) => createCategory(payload), {
+    onSuccess: () => {
       alert("Tạo category thành công");
-      // invalidate categories if used elsewhere
-      try {
-        queryClient.invalidateQueries(["categories"]);
-      } catch (e) {
-        // ignore
-      }
-    } catch (e: any) {
-      alert(e?.response?.data?.message || "Tạo category thất bại");
-    }
+      queryClient.invalidateQueries(["categories"]);
+      setShowCategoryForm(false);
+      setCategoryForm({ name: "", description: "" });
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || "Tạo category thất bại");
+    },
+  });
+
+  const productMutation = useMutation((payload: any) => createProduct(payload), {
+    onSuccess: () => {
+      alert("Tạo sản phẩm thành công");
+      queryClient.invalidateQueries(["productsByShop"]);
+      queryClient.invalidateQueries(["products"]);
+      setShowProductForm(false);
+      setProductForm({ name: "", description: "", price: "", stockQuantity: "", categoryId: "", imageUrls: "" });
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || "Tạo sản phẩm thất bại");
+    },
+  });
+
+  const submitCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
+    const payload = { ...categoryForm, shopId };
+    categoryMutation.mutate(payload);
+  };
+
+  const submitProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
+    const payload = {
+      name: productForm.name,
+      description: productForm.description,
+      price: Number(productForm.price || 0),
+      stockQuantity: Number(productForm.stockQuantity || 0),
+      shopId,
+      categoryId: productForm.categoryId || undefined,
+      imageUrls: (productForm.imageUrls || "")
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean),
+    };
+    productMutation.mutate(payload);
   };
 
   return (
