@@ -216,4 +216,27 @@ export const createCategory = async (payload: any) => {
   return res.data;
 };
 
+export const fetchCategoriesByShop = async (shopId: string) => {
+  if (!shopId) return [];
+  const candidates = [
+    `/api/Category/shop/${shopId}`,
+    `/api/Category/getbyshop/${shopId}`,
+    `/api/Category/get-by-shop/${shopId}`,
+    `/api/Category/all?shopId=${encodeURIComponent(shopId)}`,
+  ];
+
+  for (const path of candidates) {
+    try {
+      const res = await api.get(path);
+      if (res && res.status === 200) return res.data;
+    } catch (e) {
+      // try next
+      continue;
+    }
+  }
+
+  // If none worked, return empty array
+  return [];
+};
+
 export default api;
