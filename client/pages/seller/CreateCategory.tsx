@@ -76,7 +76,8 @@ export default function CreateCategoryPage() {
                 setForm({ ...form, description: e.target.value })
               }
             />
-            <div className="flex justify-end">
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => navigate('/seller/products')}>Thoát</Button>
               <Button type="submit" disabled={loading || !form.name}>
                 {loading ? "Đang tạo..." : "Tạo Category"}
               </Button>
