@@ -77,7 +77,12 @@ export default function CreateCategoryPage() {
               }
             />
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => navigate('/seller/products')}>Thoát</Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/seller/products")}
+              >
+                Thoát
+              </Button>
               <Button type="submit" disabled={loading || !form.name}>
                 {loading ? "Đang tạo..." : "Tạo Category"}
               </Button>
