@@ -14,17 +14,18 @@ import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ProductList from "./pages/Products/List";
 import ProductDetail from "./pages/Products/Detail";
-import SellerDashboard from "./pages/seller/Dashboard";
-import CreateShopPage from "./pages/seller/CreateShop";
-import ProductManagement from "./pages/seller/ProductManagement";
-import ShopInfo from "./pages/seller/ShopInfo";
-import ShopManagement from "./pages/seller/ShopManagement";
+import SellerDashboard from "./pages/Seller/Dashboard";
+import CreateShopPage from "./pages/Seller/CreateShop";
+import ProductManagement from "./pages/Seller/ProductManagement";
+import ShopInfo from "./pages/Seller/ShopInfo";
+import ShopManagement from "./pages/Seller/ShopManagement";
 import React from "react";
-import CreateProduct from "./pages/seller/CreateProduct";
-import CreateCategory from "./pages/seller/CreateCategory";
+import CreateProduct from "./pages/Seller/CreateProduct";
+import CreateCategory from "./pages/Seller/CreateCategory";
 import ShopDetail from "./pages/Shop/Detail";
 import ProfilePage from "./pages/Profile/Index";
 import { AuthProvider } from "./contexts/AuthContext";
+import GlobalCategoryDashboard from "./pages/Admin/GlobalCategoryDashboard";
 
 const queryClient = new QueryClient();
 
@@ -84,8 +85,8 @@ const App = () => (
                 />
                 <Route path="/seller" element={<SellerDashboard />} />
                 <Route
-                  path="/admin"
-                  element={<Placeholder title="Admin Dashboard" />}
+                  path="/admin/global-categories"
+                  element={<GlobalCategoryDashboard />}
                 />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

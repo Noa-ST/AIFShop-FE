@@ -67,16 +67,37 @@ export default function SiteHeader() {
             </Link>
           )}
 
-          <Link
-            to="/cart"
-            className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white shadow hover:bg-rose-700"
-          >
-            <ShoppingCart size={18} />
-            <span>Giỏ hàng</span>
-            <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-black text-white rounded-full">
-              0
-            </span>
-          </Link>
+          {/* Quick Dashboard button for Admin/Seller (mobile + desktop) */}
+          {isAuthenticated &&
+            (user?.role === "Admin" || user?.role === "Seller") && (
+              <Link
+                to={
+                  user?.role === "Admin"
+                    ? "/admin/global-categories"
+                    : "/seller/shop-management"
+                }
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 text-sm hover:bg-slate-50"
+              >
+                <Store size={16} />
+                <span>
+                  {user?.role === "Admin" ? "Admin Panel" : "Bán hàng"}
+                </span>
+              </Link>
+            )}
+
+          {/* Cart button only for Customers or guests */}
+          {(!isAuthenticated || user?.role === "Customer") && (
+            <Link
+              to="/cart"
+              className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-600 text-white shadow hover:bg-rose-700"
+            >
+              <ShoppingCart size={18} />
+              <span>Giỏ hàng</span>
+              <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-black text-white rounded-full">
+                0
+              </span>
+            </Link>
+          )}
 
           {isAuthenticated && (
             <div className="relative" ref={ref}>
@@ -100,7 +121,7 @@ export default function SiteHeader() {
                   </Link>
                   {user?.role === "Seller" && (
                     <Link
-                      to="/seller/dashboard"
+                      to="/seller/shop-management"
                       className="block px-4 py-2 text-sm hover:bg-slate-50"
                     >
                       Dashboard Seller
@@ -108,7 +129,7 @@ export default function SiteHeader() {
                   )}
                   {user?.role === "Admin" && (
                     <Link
-                      to="/admin/dashboard"
+                      to="/admin/global-categories"
                       className="block px-4 py-2 text-sm hover:bg-slate-50"
                     >
                       Dashboard Admin

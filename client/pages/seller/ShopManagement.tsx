@@ -7,34 +7,33 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import ShopInfo from "./ShopInfo";
-import ProductManagement from "./ProductManagement";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateCategory } from "@/lib/api";
+import ShopInfo from "./ShopInfo";
+import ProductManagement from "./ProductManagement";
 
 export default function ShopManagement() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const handleCreateCategory = async () => {
-    const name = prompt("Tên category mới:");
-    if (!name) return;
-    const description = prompt("Mô tả (tùy chọn):") || "";
-    const id =
-      typeof crypto !== "undefined" && (crypto as any).randomUUID
-        ? (crypto as any).randomUUID()
-        : String(Date.now());
-    try {
-      await updateCategory(id, { name, description, id });
-      alert("Tạo category thành công");
-      try {
-        queryClient.invalidateQueries(["categories"]);
-      } catch (e) {}
-    } catch (e: any) {
-      alert(e?.response?.data?.message || "Tạo category thất bại");
-    }
-  };
+  // const handleCreateCategory = async () => {
+  //   const name = prompt("Tên category mới:");
+  //   if (!name) return;
+  //   const description = prompt("Mô tả (tùy chọn):") || "";
+  //   const id =
+  //     typeof crypto !== "undefined" && (crypto as any).randomUUID
+  //       ? (crypto as any).randomUUID()
+  //       : String(Date.now());
+  //   try {
+  //     await updateCategory(id, { name, description, id });
+  //     alert("Tạo category thành công");
+  //     try {
+  //       queryClient.invalidateQueries(["categories"]);
+  //     } catch (e) {}
+  //   } catch (e: any) {
+  //     alert(e?.response?.data?.message || "Tạo category thất bại");
+  //   }
+  // };
 
   return (
     <div className="container py-8">

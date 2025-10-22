@@ -2,11 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  fetchShopBySeller,
-  createProduct,
-  fetchCategoriesByShop,
-} from "@/lib/api";
+import { fetchShopBySeller, createProduct } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -43,14 +39,14 @@ export default function CreateProduct() {
     imageUrls: [] as string[],
   });
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categoriesByShop", shopId],
-    queryFn: async () => {
-      if (!shopId) return [];
-      return await fetchCategoriesByShop(shopId);
-    },
-    enabled: !!shopId,
-  });
+  // const { data: categories = [] } = useQuery({
+  //   queryKey: ["categoriesByShop", shopId],
+  //   queryFn: async () => {
+  //     if (!shopId) return [];
+  //     return await fetchCategoriesByShop(shopId);
+  //   },
+  //   enabled: !!shopId,
+  // });
 
   // Handle file uploads (convert to base64 data urls) as fallback if backend doesn't accept file uploads
   const handleFiles = (files?: FileList | null) => {
@@ -140,7 +136,7 @@ export default function CreateProduct() {
           />
         </div>
 
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium mb-1">Category</label>
           <select
             name="categoryId"
@@ -155,7 +151,7 @@ export default function CreateProduct() {
               </option>
             ))}
           </select>
-        </div>
+        </div> */}
 
         <div>
           <label className="block text-sm font-medium mb-1">

@@ -123,7 +123,7 @@ export default function ProductManagement() {
               </TableCell>
               <TableCell>
                 {product.status === 0
-                  ? "Đang ho��t động"
+                  ? "Đang hoạt động"
                   : product.status === 1
                     ? "Bản nháp"
                     : String(product.status)}

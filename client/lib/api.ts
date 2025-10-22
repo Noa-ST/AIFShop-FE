@@ -73,7 +73,9 @@ api.interceptors.response.use(
               refreshToken,
             )}`,
           );
-          const { accessToken, refreshToken: newRefresh } = resp.data || {};
+          const responseData = resp?.data?.data || resp?.data || {};
+          const accessToken = responseData.accessToken || responseData.token;
+          const newRefresh = responseData.refreshToken;
           if (accessToken) {
             localStorage.setItem(ACCESS_KEY, accessToken);
             if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
@@ -204,39 +206,29 @@ export const isShopPresent = (shop: any) => {
   }
   return false;
 };
+// Thêm hàm API cho Global Category (GC)
 
-export const updateCategory = async (id: string, payload: any) => {
-  if (!id) throw new Error("Category ID is required");
-  const res = await api.put(`/api/Category/update/${id}`, payload);
+export const fetchGlobalCategories = async () => {
+  // Gọi endpoint Admin để lấy toàn bộ danh mục dạng cây (nếu đã triển khai)
+  const res = await api.get("/api/Admin/GlobalCategory/all");
+  // Giả định BE trả về ServiceResponse<IEnumerable<GetGlobalCategory>>
+  return res.data.data || [];
+};
+
+export const createGlobalCategory = async (payload: any) => {
+  const res = await api.post("/api/Admin/GlobalCategory/add", payload);
   return res.data;
 };
 
-export const createCategory = async (payload: any) => {
-  const res = await api.post(`/api/Category/create`, payload);
+export const updateGlobalCategory = async (id: string, payload: any) => {
+  const res = await api.put(`/api/Admin/GlobalCategory/update/${id}`, payload);
   return res.data;
 };
 
-export const fetchCategoriesByShop = async (shopId: string) => {
-  if (!shopId) return [];
-  const candidates = [
-    `/api/Category/shop/${shopId}`,
-    `/api/Category/getbyshop/${shopId}`,
-    `/api/Category/get-by-shop/${shopId}`,
-    `/api/Category/all?shopId=${encodeURIComponent(shopId)}`,
-  ];
-
-  for (const path of candidates) {
-    try {
-      const res = await api.get(path);
-      if (res && res.status === 200) return res.data;
-    } catch (e) {
-      // try next
-      continue;
-    }
-  }
-
-  // If none worked, return empty array
-  return [];
+export const deleteGlobalCategory = async (id: string) => {
+  // API này là xóa mềm (soft delete)
+  const res = await api.delete(`/api/Admin/GlobalCategory/delete/${id}`);
+  return res.data;
 };
 
 export default api;

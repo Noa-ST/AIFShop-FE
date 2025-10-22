@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, createCategory } from "@/lib/api";
+import { fetchShopBySeller } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -40,20 +40,20 @@ export default function CreateCategoryPage() {
   const [form, setForm] = useState({ name: "", description: "" });
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
-    setLoading(true);
-    try {
-      await createCategory({ ...form, shopId });
-      alert("Tạo category thành công");
-      navigate("/seller/products");
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Tạo category thất bại");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!shopId) return alert("Không tìm thấy Shop. Vui lòng tạo Shop trước.");
+  //   setLoading(true);
+  //   try {
+  //     await createCategory({ ...form, shopId });
+  //     alert("Tạo category thành công");
+  //     navigate("/seller/products");
+  //   } catch (err: any) {
+  //     alert(err?.response?.data?.message || "Tạo category thất bại");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <div className="container py-8 max-w-2xl">
@@ -62,7 +62,7 @@ export default function CreateCategoryPage() {
           <CardTitle className="text-2xl">Tạo Category mới</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               placeholder="Tên category"
               value={form.name}
@@ -87,7 +87,7 @@ export default function CreateCategoryPage() {
                 {loading ? "Đang tạo..." : "Tạo Category"}
               </Button>
             </div>
-          </form>
+          </form> */}
         </CardContent>
         <CardFooter>
           <div />
