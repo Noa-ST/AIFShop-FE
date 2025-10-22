@@ -29,7 +29,8 @@ export default function ShopManagement() {
       await updateCategory(id, { name, description, id });
       alert("Tạo category thành công");
       try {
-        queryClient.invalidateQueries(["categories"]);
+  // cast to any to avoid strict TS signature mismatch with generic query keys
+  queryClient.invalidateQueries(["categories"] as any);
       } catch (e) {}
     } catch (e: any) {
       alert(e?.response?.data?.message || "Tạo category thất bại");
