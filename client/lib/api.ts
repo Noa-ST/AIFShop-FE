@@ -252,3 +252,29 @@ export const deleteGlobalCategory = async (id: string) => {
 };
 
 export default api;
+
+// -----------------------------
+// Cart APIs (Authorized)
+// -----------------------------
+export type CartAddPayload = { productId: string; quantity: number };
+export type CartUpdatePayload = { productId: string; quantity: number };
+
+export const fetchCart = async () => {
+  const res = await api.get(`/api/Cart`);
+  return res.data;
+};
+
+export const addToCart = async (payload: CartAddPayload) => {
+  const res = await api.post(`/api/Cart/add`, payload);
+  return res.data;
+};
+
+export const updateCartItem = async (payload: CartUpdatePayload) => {
+  const res = await api.put(`/api/Cart/update`, payload);
+  return res.data;
+};
+
+export const deleteCartItem = async (productId: string) => {
+  const res = await api.delete(`/api/Cart/deleteItem/${productId}`);
+  return res.data;
+};
