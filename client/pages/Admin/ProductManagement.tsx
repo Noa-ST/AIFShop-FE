@@ -1,5 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  approveProduct,
+  rejectProduct,
+  fetchProducts,
+  fetchProductById,
+  fetchGlobalCategories,
+} from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -31,17 +38,24 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/use-toast";
 import {
   Search,
-  Filter,
   Eye,
-  Edit,
   Trash2,
   Package,
-  Plus,
   MoreHorizontal,
   Star,
   TrendingUp,
@@ -54,89 +68,47 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Mock data interface - replace with actual API types
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  oldPrice?: number;
-  image?: string;
-  category: string;
-  shop: {
-    id: string;
-    name: string;
-    logoUrl?: string;
-  };
-  status: "active" | "inactive" | "pending";
-  rating: number;
-  reviewCount: number;
-  stock: number;
-  createdAt: string;
-  updatedAt: string;
-}
+type AnyRecord = Record<string, any>;
+type AdminProduct = AnyRecord;
 
-// Mock data - replace with actual API calls
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "iPhone 15 Pro Max",
-    description: "Latest iPhone with advanced camera system",
-    price: 29990000,
-    oldPrice: 32990000,
-    image: "/placeholder.svg",
-    category: "Electronics",
-    shop: {
-      id: "shop1",
-      name: "TechStore",
-      logoUrl: "/placeholder.svg",
-    },
-    status: "active",
-    rating: 4.8,
-    reviewCount: 1250,
-    stock: 50,
-    createdAt: "2024-01-15",
-    updatedAt: "2024-01-20",
-  },
-  {
-    id: "2",
-    name: "Samsung Galaxy S24 Ultra",
-    description: "Premium Android smartphone with S Pen",
-    price: 25990000,
-    image: "/placeholder.svg",
-    category: "Electronics",
-    shop: {
-      id: "shop2",
-      name: "MobileWorld",
-      logoUrl: "/placeholder.svg",
-    },
-    status: "active",
-    rating: 4.6,
-    reviewCount: 890,
-    stock: 30,
-    createdAt: "2024-01-10",
-    updatedAt: "2024-01-18",
-  },
-  {
-    id: "3",
-    name: "MacBook Pro M3",
-    description: "Professional laptop for creators",
-    price: 45990000,
-    image: "/placeholder.svg",
-    category: "Computers",
-    shop: {
-      id: "shop1",
-      name: "TechStore",
-      logoUrl: "/placeholder.svg",
-    },
-    status: "pending",
-    rating: 4.9,
-    reviewCount: 567,
-    stock: 15,
-    createdAt: "2024-01-12",
-    updatedAt: "2024-01-19",
-  },
-];
+const normalizeProductList = (response: any): AdminProduct[] => {
+  const maybeData = response?.data ?? response;
+  if (Array.isArray(maybeData)) return maybeData as AdminProduct[];
+  if (Array.isArray(maybeData?.items)) return maybeData.items as AdminProduct[];
+  if (Array.isArray(maybeData?.result))
+    return maybeData.result as AdminProduct[];
+  return [];
+};
+
+const getProductName = (p: AdminProduct) =>
+  p?.name || p?.productName || p?.title || "Sản phẩm";
+const getProductPrice = (p: AdminProduct) =>
+  Number(p?.price ?? p?.unitPrice ?? 0);
+const getProductCategoryName = (p: AdminProduct) =>
+  p?.categoryName || p?.category || p?.categoryTitle || "-";
+const getProductStock = (p: AdminProduct) =>
+  Number(p?.stock ?? p?.stockQuantity ?? 0);
+const getShopName = (p: AdminProduct) =>
+  p?.shop?.name || p?.shopName || p?.seller?.name || "-";
+const getRating = (p: AdminProduct) => Number(p?.rating ?? p?.avgRating ?? 0);
+const getReviewCount = (p: AdminProduct) =>
+  Number(p?.reviewCount ?? p?.numReviews ?? 0);
+const getProductId = (p: AdminProduct) => p?.id || p?.productId || p?._id;
+const getStatus = (
+  p: AdminProduct,
+): "Pending" | "Approved" | "Rejected" | "Unknown" => {
+  const raw: string = (
+    p?.status ||
+    p?.productStatus ||
+    p?.approvalStatus ||
+    ""
+  ).toString();
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "pending") return "Pending";
+  if (normalized === "approved" || normalized === "active") return "Approved";
+  if (normalized === "rejected" || normalized === "inactive") return "Rejected";
+  return "Pending"; // default for safety in moderation flow
+};
 
 export default function AdminProductManagement() {
   const queryClient = useQueryClient();
@@ -144,56 +116,133 @@ export default function AdminProductManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // Mock query - replace with actual API call
-  const { data: products = mockProducts, isLoading } = useQuery({
-    queryKey: ["adminProducts", searchTerm, statusFilter, categoryFilter],
-    queryFn: async () => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return mockProducts;
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  );
+
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectId, setRejectId] = useState<string | null>(null);
+
+  // Products query
+  const { data: productsResponse, isLoading } = useQuery({
+    queryKey: ["adminProducts"],
+    queryFn: fetchProducts,
+  });
+
+  const products: AdminProduct[] = useMemo(
+    () => normalizeProductList(productsResponse),
+    [productsResponse],
+  );
+
+  // Categories for filter (flattened)
+  const { data: rawCategories = [] } = useQuery({
+    queryKey: ["globalCategories"],
+    queryFn: fetchGlobalCategories,
+  });
+
+  const flatCategories = useMemo(() => {
+    const out: Array<{ id: string; name: string }> = [];
+    const walk = (nodes: any[]) => {
+      if (!Array.isArray(nodes)) return;
+      for (const n of nodes) {
+        out.push({
+          id: n?.id ?? n?._id ?? n?.value ?? String(out.length + 1),
+          name: n?.name || n?.title || "Unnamed",
+        });
+        if (n?.children && n.children.length) walk(n.children);
+      }
+    };
+    walk(rawCategories as any[]);
+    return out;
+  }, [rawCategories]);
+
+  // Approve
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => approveProduct(id),
+    onSuccess: (data, id) => {
+      // Show success toast
+      toast({ title: "Thành công", description: "Đã duyệt sản phẩm." });
+
+      // Update cache optimistically so UI reflects new status immediately.
+      // Handle multiple response shapes (array, { data: [] }, { items: [] }, { result: [] }).
+      const rebuildResponse = (old: any, updatedList: AdminProduct[]) => {
+        if (!old) return updatedList;
+        if (Array.isArray(old)) return updatedList;
+        if (Array.isArray(old?.data)) return { ...old, data: updatedList };
+        if (Array.isArray(old?.items)) return { ...old, items: updatedList };
+        if (Array.isArray(old?.result)) return { ...old, result: updatedList };
+        return updatedList;
+      };
+
+      queryClient.setQueryData(["adminProducts"], (old: any) => {
+        try {
+          const list = normalizeProductList(old);
+          const updated = list.map((p) => {
+            const pid = getProductId(p);
+            if (!pid) return p;
+            if (String(pid) === String(id)) {
+              return {
+                ...p,
+                // set multiple possible status fields to be safe
+                status: "approved",
+                approvalStatus: "approved",
+                productStatus: "approved",
+              } as AdminProduct;
+            }
+            return p;
+          });
+          return rebuildResponse(old, updated);
+        } catch (e) {
+          // If something goes wrong, fall back to invalidating so a real refetch occurs
+          queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+          return old;
+        }
+      });
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || "Duyệt sản phẩm thất bại.";
+      toast({ title: "Lỗi", description: msg, variant: "destructive" });
     },
   });
 
-  // Mock mutation for product status update
-  const updateProductStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return { id, status };
-    },
+  // Reject
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      rejectProduct(id, reason),
     onSuccess: () => {
-      toast({
-        title: "Thành công",
-        description: "Đã cập nhật trạng thái sản phẩm.",
-      });
+      toast({ title: "Thành công", description: "Đã từ chối sản phẩm." });
+      setRejectOpen(false);
+      setRejectReason("");
+      setRejectId(null);
       queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
     },
-    onError: () => {
-      toast({
-        title: "Lỗi",
-        description: "Cập nhật trạng thái thất bại.",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const msg =
+        error?.response?.data?.message || "Từ chối sản phẩm thất bại.";
+      toast({ title: "Lỗi", description: msg, variant: "destructive" });
     },
   });
 
-  const handleStatusChange = (productId: string, newStatus: string) => {
-    updateProductStatusMutation.mutate({ id: productId, status: newStatus });
+  const openDetail = (id: string) => {
+    setSelectedProductId(id);
+    setDetailOpen(true);
+  };
+
+  const openReject = (id: string) => {
+    setRejectId(id);
+    setRejectReason("");
+    setRejectOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-100 text-green-800">Hoạt động</Badge>;
-      case "inactive":
-        return <Badge className="bg-red-100 text-red-800">Ngừng bán</Badge>;
-      case "pending":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800">Chờ duyệt</Badge>
-        );
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
+    const s = (status || "").toLowerCase();
+    if (s === "approved")
+      return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+    if (s === "rejected")
+      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+    return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
   };
 
   const getDiscountPercentage = (price: number, oldPrice?: number) => {
@@ -201,17 +250,29 @@ export default function AdminProductManagement() {
     return Math.round(((oldPrice - price) / oldPrice) * 100);
   };
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.shop.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || product.status === statusFilter;
-    const matchesCategory =
-      categoryFilter === "all" || product.category === categoryFilter;
+  const filteredProducts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return products.filter((p) => {
+      const matchesSearch = !term
+        ? true
+        : getProductName(p).toLowerCase().includes(term) ||
+          getShopName(p).toLowerCase().includes(term);
+      const status = getStatus(p);
+      const matchesStatus = statusFilter === "all" || status === statusFilter;
+      const matchesCategory =
+        categoryFilter === "all" ||
+        getProductCategoryName(p) === categoryFilter;
+      return matchesSearch && matchesStatus && matchesCategory;
+    });
+  }, [products, searchTerm, statusFilter, categoryFilter]);
 
-    return matchesSearch && matchesStatus && matchesCategory;
+  // Detail query (lazy)
+  const { data: detailResponse, isLoading: detailLoading } = useQuery({
+    queryKey: ["adminProductDetail", selectedProductId],
+    queryFn: () => fetchProductById(selectedProductId as string),
+    enabled: detailOpen && !!selectedProductId,
   });
+  const detail: AnyRecord = detailResponse?.data ?? detailResponse ?? {};
 
   return (
     <div className="space-y-6">
@@ -246,7 +307,7 @@ export default function AdminProductManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {products.filter((p) => p.status === "active").length}
+              {products.filter((p) => getStatus(p) === "Approved").length}
             </div>
             <p className="text-xs text-muted-foreground">Sản phẩm đang bán</p>
           </CardContent>
@@ -259,7 +320,7 @@ export default function AdminProductManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {products.filter((p) => p.status === "pending").length}
+              {products.filter((p) => getStatus(p) === "Pending").length}
             </div>
             <p className="text-xs text-muted-foreground">Cần xem xét</p>
           </CardContent>
@@ -309,9 +370,9 @@ export default function AdminProductManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="active">Hoạt động</SelectItem>
-                <SelectItem value="pending">Chờ duyệt</SelectItem>
-                <SelectItem value="inactive">Ngừng bán</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Approved">Approved</SelectItem>
+                <SelectItem value="Rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
 
@@ -321,10 +382,11 @@ export default function AdminProductManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả danh mục</SelectItem>
-                <SelectItem value="Electronics">Electronics</SelectItem>
-                <SelectItem value="Computers">Computers</SelectItem>
-                <SelectItem value="Fashion">Fashion</SelectItem>
-                <SelectItem value="Home">Home</SelectItem>
+                {flatCategories.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -369,16 +431,18 @@ export default function AdminProductManagement() {
               </TableHeader>
               <TableBody>
                 {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
+                  <TableRow key={getProductId(product)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                           <Package className="w-6 h-6 text-gray-400" />
                         </div>
                         <div>
-                          <div className="font-medium">{product.name}</div>
+                          <div className="font-medium">
+                            {getProductName(product)}
+                          </div>
                           <div className="text-sm text-gray-500">
-                            {product.category}
+                            {getProductCategoryName(product)}
                           </div>
                         </div>
                       </div>
@@ -388,51 +452,37 @@ export default function AdminProductManagement() {
                         <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
                           <Package className="w-3 h-3 text-gray-400" />
                         </div>
-                        <span className="text-sm">{product.shop.name}</span>
+                        <span className="text-sm">{getShopName(product)}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">
-                          {product.price.toLocaleString("vi-VN")}₫
+                          {getProductPrice(product).toLocaleString("vi-VN")}₫
                         </div>
-                        {product.oldPrice && (
-                          <div className="text-sm text-gray-500 line-through">
-                            {product.oldPrice.toLocaleString("vi-VN")}₫
-                          </div>
-                        )}
-                        {getDiscountPercentage(
-                          product.price,
-                          product.oldPrice,
-                        ) && (
-                          <Badge variant="destructive" className="text-xs">
-                            -
-                            {getDiscountPercentage(
-                              product.price,
-                              product.oldPrice,
-                            )}
-                            %
-                          </Badge>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={product.stock > 10 ? "default" : "destructive"}
+                        variant={
+                          getProductStock(product) > 10
+                            ? "default"
+                            : "destructive"
+                        }
                       >
-                        {product.stock} sản phẩm
+                        {getProductStock(product)} sản phẩm
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="text-sm">{product.rating}</span>
+                        <span className="text-sm">{getRating(product)}</span>
                         <span className="text-xs text-gray-500">
-                          ({product.reviewCount})
+                          ({getReviewCount(product)})
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{getStatusBadge(product.status)}</TableCell>
+                    <TableCell>{getStatusBadge(getStatus(product))}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -441,32 +491,27 @@ export default function AdminProductManagement() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => openDetail(getProductId(product))}
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             Xem chi tiết
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Chỉnh sửa
-                          </DropdownMenuItem>
-                          {product.status === "pending" && (
+                          {getStatus(product) === "Pending" && (
                             <DropdownMenuItem
                               onClick={() =>
-                                handleStatusChange(product.id, "active")
+                                approveMutation.mutate(getProductId(product))
                               }
                             >
-                              <TrendingUp className="mr-2 h-4 w-4" />
-                              Duyệt sản phẩm
+                              ✅ Duyệt (Approve)
                             </DropdownMenuItem>
                           )}
-                          {product.status === "active" && (
+                          {getStatus(product) !== "Rejected" && (
                             <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusChange(product.id, "inactive")
-                              }
+                              onClick={() => openReject(getProductId(product))}
+                              className="text-red-600"
                             >
-                              <TrendingDown className="mr-2 h-4 w-4" />
-                              Ngừng bán
+                              Từ chối (Reject)
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem className="text-red-600">
@@ -483,6 +528,85 @@ export default function AdminProductManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Chi tiết sản phẩm</DialogTitle>
+            <DialogDescription>Xem thông tin trước khi duyệt</DialogDescription>
+          </DialogHeader>
+          {detailLoading ? (
+            <div className="py-10 text-center">Đang tải...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-md p-3">
+                <img
+                  src={
+                    (detail?.productImages?.[0]?.url ||
+                      detail?.imageUrl ||
+                      detail?.image ||
+                      "/placeholder.svg") as string
+                  }
+                  alt={getProductName(detail)}
+                  className="w-full h-64 object-cover rounded"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-lg font-semibold">
+                  {getProductName(detail)}
+                </div>
+                <div className="text-rose-600 font-bold">
+                  {getProductPrice(detail).toLocaleString("vi-VN")}₫
+                </div>
+                <div className="text-sm text-slate-600">
+                  Danh mục: {getProductCategoryName(detail)}
+                </div>
+                <div className="text-sm text-slate-600">
+                  Trạng thái: {getStatusBadge(getStatus(detail))}
+                </div>
+                {detail?.description && (
+                  <div className="pt-2 text-sm">{detail.description}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Reason Dialog */}
+      <AlertDialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Từ chối sản phẩm</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vui lòng nhập lý do từ chối (tùy chọn).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="mt-2">
+            <Input
+              placeholder="Lý do từ chối"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (rejectId) {
+                  rejectMutation.mutate({
+                    id: rejectId,
+                    reason: rejectReason.trim() || undefined,
+                  });
+                }
+              }}
+            >
+              Xác nhận từ chối
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

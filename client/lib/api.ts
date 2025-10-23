@@ -152,6 +152,19 @@ export const fetchProductById = async (id: string) => {
   return res.data;
 };
 
+// Admin: Approve/Reject product moderation
+export const approveProduct = async (id: string) => {
+  const res = await api.put(`/api/Products/approve/${id}`);
+  return res.data;
+};
+
+export const rejectProduct = async (id: string, rejectionReason?: string) => {
+  const res = await api.put(`/api/Products/reject/${id}`, null, {
+    params: rejectionReason ? { rejectionReason } : {},
+  });
+  return res.data;
+};
+
 export const fetchProductsByShop = async (shopId: string) => {
   const res = await api.get(`/api/Products/getbyshop/${shopId}`);
   return res.data;
