@@ -24,7 +24,7 @@ export default function Login() {
       const role = (res.role || "Customer").toString();
 
       if (role.toLowerCase() === "seller") {
-        navigate("/seller/dashboard");
+        navigate("/seller/shop-management");
       } else if (role.toLowerCase() === "admin") {
         navigate("/admin");
       } else {
