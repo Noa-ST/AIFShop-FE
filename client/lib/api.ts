@@ -165,6 +165,23 @@ export const rejectProduct = async (id: string, rejectionReason?: string) => {
   return res.data;
 };
 
+// Soft delete product (seller/admin). Tries common endpoints with graceful fallback.
+export const softDeleteProduct = async (id: string) => {
+  try {
+    // Common REST shape
+    const res = await api.delete(`/api/Products/delete/${id}`);
+    return res.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    // Fallback to alternative verb/path some backends use
+    if (status === 404 || status === 405) {
+      const fallback = await api.put(`/api/Products/soft-delete/${id}`);
+      return fallback.data;
+    }
+    throw err;
+  }
+};
+
 export const fetchProductsByShop = async (shopId: string) => {
   const res = await api.get(`/api/Products/getbyshop/${shopId}`);
   return res.data;
