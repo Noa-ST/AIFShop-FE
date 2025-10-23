@@ -6,6 +6,7 @@ import {
   fetchProducts,
   fetchProductById,
   fetchGlobalCategories,
+  softDeleteProduct,
 } from "@/lib/api";
 import {
   Card,
@@ -51,7 +52,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/use-toast";
-import { Search, Eye, Trash2, Package, MoreHorizontal, Star } from "lucide-react";
+import { Search, Eye, Trash2, Package, MoreHorizontal, Star, TrendingUp, TrendingDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,12 +81,17 @@ const getRating = (p: AdminProduct) => Number(p?.rating ?? p?.avgRating ?? 0);
 const getReviewCount = (p: AdminProduct) => Number(p?.reviewCount ?? p?.numReviews ?? 0);
 const getProductId = (p: AdminProduct) => p?.id || p?.productId || p?._id;
 const getStatus = (p: AdminProduct): "Pending" | "Approved" | "Rejected" | "Unknown" => {
-  const raw: string = (p?.status || p?.productStatus || p?.approvalStatus || "").toString();
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "pending") return "Pending";
-  if (normalized === "approved" || normalized === "active") return "Approved";
-  if (normalized === "rejected" || normalized === "inactive") return "Rejected";
-  return "Pending"; // default for safety in moderation flow
+  const raw = p?.status ?? p?.productStatus ?? p?.approvalStatus ?? p?.state;
+  if (typeof raw === "number") {
+    if (raw === 0) return "Pending";
+    if (raw === 1) return "Approved";
+    if (raw === 2) return "Rejected";
+  }
+  const normalized = String(raw ?? "").trim().toLowerCase();
+  if (["pending", "awaiting", "waiting"].includes(normalized)) return "Pending";
+  if (["approved", "active", "accepted"].includes(normalized)) return "Approved";
+  if (["rejected", "inactive", "denied"].includes(normalized)) return "Rejected";
+  return "Pending";
 };
 
 export default function AdminProductManagement() {
@@ -131,33 +137,57 @@ export default function AdminProductManagement() {
     return out;
   }, [rawCategories]);
 
-  // Approve
+  // Approve (optimistic)
   const approveMutation = useMutation({
     mutationFn: (id: string) => approveProduct(id),
-    onSuccess: () => {
-      toast({ title: "Thành công", description: "Đã duyệt sản phẩm." });
-      queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["adminProducts"] });
+      const prev = queryClient.getQueryData(["adminProducts"]);
+      queryClient.setQueryData(["adminProducts"], (old: any) => {
+        const items = normalizeProductList(old);
+        return items.map((p) => (getProductId(p) === id ? { ...p, status: "Approved" } : p));
+      });
+      return { prev };
     },
-    onError: (error: any) => {
+    onError: (error: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["adminProducts"], ctx.prev);
       const msg = error?.response?.data?.message || "Duyệt sản phẩm thất bại.";
       toast({ title: "Lỗi", description: msg, variant: "destructive" });
     },
+    onSuccess: () => {
+      toast({ title: "Thành công", description: "Đã duyệt sản phẩm." });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+    },
   });
 
-  // Reject
+  // Reject (optimistic)
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       rejectProduct(id, reason),
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ["adminProducts"] });
+      const prev = queryClient.getQueryData(["adminProducts"]);
+      queryClient.setQueryData(["adminProducts"], (old: any) => {
+        const items = normalizeProductList(old);
+        return items.map((p) => (getProductId(p) === id ? { ...p, status: "Rejected" } : p));
+      });
+      return { prev };
+    },
+    onError: (error: any, _vars, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["adminProducts"], ctx.prev);
+      const msg = error?.response?.data?.message || "Từ chối sản phẩm thất bại.";
+      toast({ title: "Lỗi", description: msg, variant: "destructive" });
+    },
     onSuccess: () => {
       toast({ title: "Thành công", description: "Đã từ chối sản phẩm." });
       setRejectOpen(false);
       setRejectReason("");
       setRejectId(null);
-      queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
     },
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message || "Từ chối sản phẩm thất bại.";
-      toast({ title: "Lỗi", description: msg, variant: "destructive" });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
     },
   });
 
@@ -170,6 +200,34 @@ export default function AdminProductManagement() {
     setRejectId(id);
     setRejectReason("");
     setRejectOpen(true);
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteProduct(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["adminProducts"] });
+      const prev = queryClient.getQueryData(["adminProducts"]);
+      queryClient.setQueryData(["adminProducts"], (old: any) => {
+        const items = normalizeProductList(old);
+        return items.filter((p) => getProductId(p) !== id);
+      });
+      return { prev };
+    },
+    onError: (error: any, _id, ctx: any) => {
+      if (ctx?.prev) queryClient.setQueryData(["adminProducts"], ctx.prev);
+      const msg = error?.response?.data?.message || "Xóa mềm thất bại.";
+      toast({ title: "Lỗi", description: msg, variant: "destructive" });
+    },
+    onSuccess: () => {
+      toast({ title: "Thành công", description: "Đã xóa mềm sản phẩm." });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+    },
+  });
+
+  const deleteProduct = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   const getStatusBadge = (status: string) => {
@@ -434,9 +492,12 @@ export default function AdminProductManagement() {
                               Từ chối (Reject)
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => deleteProduct(getProductId(product))}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Xóa
+                            Xóa mềm
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -460,14 +521,33 @@ export default function AdminProductManagement() {
             <div className="py-10 text-center">Đang tải...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-md p-3">
-                <img
-                  src={
-                    (detail?.productImages?.[0]?.url || detail?.imageUrl || detail?.image || "/placeholder.svg") as string
-                  }
-                  alt={getProductName(detail)}
-                  className="w-full h-64 object-cover rounded"
-                />
+              <div>
+                <div className="bg-gray-50 rounded-md p-3">
+                  <img
+                    src={
+                      (detail?.productImages?.[0]?.url || detail?.images?.[0]?.url || detail?.imageUrl || detail?.image || "/placeholder.svg") as string
+                    }
+                    alt={getProductName(detail)}
+                    className="w-full h-64 object-cover rounded"
+                  />
+                </div>
+                {/* thumbnails */}
+                {(() => {
+                  const imgs: string[] =
+                    (detail?.productImages || []).map((i: any) => i?.url).filter(Boolean) || [];
+                  const other = (detail?.images || []).map((i: any) => i?.url).filter(Boolean) || [];
+                  const gallery = (detail?.gallery || []).map((i: any) => i?.url).filter(Boolean) || [];
+                  const imageUrl = detail?.imageUrl ? [detail.imageUrl] : [];
+                  const image = detail?.image ? [detail.image] : [];
+                  const all = Array.from(new Set([...imgs, ...other, ...gallery, ...imageUrl, ...image]));
+                  return all.length > 1 ? (
+                    <div className="mt-3 flex gap-2 overflow-x-auto">
+                      {all.map((u, idx) => (
+                        <img key={idx} src={u} className="w-16 h-16 object-cover rounded border" />
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div className="space-y-2">
                 <div className="text-lg font-semibold">{getProductName(detail)}</div>

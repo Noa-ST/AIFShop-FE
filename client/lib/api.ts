@@ -169,6 +169,28 @@ export const rejectProduct = async (id: string, rejectionReason?: string) => {
   return res.data;
 };
 
+// Try common soft-delete endpoints; first one that succeeds wins
+export const softDeleteProduct = async (id: string) => {
+  const tryDelete = async (method: "delete" | "put", path: string) => {
+    return method === "delete" ? api.delete(path) : api.put(path);
+  };
+  const candidates: Array<{ method: "delete" | "put"; path: string }> = [
+    { method: "delete", path: `/api/Products/delete/${id}` },
+    { method: "delete", path: `/api/Products/soft-delete/${id}` },
+    { method: "put", path: `/api/Products/delete/${id}` },
+  ];
+  let lastErr: any = null;
+  for (const c of candidates) {
+    try {
+      const res = await tryDelete(c.method, c.path);
+      return res.data;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("Soft delete API not available");
+};
+
 export const fetchProductsByShop = async (shopId: string) => {
   const res = await api.get(`/api/Products/getbyshop/${shopId}`);
   return res.data;
