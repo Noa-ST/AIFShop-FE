@@ -39,14 +39,7 @@ export default function ProductDetail() {
     if (images && images.length) setMainImage(images[0]);
   }, [images]);
 
-  // Shop info may be present in several shapes
-  const shop = product?.shop || product?.shopInfo || product?.seller;
-
-  // Conditional returns (safe because hooks are already declared)
-  if (isLoading) return <div className="p-8">Đang tải...</div>;
-  if (error)
-    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
-
+  // Mutation hook must be declared before any early return
   const { mutateAsync: mutateAdd, isPending } = useMutation({
     mutationFn: addToCart,
     onSuccess: () => {
@@ -57,6 +50,14 @@ export default function ProductDetail() {
       toast({ title: "Thêm vào giỏ thất bại", description: "Vui lòng thử lại." });
     },
   });
+
+  // Shop info may be present in several shapes
+  const shop = product?.shop || product?.shopInfo || product?.seller;
+
+  // Conditional returns (safe because hooks are already declared)
+  if (isLoading) return <div className="p-8">Đang tải...</div>;
+  if (error)
+    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
 
   const handleAddToCart = async () => {
     if (!initialized) return;

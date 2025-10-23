@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import ShopInfo from "@/pages/Seller/ShopInfo";
+import ShopInfo from "@/pages/seller/ShopInfo";
 
 export default function ProfilePage() {
   const { user } = useAuth();
