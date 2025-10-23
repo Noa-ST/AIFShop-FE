@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatCurrencyVND } from "@/lib/utils";
 
 export type ProductImageDto = {
   id: string;
@@ -19,6 +20,7 @@ export type Product = {
   rating?: number;
   shop?: {
     logoUrl?: string;
+    name?: string;
   };
 };
 
@@ -31,6 +33,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const price = (product as any).price ?? product.price ?? 0;
   const discount = oldPrice && oldPrice > price ? Math.round(((oldPrice - price) / oldPrice) * 100) : 0;
   const rating = (product as any).rating ?? 4.5;
+  const shopName = (product as any)?.shop?.name || (product as any)?.shopName || (product as any)?.shop?.title;
 
   return (
     <Link to={`/products/${product.id}`} className="group">
@@ -67,14 +70,18 @@ export default function ProductCard({ product }: { product: Product }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="text-lg font-semibold text-slate-900">${price}</div>
+            <div className="text-lg font-semibold text-slate-900">{formatCurrencyVND(price)}</div>
             {oldPrice ? (
-              <div className="text-sm text-slate-400 line-through">${oldPrice}</div>
+              <div className="text-sm text-slate-400 line-through">{formatCurrencyVND(oldPrice)}</div>
             ) : null}
             {discount ? (
               <div className="ml-auto bg-pink-50 text-pink-600 text-xs font-semibold px-2 py-1 rounded-full">-{discount}%</div>
             ) : null}
           </div>
+
+          {shopName && (
+            <div className="mt-2 text-sm text-slate-600">{shopName}</div>
+          )}
         </div>
 
       </motion.div>
