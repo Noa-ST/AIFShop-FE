@@ -1,16 +1,23 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchGlobalCategories, deleteGlobalCategory } from "@/lib/api";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Plus, CornerDownRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { GlobalCategoryForm } from "./GlobalCategoryForm";
@@ -26,65 +33,116 @@ interface GlobalCategory {
   createdAt: string;
 }
 
-// Component hiển thị một hàng (Row) và đệ quy các hàng con
-const CategoryRow: React.FC<{
+// Component hiển thị một danh mục với tính năng collapsible
+const CategoryItem: React.FC<{
   category: GlobalCategory;
   level: number;
   onEdit: (cat: GlobalCategory) => void;
   onDelete: (id: string) => void;
 }> = ({ category, level, onEdit, onDelete }) => {
-  // Hàm hiển thị tên danh mục cha (Nếu có)
+  const [isOpen, setIsOpen] = useState(false);
+  const hasChildren = category.children && category.children.length > 0;
+
   const getParentName = (parent: GlobalCategory | null | undefined): string => {
-    if (!parent) return "---";
+    if (!parent) return "Cấp cao nhất";
     return parent.name;
   };
 
   return (
-    <React.Fragment>
-      <TableRow>
-        <TableCell
-          style={{ paddingLeft: `${10 + level * 20}px` }}
-          className="font-medium"
-        >
-          {level > 0 && (
-            <CornerDownRight className="w-4 h-4 inline mr-2 text-muted-foreground" />
-          )}
-          {category.name}
-        </TableCell>
-        <TableCell>{category.description || "Không có mô tả"}</TableCell>
-        <TableCell>{category.id}</TableCell>
-        <TableCell>{getParentName(category.parent)}</TableCell>
-        <TableCell className="text-right">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onEdit(category)}
-            className="mr-2"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(category.id)}
-            className="text-red-500 hover:text-red-700"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </TableCell>
-      </TableRow>
-      {/* Đệ quy hiển thị các danh mục con */}
-      {category.children &&
-        category.children.map((child) => (
-          <CategoryRow
-            key={child.id}
-            category={child}
-            level={level + 1}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        ))}
-    </React.Fragment>
+    <div className="border rounded-lg mb-2">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer">
+            <div className="flex items-center gap-3">
+              <div
+                style={{ marginLeft: `${level * 20}px` }}
+                className="flex items-center gap-2"
+              >
+                {hasChildren ? (
+                  isOpen ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  )
+                ) : (
+                  <div className="w-4 h-4" />
+                )}
+                {hasChildren ? (
+                  isOpen ? (
+                    <FolderOpen className="w-5 h-5 text-blue-500" />
+                  ) : (
+                    <Folder className="w-5 h-5 text-blue-500" />
+                  )
+                ) : (
+                  <div className="w-5 h-5" />
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg">{category.name}</h3>
+                  <p className="text-sm text-gray-600">
+                    {category.description || "Không có mô tả"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                ID: {category.id}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                Cha: {getParentName(category.parent)}
+              </Badge>
+              {hasChildren && (
+                <Badge variant="default" className="text-xs">
+                  {category.children?.length} con
+                </Badge>
+              )}
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(category);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(category.id);
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+
+        {hasChildren && (
+          <CollapsibleContent>
+            <div className="px-4 pb-4">
+              <div className="space-y-2">
+                {category.children?.map((child) => (
+                  <CategoryItem
+                    key={child.id}
+                    category={child}
+                    level={level + 1}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            </div>
+          </CollapsibleContent>
+        )}
+      </Collapsible>
+    </div>
   );
 };
 
@@ -163,42 +221,44 @@ export default function GlobalCategoryDashboard() {
         </Dialog>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[30%]">Tên Danh mục</TableHead>
-            <TableHead>Mô tả</TableHead>
-            <TableHead>ID</TableHead>
-            <TableHead>Danh mục Cha</TableHead>
-            <TableHead className="text-right">Hành động</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Folder className="w-5 h-5" />
+            Danh sách Global Categories
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {isLoading ? (
-            <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
-                Đang tải danh mục...
-              </TableCell>
-            </TableRow>
+            <div className="h-24 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                <p>Đang tải danh mục...</p>
+              </div>
+            </div>
           ) : categories.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
-                Chưa có Global Category nào.
-              </TableCell>
-            </TableRow>
+            <div className="h-24 flex items-center justify-center">
+              <div className="text-center text-gray-500">
+                <Folder className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p>Chưa có Global Category nào.</p>
+                <p className="text-sm">Nhấn "Tạo Danh mục mới" để bắt đầu.</p>
+              </div>
+            </div>
           ) : (
-            categories.map((category: GlobalCategory) => (
-              <CategoryRow
-                key={category.id}
-                category={category}
-                level={0}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))
+            <div className="space-y-2">
+              {categories.map((category: GlobalCategory) => (
+                <CategoryItem
+                  key={category.id}
+                  category={category}
+                  level={0}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
           )}
-        </TableBody>
-      </Table>
+        </CardContent>
+      </Card>
 
       {/* Hiển thị trạng thái xóa (optional) */}
       {deleteMutation.isPending && (

@@ -26,7 +26,7 @@ export default function Login() {
       if (role.toLowerCase() === "seller") {
         navigate("/seller/dashboard");
       } else if (role.toLowerCase() === "admin") {
-        navigate("/admin/dashboard");
+        navigate("/admin");
       } else {
         navigate("/home");
       }

@@ -25,7 +25,14 @@ import CreateCategory from "./pages/Seller/CreateCategory";
 import ShopDetail from "./pages/Shop/Detail";
 import ProfilePage from "./pages/Profile/Index";
 import { AuthProvider } from "./contexts/AuthContext";
+import AdminLayout from "./components/layout/AdminLayout";
+import AdminDashboard from "./pages/Admin/Dashboard";
 import GlobalCategoryDashboard from "./pages/Admin/GlobalCategoryDashboard";
+import CreateGlobalCategory from "./pages/Admin/CreateGlobalCategory";
+import AdminProductManagement from "./pages/Admin/ProductManagement";
+import AdminUserManagement from "./pages/Admin/UserManagement";
+import AdminAnalytics from "./pages/Admin/Analytics";
+import AdminSettings from "./pages/Admin/Settings";
 
 const queryClient = new QueryClient();
 
@@ -84,10 +91,23 @@ const App = () => (
                   }
                 />
                 <Route path="/seller" element={<SellerDashboard />} />
-                <Route
-                  path="/admin/global-categories"
-                  element={<GlobalCategoryDashboard />}
-                />
+
+                {/* Admin Routes with nested layout */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route
+                    path="global-categories"
+                    element={<GlobalCategoryDashboard />}
+                  />
+                  <Route
+                    path="global-categories/create"
+                    element={<CreateGlobalCategory />}
+                  />
+                  <Route path="products" element={<AdminProductManagement />} />
+                  <Route path="users" element={<AdminUserManagement />} />
+                  <Route path="analytics" element={<AdminAnalytics />} />
+                  <Route path="settings" element={<AdminSettings />} />
+                </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

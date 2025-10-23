@@ -98,12 +98,19 @@ api.interceptors.response.use(
         localStorage.removeItem("aifshop_fullname");
         localStorage.removeItem("aifshop_userid");
 
-        // Redirect user to login page on refresh failure
+        // Only redirect to login if not already on login page and not in admin flow
         if (typeof window !== "undefined") {
-          try {
-            window.location.href = "/login";
-          } catch (redirErr) {
-            console.warn("Redirect to /login failed", redirErr);
+          const currentPath = window.location.pathname;
+          const isOnLoginPage = currentPath === "/login";
+          const isInAdminFlow = currentPath.startsWith("/admin");
+
+          // Don't redirect if already on login page or if in admin flow (let AdminLayout handle it)
+          if (!isOnLoginPage && !isInAdminFlow) {
+            try {
+              window.location.href = "/login";
+            } catch (redirErr) {
+              console.warn("Redirect to /login failed", redirErr);
+            }
           }
         }
 
