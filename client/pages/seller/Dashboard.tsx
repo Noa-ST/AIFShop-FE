@@ -1,9 +1,9 @@
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { BarChart2, Box, Users, DollarSign } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BarChart2, Box, Users, DollarSign, Package, Activity } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, isShopPresent } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -95,150 +95,125 @@ export default function SellerDashboard() {
 
   if (!shopInfo) return null;
 
+  // Build UI similar to Admin dashboard but tailored to seller
+  const stats = useMemo(
+    () => [
+      {
+        title: "Doanh thu tháng này",
+        value: "15.2M₫",
+        change: "+8%",
+        changeType: "positive" as const,
+        icon: DollarSign,
+      },
+      {
+        title: "Đơn hàng chờ",
+        value: "3",
+        change: "+1",
+        changeType: "positive" as const,
+        icon: Users,
+      },
+      {
+        title: "Sản phẩm hoạt động",
+        value: "150",
+        change: "+6",
+        changeType: "positive" as const,
+        icon: Package,
+      },
+      {
+        title: "Đánh giá TB",
+        value: "4.7",
+        change: "+0.1",
+        changeType: "positive" as const,
+        icon: BarChart2,
+      },
+    ],
+    [],
+  );
+
+  const recentActivities = [
+    { id: 1, action: "Tạo sản phẩm mới", time: "2 phút trước", type: "product" },
+    { id: 2, action: "Cập nhật tồn kho", time: "10 phút trước", type: "inventory" },
+    { id: 3, action: "Có đánh giá mới", time: "15 phút trước", type: "review" },
+    { id: 4, action: "Đơn hàng hoàn tất", time: "30 phút trước", type: "order" },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      <div className="container mx-auto py-10">
-        <h1 className="text-3xl font-bold mb-8">
-          Bảng điều khiển Shop:{" "}
-          <span className="text-rose-400">{shopInfo.name}</span>
-        </h1>
+    <div className="space-y-6 container py-8">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Tổng quan Shop</h2>
+        <p className="text-muted-foreground">
+          Chào mừng quay lại, {shopInfo.name}. Đây là tình hình gần đây của cửa hàng bạn.
+        </p>
+      </div>
 
-        <div className="flex gap-8">
-          <aside className="w-64 hidden md:block border-r border-slate-800 pr-6">
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">
-                Điều hướng
-              </h4>
+      {/* Stats Grid (mirrors Admin) */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.title}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600">{stat.change}</span> so với tháng trước
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-              <RouterLink
-                to="/seller/dashboard"
-                className="flex items-center gap-3 p-3 rounded-lg bg-rose-600 text-white font-medium"
-              >
-                <BarChart2 size={18} /> Tổng quan
-              </RouterLink>
-
-              <RouterLink
-                to="/seller/shop-management"
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 text-slate-200"
-              >
-                <Box size={18} /> Quản lý Shop
-              </RouterLink>
-
-              <RouterLink
-                to="/seller/orders"
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 text-slate-200"
-              >
-                <DollarSign size={18} /> Đơn hàng
-              </RouterLink>
-            </div>
-          </aside>
-
-          <main className="flex-1">
-            <Alert
-              variant="default"
-              className="mb-6 border-l-4 border-yellow-400 bg-yellow-50 text-slate-900"
-            >
-              <AlertTitle className="font-semibold">Đơn hàng mới!</AlertTitle>
-              <AlertDescription>
-                Bạn có 3 đơn hàng mới đang chờ xử lý.{" "}
-                <RouterLink
-                  to="/seller/orders"
-                  className="font-semibold underline text-rose-600"
-                >
-                  Xử lý ngay.
-                </RouterLink>
-              </AlertDescription>
-            </Alert>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-              <StatCard
-                title="Doanh thu Tháng này"
-                value="15,200,000₫"
-                icon={<DollarSign size={20} />}
-              />
-              <StatCard
-                title="Đơn hàng chờ xử lý"
-                value="3"
-                icon={<Users size={20} />}
-              />
-              <StatCard
-                title="SP đang hoạt động"
-                value="150"
-                icon={<Box size={20} />}
-              />
-              <StatCard
-                title="Đánh giá TB"
-                value="4.7"
-                icon={<BarChart2 size={20} />}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <Card className="shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="text-xl">
-                      Doanh thu theo thời gian
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 bg-slate-800 flex items-center justify-center text-slate-400 border rounded-lg">
-                      <svg viewBox="0 0 100 30" className="w-full h-40">
-                        <polyline
-                          fill="none"
-                          stroke="#fb7185"
-                          strokeWidth="2"
-                          points="0,20 10,18 20,12 30,14 40,8 50,6 60,10 70,12 80,9 90,7 100,5"
-                        />
-                      </svg>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="space-y-4">
-                <RouterLink to="/seller/products/create" className="block">
-                  <Button className="w-full h-12 bg-green-600 hover:bg-green-700 text-white">
-                    + TẠO SẢN PHẨM MỚI
-                  </Button>
-                </RouterLink>
-
-                <RouterLink
-                  to="/seller/orders?status=pending"
-                  className="block"
-                >
-                  <Button variant="outline" className="w-full h-12">
-                    Xử lý Đơn hàng (12)
-                  </Button>
-                </RouterLink>
-
-                <div className="border-l-4 border-yellow-400 bg-yellow-50 p-4 rounded-md text-slate-900">
-                  <div className="font-semibold">Cảnh báo tồn kho!</div>
-                  <div className="text-sm mt-1">
-                    Có 5 sản phẩm sắp hết hàng.{" "}
-                    <RouterLink
-                      to="/seller/products"
-                      className="font-semibold underline"
-                    >
-                      Kiểm tra ngay.
-                    </RouterLink>
+      {/* Recent Activity + Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Hoạt động gần đây</CardTitle>
+            <CardDescription>Các hành động mới nhất của shop</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-center space-x-4">
+                  <div className="flex h-2 w-2 rounded-full bg-rose-600" />
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {activity.action}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {activity.time}
+                    </p>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-4">
-                Danh sách sản phẩm gần đây
-              </h2>
-              <div className="bg-slate-800 rounded-2xl p-6">
-                <p className="text-sm text-slate-300">
-                  Chưa có dữ liệu. Shop: {shopInfo.name} đang hoạt động.
-                </p>
-              </div>
-            </div>
-          </main>
-        </div>
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Thao tác nhanh</CardTitle>
+            <CardDescription>Các tác vụ thường dùng</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <RouterLink to="/seller/products/create" className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent">
+              <Package className="h-4 w-4" />
+              <span className="text-sm">Tạo sản phẩm mới</span>
+            </RouterLink>
+            <RouterLink to="/seller/products" className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent">
+              <Activity className="h-4 w-4" />
+              <span className="text-sm">Quản lý sản phẩm</span>
+            </RouterLink>
+            <RouterLink to="/seller/shop-management" className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent">
+              <Box className="h-4 w-4" />
+              <span className="text-sm">Quản lý Shop</span>
+            </RouterLink>
+            <RouterLink to="/seller/orders" className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent">
+              <DollarSign className="h-4 w-4" />
+              <span className="text-sm">Xem đơn hàng</span>
+            </RouterLink>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
