@@ -1,11 +1,16 @@
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { fetchProductById } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { addToCart, fetchProductById } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const { isAuthenticated, initialized } = useAuth();
+  const queryClient = useQueryClient();
+  const [qty, setQty] = useState<number>(1);
   const { data, isLoading, error } = useQuery({
     queryKey: ["product", id],
     queryFn: () => fetchProductById(id as string),
@@ -41,6 +46,31 @@ export default function ProductDetail() {
   if (isLoading) return <div className="p-8">Đang tải...</div>;
   if (error)
     return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
+
+  const { mutateAsync: mutateAdd, isPending } = useMutation({
+    mutationFn: addToCart,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      toast({ title: "Đã thêm vào giỏ hàng" });
+    },
+    onError: () => {
+      toast({ title: "Thêm vào giỏ thất bại", description: "Vui lòng thử lại." });
+    },
+  });
+
+  const handleAddToCart = async () => {
+    if (!initialized) return;
+    if (!isAuthenticated) {
+      toast({ title: "Vui lòng đăng nhập để thêm vào giỏ" });
+      try {
+        window.location.href = "/login";
+      } catch {}
+      return;
+    }
+    if (!id) return;
+    const quantity = Math.max(1, Number(qty || 1));
+    await mutateAdd({ productId: id, quantity });
+  };
 
   return (
     <section className="py-12">
@@ -109,11 +139,16 @@ export default function ProductDetail() {
               <div className="mt-6 flex items-center gap-4">
                 <input
                   type="number"
-                  defaultValue={1}
+                  value={qty}
+                  onChange={(e) => setQty(Math.max(1, Number(e.target.value || 1)))}
                   min={1}
                   className="w-20 px-3 py-2 border rounded-md"
                 />
-                <button className="px-6 py-3 rounded-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] text-white">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isPending}
+                  className="px-6 py-3 rounded-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] text-white disabled:opacity-60"
+                >
                   Thêm vào giỏ
                 </button>
                 <button className="px-4 py-2 rounded-full border border-slate-200">
