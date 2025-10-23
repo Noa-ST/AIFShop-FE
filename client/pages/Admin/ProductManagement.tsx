@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   approveProduct,
@@ -6,6 +6,7 @@ import {
   fetchProducts,
   fetchProductById,
   fetchGlobalCategories,
+  softDeleteProduct,
 } from "@/lib/api";
 import {
   Card,
@@ -97,17 +98,49 @@ const getProductId = (p: AdminProduct) => p?.id || p?.productId || p?._id;
 const getStatus = (
   p: AdminProduct,
 ): "Pending" | "Approved" | "Rejected" | "Unknown" => {
-  const raw: string = (
-    p?.status ||
-    p?.productStatus ||
-    p?.approvalStatus ||
-    ""
-  ).toString();
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "pending") return "Pending";
-  if (normalized === "approved" || normalized === "active") return "Approved";
-  if (normalized === "rejected" || normalized === "inactive") return "Rejected";
-  return "Pending"; // default for safety in moderation flow
+  const toLower = (v: any) =>
+    typeof v === "string" ? v.trim().toLowerCase() : v;
+
+  // 1) Explicit moderation flags first
+  if (toLower(p?.isRejected) === true || toLower(p?.rejected) === true)
+    return "Rejected";
+  if (toLower(p?.isApproved) === true || toLower(p?.approved) === true)
+    return "Approved";
+
+  // 2) Active flag often implies approved for listings
+  if (typeof p?.isActive === "boolean") {
+    if (p.isActive) return "Approved";
+    // If explicitly inactive and not approved, treat as rejected for moderation view
+    if (!p.isActive) return "Rejected";
+  }
+
+  // 3) Consider common status-like fields
+  const candidates: any[] = [
+    p?.approvalStatus,
+    p?.productStatus,
+    p?.moderationStatus,
+    p?.status,
+    p?.state,
+  ];
+
+  for (const c of candidates) {
+    if (c === undefined || c === null) continue;
+    if (typeof c === "string") {
+      const s = toLower(c);
+      if (s === "approved" || s === "active" || s === "1" || s === "true")
+        return "Approved";
+      if (s === "rejected" || s === "inactive" || s === "2") return "Rejected";
+      if (s === "pending" || s === "0" || s === "draft") return "Pending";
+    } else if (typeof c === "number") {
+      if (c === 1) return "Approved";
+      if (c === 2) return "Rejected";
+      if (c === 0) return "Pending";
+    } else if (typeof c === "boolean") {
+      if (c === true) return "Approved";
+    }
+  }
+
+  return "Pending";
 };
 
 export default function AdminProductManagement() {
@@ -211,16 +244,86 @@ export default function AdminProductManagement() {
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       rejectProduct(id, reason),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast({ title: "Thành công", description: "Đã từ chối sản phẩm." });
       setRejectOpen(false);
       setRejectReason("");
       setRejectId(null);
-      queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+
+      // Optimistically update list cache
+      const id = variables.id;
+      const rebuildResponse = (old: any, updatedList: AdminProduct[]) => {
+        if (!old) return updatedList;
+        if (Array.isArray(old)) return updatedList;
+        if (Array.isArray(old?.data)) return { ...old, data: updatedList };
+        if (Array.isArray(old?.items)) return { ...old, items: updatedList };
+        if (Array.isArray(old?.result)) return { ...old, result: updatedList };
+        return updatedList;
+      };
+
+      queryClient.setQueryData(["adminProducts"], (old: any) => {
+        try {
+          const list = normalizeProductList(old);
+          const updated = list.map((p) => {
+            const pid = getProductId(p);
+            if (!pid) return p;
+            if (String(pid) === String(id)) {
+              return {
+                ...p,
+                status: "rejected",
+                approvalStatus: "rejected",
+                productStatus: "rejected",
+                isApproved: false,
+                isRejected: true,
+              } as AdminProduct;
+            }
+            return p;
+          });
+          return rebuildResponse(old, updated);
+        } catch (e) {
+          queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+          return old;
+        }
+      });
     },
     onError: (error: any) => {
       const msg =
         error?.response?.data?.message || "Từ chối sản phẩm thất bại.";
+      toast({ title: "Lỗi", description: msg, variant: "destructive" });
+    },
+  });
+
+  // Soft Delete
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteProduct(id),
+    onSuccess: (_data, id) => {
+      toast({ title: "Thành công", description: "Đã xóa mềm sản phẩm." });
+
+      // Remove from cached list optimistically
+      const rebuildResponse = (old: any, updatedList: AdminProduct[]) => {
+        if (!old) return updatedList;
+        if (Array.isArray(old)) return updatedList;
+        if (Array.isArray(old?.data)) return { ...old, data: updatedList };
+        if (Array.isArray(old?.items)) return { ...old, items: updatedList };
+        if (Array.isArray(old?.result)) return { ...old, result: updatedList };
+        return updatedList;
+      };
+      queryClient.setQueryData(["adminProducts"], (old: any) => {
+        try {
+          const list = normalizeProductList(old);
+          const updated = list.filter(
+            (p) => String(getProductId(p)) !== String(id),
+          );
+          return rebuildResponse(old, updated);
+        } catch (e) {
+          queryClient.invalidateQueries({ queryKey: ["adminProducts"] });
+          return old;
+        }
+      });
+    },
+    onError: (error: any) => {
+      const msg =
+        error?.response?.data?.message || "Xóa mềm sản phẩm thất bại.";
       toast({ title: "Lỗi", description: msg, variant: "destructive" });
     },
   });
@@ -273,6 +376,63 @@ export default function AdminProductManagement() {
     enabled: detailOpen && !!selectedProductId,
   });
   const detail: AnyRecord = detailResponse?.data ?? detailResponse ?? {};
+
+  // Local component for image gallery inside detail modal
+  const Gallery: React.FC<{ detail: AnyRecord; title: string }> = ({
+    detail,
+    title,
+  }) => {
+    const images: string[] =
+      detail?.productImages?.map((i: any) => i?.url).filter(Boolean) ||
+      detail?.images?.map((i: any) => i?.url).filter(Boolean) ||
+      detail?.gallery?.map((i: any) => i?.url).filter(Boolean) ||
+      (detail?.imageUrl ? [detail.imageUrl] : null) ||
+      (detail?.image ? [detail.image] : null) ||
+      [];
+
+    const [main, setMain] = useState<string>(images[0] || "/placeholder.svg");
+    useEffect(() => {
+      const first = images[0] || "/placeholder.svg";
+      setMain(first);
+    }, [detailResponse]);
+
+    return (
+      <div className="bg-gray-50 rounded-md p-3">
+        <img
+          src={main}
+          alt={title}
+          className="w-full h-64 object-cover rounded"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
+          }}
+        />
+        {images.length > 1 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto">
+            {images.map((src, idx) => (
+              <button
+                key={idx}
+                onClick={() => src && setMain(src)}
+                className={`w-16 h-16 rounded overflow-hidden border ${
+                  main === src ? "border-rose-600" : "border-slate-200"
+                }`}
+                aria-label={`Ảnh ${idx + 1}`}
+                style={{ WebkitTapHighlightColor: "transparent" }}
+              >
+                <img
+                  src={src}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      "/placeholder.svg";
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -514,7 +674,20 @@ export default function AdminProductManagement() {
                               Từ chối (Reject)
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => {
+                              const id = getProductId(product);
+                              if (!id) return;
+                              if (
+                                window.confirm(
+                                  "Bạn có chắc chắn muốn xóa mềm sản phẩm này?",
+                                )
+                              ) {
+                                deleteMutation.mutate(id);
+                              }
+                            }}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Xóa
                           </DropdownMenuItem>
@@ -540,18 +713,10 @@ export default function AdminProductManagement() {
             <div className="py-10 text-center">Đang tải...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-md p-3">
-                <img
-                  src={
-                    (detail?.productImages?.[0]?.url ||
-                      detail?.imageUrl ||
-                      detail?.image ||
-                      "/placeholder.svg") as string
-                  }
-                  alt={getProductName(detail)}
-                  className="w-full h-64 object-cover rounded"
-                />
-              </div>
+              {/* Images gallery */}
+              <Gallery detail={detail} title={getProductName(detail)} />
+
+              {/* Meta */}
               <div className="space-y-2">
                 <div className="text-lg font-semibold">
                   {getProductName(detail)}

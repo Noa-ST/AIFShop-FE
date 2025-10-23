@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Box, Edit, Trash2, Filter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, fetchProductsByShop } from "@/lib/api";
+import { fetchShopBySeller, fetchProductsByShop, softDeleteProduct } from "@/lib/api";
+import { useMutation } from "@tanstack/react-query";
 
 export default function ProductManagement() {
   const { user, initialized } = useAuth();
@@ -57,6 +58,22 @@ export default function ProductManagement() {
   );
 
   const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteProduct(id),
+    onSuccess: (_data, id) => {
+      // Remove from local cache
+      queryClient.setQueryData(["productsByShop", shopId], (old: any) => {
+        try {
+          const list = Array.isArray(old) ? old : old?.data || [];
+          const updated = list.filter((p: any) => String(p.id || p._id) !== String(id));
+          return Array.isArray(old) ? updated : { ...old, data: updated };
+        } catch {
+          return old;
+        }
+      });
+    },
+  });
 
   return (
     <div className="container py-8">
@@ -144,7 +161,16 @@ export default function ProductManagement() {
                         Chỉnh sửa
                       </DropdownMenuItem>
                     </Link>
-                    <DropdownMenuItem className="text-red-600">
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => {
+                        const id = product.id || product._id;
+                        if (!id) return;
+                        if (window.confirm("Bạn có chắc chắn muốn xóa mềm sản phẩm này?")) {
+                          deleteMutation.mutate(id);
+                        }
+                      }}
+                    >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Xóa mềm
                     </DropdownMenuItem>

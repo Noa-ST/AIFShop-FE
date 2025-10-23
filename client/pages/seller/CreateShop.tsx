@@ -36,8 +36,8 @@ export default function CreateShopPage() {
       try {
         const shop = await fetchShopBySeller(sellerId);
         if (isShopPresent(shop)) {
-          // seller already has a shop; redirect to seller dashboard
-          navigate("/seller/dashboard");
+          // seller already has a shop; redirect to shop management
+          navigate("/seller/shop-management");
           return;
         }
       } catch (err) {
@@ -76,14 +76,14 @@ export default function CreateShopPage() {
 
       const res = await createShop(payload);
 
-      // If backend returned created shop, redirect to dashboard
+      // If backend returned created shop, redirect to shop management
       if (res && (res.id || res.shopId || res._id || res.name)) {
-        navigate("/seller/dashboard");
+        navigate("/seller/shop-management");
         return;
       }
 
-      // Fallback: navigate to dashboard
-      navigate("/seller/dashboard");
+      // Fallback: navigate to shop management
+      navigate("/seller/shop-management");
     } catch (err: any) {
       // Xử lý lỗi từ Backend (Lỗi 400 Bad Request)
       console.error("Lỗi tạo Shop:", err);

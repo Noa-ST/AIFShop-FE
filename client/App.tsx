@@ -14,11 +14,11 @@ import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ProductList from "./pages/Products/List";
 import ProductDetail from "./pages/Products/Detail";
-import SellerDashboard from "./pages/Seller/Dashboard";
 import CreateShopPage from "./pages/Seller/CreateShop";
 import ProductManagement from "./pages/Seller/ProductManagement";
 import ShopInfo from "./pages/Seller/ShopInfo";
 import ShopManagement from "./pages/Seller/ShopManagement";
+import SellerLayout from "./components/layout/SellerLayout";
 import React from "react";
 import CreateProduct from "./pages/Seller/CreateProduct";
 import CreateCategory from "./pages/Seller/CreateCategory";
@@ -63,34 +63,28 @@ const App = () => (
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/seller/dashboard" element={<SellerDashboard />} />
-                <Route
-                  path="/seller/products"
-                  element={<ProductManagement />}
-                />
-                <Route path="/seller/shop" element={<ShopInfo />} />
-                <Route
-                  path="/seller/shop-management"
-                  element={<ShopManagement />}
-                />
+                {/* Seller area with Admin-like navigation */}
+                <Route path="/seller" element={<SellerLayout />}>
+                  <Route index element={<ShopManagement />} />
+                  <Route path="shop-management" element={<ShopManagement />} />
+                  <Route path="products" element={<ProductManagement />} />
+                  <Route path="shop" element={<ShopInfo />} />
+                  <Route path="products/create" element={<CreateProduct />} />
+                  <Route
+                    path="category/create"
+                    element={
+                      // Lazy load new CreateCategory page if needed
+                      <React.Suspense fallback={<div>Loading...</div>}>
+                        <CreateCategory />
+                      </React.Suspense>
+                    }
+                  />
+                </Route>
+                {/* Route outside seller layout for onboarding new sellers */}
                 <Route
                   path="/seller/create-shop"
                   element={<CreateShopPage />}
                 />
-                <Route
-                  path="/seller/products/create"
-                  element={<CreateProduct />}
-                />
-                <Route
-                  path="/seller/category/create"
-                  element={
-                    // Lazy load new CreateCategory page if needed
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      <CreateCategory />
-                    </React.Suspense>
-                  }
-                />
-                <Route path="/seller" element={<SellerDashboard />} />
 
                 {/* Admin Routes with nested layout */}
                 <Route path="/admin" element={<AdminLayout />}>
