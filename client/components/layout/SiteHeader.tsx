@@ -106,7 +106,7 @@ export default function SiteHeader() {
                       to="/seller/shop-management"
                       className="block px-4 py-2 text-sm hover:bg-slate-50"
                     >
-                      Dashboard Seller
+                      Quản lý Shop
                     </Link>
                   )}
                   {user?.role === "Admin" && (

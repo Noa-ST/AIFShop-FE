@@ -48,9 +48,9 @@ export default function Register() {
         console.warn("Auto-login after register failed:", loginErr);
       } // ✅ FIX: Đơn giản hóa logic chuyển hướng.
 
-      // Để Dashboard.tsx tự kiểm tra Shop và chuyển hướng đến trang Tạo Shop.
+      // Sau đăng ký, Seller vào trang quản lý shop
       if (data.role === "Seller") {
-        navigate("/seller/dashboard");
+        navigate("/seller/shop-management");
       } else {
         navigate("/home");
       }
