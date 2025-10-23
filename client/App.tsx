@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Placeholder from "./pages/Placeholder";
+import CartPage from "./pages/Cart/Index";
 import SiteHeader from "./components/layout/SiteHeader";
 import SiteFooter from "./components/layout/SiteFooter";
 import Login from "./pages/Auth/Login";
@@ -56,10 +57,7 @@ const App = () => (
                 <Route path="/shops/:id" element={<ShopDetail />} />
                 <Route path="/products" element={<ProductList />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
-                <Route
-                  path="/cart"
-                  element={<Placeholder title="Giỏ hàng" />}
-                />
+                <Route path="/cart" element={<CartPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/profile" element={<ProfilePage />} />
