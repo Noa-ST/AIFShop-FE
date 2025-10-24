@@ -278,7 +278,10 @@ export type CartUpdatePayload = { productId: string; quantity: number };
 
 export const fetchCart = async () => {
   const res = await api.get(`/api/Cart`);
-  return res.data;
+  // Normalize common API envelope shapes so callers can be simple
+  const root = (res as any)?.data?.data ?? (res as any)?.data;
+  if (!root) return [] as any[];
+  return (root.items ?? root.cartItems ?? root) as any;
 };
 
 export const addToCart = async (payload: CartAddPayload) => {
@@ -294,4 +297,132 @@ export const updateCartItem = async (payload: CartUpdatePayload) => {
 export const deleteCartItem = async (productId: string) => {
   const res = await api.delete(`/api/Cart/deleteItem/${productId}`);
   return res.data;
+};
+
+// -----------------------------
+// Address Book APIs (Authorized)
+// Note: graceful fallbacks to localStorage for demo/dev without BE
+// -----------------------------
+export type Address = {
+  id: string;
+  fullName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  addressLine: string;
+  isDefault?: boolean;
+};
+
+export type AddressCreatePayload = Omit<Address, "id">;
+
+const ADDRESS_LS_KEY = "aifshop_addresses";
+
+function readLocalAddresses(): Address[] {
+  try {
+    const raw = localStorage.getItem(ADDRESS_LS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Address[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalAddresses(addresses: Address[]) {
+  try {
+    localStorage.setItem(ADDRESS_LS_KEY, JSON.stringify(addresses));
+  } catch {}
+}
+
+export const fetchAddresses = async (): Promise<Address[]> => {
+  try {
+    const res = await api.get(`/api/Address/list`);
+    const root = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+    const list = (root.items ?? root.addresses ?? root) as any[];
+    if (!Array.isArray(list)) return [];
+    // Normalize keys
+    return list.map(
+      (it: any): Address => ({
+        id: String(it.id ?? it._id ?? it.addressId ?? Date.now()),
+        fullName: it.fullName ?? it.name ?? it.receiverName ?? "",
+        phone: it.phone ?? it.phoneNumber ?? "",
+        province: it.province ?? it.city ?? it.cityProvince ?? "",
+        district: it.district ?? it.county ?? "",
+        ward: it.ward ?? it.subdistrict ?? "",
+        addressLine: it.addressLine ?? it.street ?? it.address ?? "",
+        isDefault: Boolean(
+          it.isDefault ?? it.defaultAddress ?? it.isPrimary ?? false,
+        ),
+      }),
+    );
+  } catch {
+    return readLocalAddresses();
+  }
+};
+
+export const createAddress = async (
+  payload: AddressCreatePayload,
+): Promise<Address> => {
+  try {
+    const res = await api.post(`/api/Address/create`, payload);
+    const data = (res as any)?.data?.data ?? (res as any)?.data ?? payload;
+    const id = String(data.id ?? data._id ?? data.addressId ?? Date.now());
+    return { ...payload, id } as Address;
+  } catch {
+    // Fallback to localStorage persistence in dev
+    const current = readLocalAddresses();
+    const next: Address = { ...payload, id: String(Date.now()) };
+    if (next.isDefault) {
+      for (const a of current) a.isDefault = false;
+    }
+    current.unshift(next);
+    writeLocalAddresses(current);
+    return next;
+  }
+};
+
+export const updateAddress = async (
+  id: string,
+  payload: AddressCreatePayload,
+): Promise<Address> => {
+  try {
+    const res = await api.put(`/api/Address/update/${id}`, payload);
+    const data = (res as any)?.data?.data ?? (res as any)?.data ?? payload;
+    return {
+      id: String(data.id ?? id),
+      fullName: data.fullName ?? payload.fullName,
+      phone: data.phone ?? payload.phone,
+      province: data.province ?? payload.province,
+      district: data.district ?? payload.district,
+      ward: data.ward ?? payload.ward,
+      addressLine: data.addressLine ?? payload.addressLine,
+      isDefault: Boolean(data.isDefault ?? payload.isDefault),
+    };
+  } catch {
+    const current = readLocalAddresses();
+    const idx = current.findIndex((a) => a.id === id);
+    if (idx >= 0) {
+      const updated: Address = { ...current[idx], ...payload, id };
+      if (updated.isDefault) {
+        for (const a of current) a.isDefault = false;
+      }
+      current[idx] = updated;
+      writeLocalAddresses(current);
+      return updated;
+    }
+    const next: Address = { ...payload, id };
+    current.unshift(next);
+    writeLocalAddresses(current);
+    return next;
+  }
+};
+
+export const deleteAddress = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/api/Address/delete/${id}`);
+  } catch {
+    const current = readLocalAddresses().filter((a) => a.id !== id);
+    writeLocalAddresses(current);
+  }
 };
