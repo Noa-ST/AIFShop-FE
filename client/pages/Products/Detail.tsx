@@ -4,7 +4,9 @@ import { addToCart, fetchProductById } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShoppingCart } from "lucide-react";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -26,27 +28,68 @@ export default function ProductDetail() {
   const product: any = data || {};
 
   // Normalize images from multiple possible shapes
-  const images: string[] =
-    product?.productImages?.map((i: any) => i.url) ||
-    product?.images?.map((i: any) => i.url) ||
-    (product?.imageUrl ? [product.imageUrl] : null) ||
-    (product?.image ? [product.image] : null) ||
-    product?.gallery?.map((i: any) => i.url) ||
-    [];
+  const images: string[] = useMemo(() => {
+    const normalize = (arr: any[]): string[] =>
+      (arr || [])
+        .map((i: any) => {
+          if (!i) return null as any;
+          if (typeof i === "string") return i;
+          return (
+            i.url || i.imageUrl || i.src || i.path || i.Location || null
+          );
+        })
+        .filter(Boolean) as string[];
+
+    return (
+      normalize(product?.productImages) ||
+      normalize(product?.images) ||
+      normalize(product?.gallery) ||
+      (product?.imageUrl ? [product.imageUrl] : undefined) ||
+      (product?.image ? [product.image] : undefined) ||
+      []
+    );
+  }, [product]);
 
   // Keep mainImage in sync when images change
   useEffect(() => {
     if (images && images.length) setMainImage(images[0]);
   }, [images]);
 
+<<<<<<< Current (Your changes)
+  // Mutation hook must be declared before any early return
+=======
   // Shop info may be present in several shapes
   const shop = product?.shop || product?.shopInfo || product?.seller;
+
+  const currentPrice = Number(
+    product?.price ?? product?.salePrice ?? product?.currentPrice ?? 0,
+  );
+  const originalPriceRaw = Number(
+    product?.originalPrice ??
+      product?.regularPrice ??
+      product?.priceBeforeDiscount ??
+      product?.compareAtPrice ??
+      product?.basePrice ??
+      0,
+  );
+  const originalPrice = originalPriceRaw > currentPrice ? originalPriceRaw : 0;
+  const discountPercent = originalPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+    : 0;
+
+  const rating = Number(
+    product?.rating ?? product?.averageRating ?? product?.avgRating ?? 0,
+  );
+  const ratingCount = Number(
+    product?.ratingCount ?? product?.reviewsCount ?? product?.totalReviews ?? 0,
+  );
 
   // Conditional returns (safe because hooks are already declared)
   if (isLoading) return <div className="p-8">Đang tải...</div>;
   if (error)
     return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
 
+>>>>>>> Incoming (Background Agent changes)
   const { mutateAsync: mutateAdd, isPending } = useMutation({
     mutationFn: addToCart,
     onSuccess: () => {
@@ -57,6 +100,14 @@ export default function ProductDetail() {
       toast({ title: "Thêm vào giỏ thất bại", description: "Vui lòng thử lại." });
     },
   });
+
+  // Shop info may be present in several shapes
+  const shop = product?.shop || product?.shopInfo || product?.seller;
+
+  // Conditional returns (safe because hooks are already declared)
+  if (isLoading) return <div className="p-8">Đang tải...</div>;
+  if (error)
+    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
 
   const handleAddToCart = async () => {
     if (!initialized) return;
@@ -81,7 +132,7 @@ export default function ProductDetail() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-2xl overflow-hidden bg-white shadow-md"
+                className="group rounded-2xl overflow-hidden bg-white shadow-md"
               >
                 <img
                   src={mainImage}
@@ -91,7 +142,7 @@ export default function ProductDetail() {
                       "/placeholder.svg";
                     (e.currentTarget as HTMLImageElement).onerror = null;
                   }}
-                  className="w-full h-[520px] object-cover"
+                  className="w-full h-[520px] object-cover transition-transform duration-300 ease-out group-hover:scale-105 cursor-zoom-in"
                 />
               </motion.div>
 
@@ -106,7 +157,11 @@ export default function ProductDetail() {
                         if (img) setMainImage(img);
                       }}
                       aria-label={`Chọn ảnh ${idx + 1}`}
-                      className={`relative z-50 w-20 h-20 rounded-md overflow-hidden ${mainImage === img ? "border-2 border-rose-600" : "border border-slate-200"}`}
+                      className={`relative z-50 w-20 h-20 rounded-md overflow-hidden ${
+                        mainImage === img
+                          ? "border-2 border-rose-600"
+                          : "border border-slate-200 hover:border-slate-300"
+                      }`}
                       style={{
                         WebkitTapHighlightColor: "transparent",
                       }}
@@ -128,9 +183,27 @@ export default function ProductDetail() {
 
             <div className="bg-white rounded-2xl p-6 shadow-md">
               <h1 className="text-3xl font-semibold">{product?.name}</h1>
-              <p className="text-rose-600 font-bold text-2xl mt-2">
-                {(product?.price || 0).toLocaleString("vi-VN")}₫
-              </p>
+              <div className="mt-2 flex items-end gap-3">
+                <div className="text-rose-600 font-bold text-2xl">
+                  {currentPrice.toLocaleString("vi-VN")}₫
+                </div>
+                {originalPrice > 0 && (
+                  <div className="text-gray-400 line-through">
+                    {originalPrice.toLocaleString("vi-VN")}₫
+                  </div>
+                )}
+                {discountPercent > 0 && (
+                  <div className="px-2 py-0.5 text-xs rounded bg-rose-100 text-rose-700 font-semibold">
+                    -{discountPercent}%
+                  </div>
+                )}
+              </div>
+
+              {(rating > 0 || ratingCount > 0) && (
+                <div className="mt-2 text-sm text-slate-600">
+                  ⭐ {rating.toFixed(1)} / 5 {ratingCount ? `(${ratingCount})` : ""}
+                </div>
+              )}
 
               <div className="mt-4 text-slate-600">
                 {product?.shortDescription || product?.description}
@@ -147,9 +220,9 @@ export default function ProductDetail() {
                 <button
                   onClick={handleAddToCart}
                   disabled={isPending}
-                  className="px-6 py-3 rounded-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] text-white disabled:opacity-60"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] text-white disabled:opacity-60 hover:shadow-md transition"
                 >
-                  Thêm vào giỏ
+                  <ShoppingCart size={18} /> Thêm vào giỏ
                 </button>
                 <button className="px-4 py-2 rounded-full border border-slate-200">
                   Yêu thích
@@ -194,17 +267,24 @@ export default function ProductDetail() {
 
           <div className="mt-10">
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold mb-3">Mô tả sản phẩm</h3>
-              <div className="prose max-w-none text-slate-700">
-                {product?.description}
-              </div>
-            </div>
-
-            <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold mb-3">Đánh giá</h3>
-              <p className="text-slate-600">
-                Khu vực hiển thị đánh giá người dùng (đang phát triển)
-              </p>
+              <Tabs defaultValue="desc">
+                <TabsList>
+                  <TabsTrigger value="desc">Mô tả</TabsTrigger>
+                  <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
+                  <TabsTrigger value="related">Sản phẩm tương tự</TabsTrigger>
+                </TabsList>
+                <TabsContent value="desc" className="mt-4">
+                  <div className="prose max-w-none text-slate-700">
+                    {product?.description || "Chưa có mô tả."}
+                  </div>
+                </TabsContent>
+                <TabsContent value="reviews" className="mt-4 text-slate-600">
+                  Tính năng đánh giá sẽ cập nhật sau.
+                </TabsContent>
+                <TabsContent value="related" className="mt-4 text-slate-600">
+                  Đang phát triển danh sách sản phẩm tương tự.
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </div>

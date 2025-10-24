@@ -2,7 +2,9 @@ import { Link, NavLink } from "react-router-dom";
 import { ShoppingCart, Store, Home, Boxes, LogIn, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCart } from "@/lib/api";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -13,6 +15,27 @@ export default function SiteHeader() {
   const { isAuthenticated, user, logoutUser, initialized } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+
+  // Subscribe to cart to reflect real-time count in header
+  const { data: cartData } = useQuery({
+    queryKey: ["cart"],
+    queryFn: fetchCart,
+    enabled: !!isAuthenticated, // cart API requires auth
+    staleTime: 10_000,
+  });
+
+  const cartCount = useMemo(() => {
+    const rawItems = (cartData?.items || cartData?.cartItems || cartData) ?? [];
+    if (!Array.isArray(rawItems)) return 0;
+    try {
+      return rawItems.reduce(
+        (sum: number, it: any) => sum + Number(it.quantity ?? 0),
+        0,
+      );
+    } catch {
+      return 0;
+    }
+  }, [cartData]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -76,7 +99,7 @@ export default function SiteHeader() {
               <ShoppingCart size={18} />
               <span>Giỏ hàng</span>
               <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-black text-white rounded-full">
-                0
+                {cartCount || 0}
               </span>
             </Link>
           )}
