@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addToCart, fetchProductById } from "@/lib/api";
+import { addToCart as addToCartApi, fetchProductById } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
@@ -9,34 +9,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingCart } from "lucide-react";
 
 export default function ProductDetail() {
+  // ----------------------------------------------
+  // Hooks MUST be called unconditionally at top level
+  // ----------------------------------------------
   const { id } = useParams();
   const { isAuthenticated, initialized } = useAuth();
   const queryClient = useQueryClient();
+
   const [qty, setQty] = useState<number>(1);
+  const [mainImage, setMainImage] = useState<string>("/placeholder.svg");
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["product", id],
     queryFn: () => fetchProductById(id as string),
     enabled: !!id,
   });
 
-  // ----------------------------------------------------
-  // Hooks must be called unconditionally at the top-level
-  // ----------------------------------------------------
-  const [mainImage, setMainImage] = useState<string>("/placeholder.svg");
+  const { mutateAsync: mutateAdd, isPending } = useMutation({
+    mutationFn: addToCartApi,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      toast({ title: "Đã thêm vào giỏ hàng" });
+    },
+    onError: () => {
+      toast({ title: "Thêm vào giỏ thất bại", description: "Vui lòng thử lại." });
+    },
+  });
 
-  // Now safe to compute product and images (not hooks)
+  // Non-hook derived values
   const product: any = data || {};
 
-  // Normalize images from multiple possible shapes
-  const images: string[] = useMemo(() => {
+  const images: string[] = useMemo((): string[] => {
     const normalize = (arr: any[]): string[] =>
       (arr || [])
         .map((i: any) => {
           if (!i) return null as any;
           if (typeof i === "string") return i;
-          return (
-            i.url || i.imageUrl || i.src || i.path || i.Location || null
-          );
+          return i.url || i.imageUrl || i.src || i.path || i.Location || null;
         })
         .filter(Boolean) as string[];
 
@@ -50,15 +59,10 @@ export default function ProductDetail() {
     );
   }, [product]);
 
-  // Keep mainImage in sync when images change
   useEffect(() => {
     if (images && images.length) setMainImage(images[0]);
   }, [images]);
 
-<<<<<<< Current (Your changes)
-  // Mutation hook must be declared before any early return
-=======
-  // Shop info may be present in several shapes
   const shop = product?.shop || product?.shopInfo || product?.seller;
 
   const currentPrice = Number(
@@ -84,27 +88,7 @@ export default function ProductDetail() {
     product?.ratingCount ?? product?.reviewsCount ?? product?.totalReviews ?? 0,
   );
 
-  // Conditional returns (safe because hooks are already declared)
-  if (isLoading) return <div className="p-8">Đang tải...</div>;
-  if (error)
-    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
-
->>>>>>> Incoming (Background Agent changes)
-  const { mutateAsync: mutateAdd, isPending } = useMutation({
-    mutationFn: addToCart,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cart"] });
-      toast({ title: "Đã thêm vào giỏ hàng" });
-    },
-    onError: () => {
-      toast({ title: "Thêm vào giỏ thất bại", description: "Vui lòng thử lại." });
-    },
-  });
-
-  // Shop info may be present in several shapes
-  const shop = product?.shop || product?.shopInfo || product?.seller;
-
-  // Conditional returns (safe because hooks are already declared)
+  // Early returns AFTER all hooks are declared
   if (isLoading) return <div className="p-8">Đang tải...</div>;
   if (error)
     return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
@@ -138,8 +122,7 @@ export default function ProductDetail() {
                   src={mainImage}
                   alt={product?.name}
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      "/placeholder.svg";
+                    (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
                     (e.currentTarget as HTMLImageElement).onerror = null;
                   }}
                   className="w-full h-[520px] object-cover transition-transform duration-300 ease-out group-hover:scale-105 cursor-zoom-in"
@@ -153,7 +136,6 @@ export default function ProductDetail() {
                       key={idx}
                       type="button"
                       onClick={() => {
-                        // guard and set
                         if (img) setMainImage(img);
                       }}
                       aria-label={`Chọn ảnh ${idx + 1}`}
@@ -162,17 +144,14 @@ export default function ProductDetail() {
                           ? "border-2 border-rose-600"
                           : "border border-slate-200 hover:border-slate-300"
                       }`}
-                      style={{
-                        WebkitTapHighlightColor: "transparent",
-                      }}
+                      style={{ WebkitTapHighlightColor: "transparent" }}
                     >
                       <img
                         src={img}
                         alt={`thumb-${idx}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src =
-                            "/placeholder.svg";
+                          (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
                         }}
                       />
                     </button>
@@ -238,8 +217,7 @@ export default function ProductDetail() {
                         alt={shop.name}
                         className="w-12 h-12 rounded-full object-cover"
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src =
-                            "/placeholder.svg";
+                          (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
                         }}
                       />
                       <div>
@@ -247,9 +225,7 @@ export default function ProductDetail() {
                           {shop.name || shop.shopName || "Cửa hàng"}
                         </div>
                         {shop.rating && (
-                          <div className="text-sm text-slate-500">
-                            Đánh giá: {shop.rating} / 5
-                          </div>
+                          <div className="text-sm text-slate-500">Đánh giá: {shop.rating} / 5</div>
                         )}
                       </div>
                     </div>
@@ -293,16 +269,10 @@ export default function ProductDetail() {
           <div className="bg-white rounded-2xl p-6 shadow-md">
             <h4 className="font-semibold mb-2">Thông tin nhanh</h4>
             <p className="text-sm text-slate-600">
-              Tồn kho:{" "}
-              <span className="font-medium">
-                {product?.stockQuantity ?? "-"}
-              </span>
+              Tồn kho: <span className="font-medium">{product?.stockQuantity ?? "-"}</span>
             </p>
             <p className="text-sm text-slate-600 mt-2">
-              Danh mục:{" "}
-              <span className="font-medium">
-                {product?.categoryName || product?.category || "-"}
-              </span>
+              Danh mục: <span className="font-medium">{product?.categoryName || product?.category || "-"}</span>
             </p>
           </div>
         </aside>
