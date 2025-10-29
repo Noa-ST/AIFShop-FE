@@ -24,8 +24,7 @@ import React from "react";
 import CreateProduct from "./pages/Seller/CreateProduct";
 import CreateCategory from "./pages/Seller/CreateCategory";
 import ShopDetail from "./pages/Shop/Detail";
-import ProfilePage from "./pages/Profile/Index";
-import { AuthProvider } from "./contexts/AuthContext";
+import ShopListPage from "./pages/ShopListPage";
 import AdminLayout from "./components/layout/AdminLayout";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import GlobalCategoryDashboard from "./pages/Admin/GlobalCategoryDashboard";
@@ -34,6 +33,8 @@ import AdminProductManagement from "./pages/Admin/ProductManagement";
 import AdminUserManagement from "./pages/Admin/UserManagement";
 import AdminAnalytics from "./pages/Admin/Analytics";
 import AdminSettings from "./pages/Admin/Settings";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProfilePage from "./pages/Profile/Index";
 
 const queryClient = new QueryClient();
 
@@ -50,10 +51,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/home" element={<Index />} />
-                <Route
-                  path="/shops"
-                  element={<Placeholder title="Danh sách Shop" />}
-                />
+                <Route path="/shops" element={<ShopListPage />} />
                 <Route path="/shops/:id" element={<ShopDetail />} />
                 <Route path="/products" element={<ProductList />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
