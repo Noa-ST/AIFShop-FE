@@ -11,11 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { createShop, fetchShopBySeller, isShopPresent } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
+import { vietnameseProvinces } from "@/data/vietnamese-provinces";
 
 export default function CreateShopPage() {
   const navigate = useNavigate();
@@ -24,6 +32,8 @@ export default function CreateShopPage() {
     name: "",
     description: "",
     logo: "",
+    street: "",
+    city: "",
   });
   const { user } = useAuth();
   // ✅ FIX: Lấy sellerId chính xác — fallback to localStorage when AuthContext hasn't initialized yet
@@ -56,7 +66,20 @@ export default function CreateShopPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopData.name) return; // Frontend Validation: Tên không được rỗng
+
+    // Frontend Validation: Kiểm tra các trường bắt buộc
+    if (!shopData.name.trim()) {
+      alert("Vui lòng nhập tên cửa hàng");
+      return;
+    }
+    if (!shopData.city.trim()) {
+      alert("Vui lòng nhập thành phố");
+      return;
+    }
+    if (!shopData.street.trim()) {
+      alert("Vui lòng nhập địa chỉ đường");
+      return;
+    }
 
     if (!sellerId) {
       alert("Không xác định Seller ID. Vui lòng đăng nhập lại.");
@@ -71,6 +94,8 @@ export default function CreateShopPage() {
         name: shopData.name,
         description: shopData.description,
         logo: shopData.logo,
+        street: shopData.street,
+        city: shopData.city,
         sellerId, // Gửi Seller ID
       };
 
@@ -150,11 +175,50 @@ export default function CreateShopPage() {
               )}
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="street">Địa chỉ đường *</Label>
+              <Input
+                id="street"
+                name="street"
+                value={shopData.street}
+                onChange={handleChange}
+                required
+                placeholder="Ví dụ: 123 Đường ABC, Phường XYZ"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="city">Tỉnh/Thành phố *</Label>
+              <Select
+                value={shopData.city}
+                onValueChange={(value) => {
+                  setShopData({ ...shopData, city: value });
+                }}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn tỉnh/thành phố" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vietnameseProvinces.map((province) => (
+                    <SelectItem key={province.value} value={province.label}>
+                      {province.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <CardFooter className="p-0 pt-4">
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || !shopData.name}
+                disabled={
+                  isLoading ||
+                  !shopData.name.trim() ||
+                  !shopData.city.trim() ||
+                  !shopData.street.trim()
+                }
               >
                 {isLoading ? "Đang tạo..." : "Tạo Shop và vào Dashboard"}
               </Button>

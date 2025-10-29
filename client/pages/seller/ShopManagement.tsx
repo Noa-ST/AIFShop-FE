@@ -1,50 +1,41 @@
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import ShopInfo from "./ShopInfo";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import ShopLayout from "@/components/seller/ShopLayout";
+import ShopInfoForm from "@/components/seller/ShopInfoForm";
 import ProductManagement from "./ProductManagement";
+import { motion } from "framer-motion";
 
 export default function ShopManagement() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Redirect to info page if on base route
+  useEffect(() => {
+    if (location.pathname === "/seller/shop-management") {
+      navigate("/seller/shop-management/info", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-6">Quản lý Cửa hàng</h1>
-
-      <Tabs defaultValue="shop-info">
-        <TabsList className="grid w-full grid-cols-2 max-w-lg">
-          <TabsTrigger value="shop-info">1. Thông tin Shop</TabsTrigger>
-          <TabsTrigger value="products">2. Sản phẩm</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="shop-info" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin Shop &amp; Logo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ShopInfo />
-            </CardContent>
-            <CardFooter>
-              <div />
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="products" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách Sản phẩm</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProductManagement />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+    <ShopLayout>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white rounded-2xl shadow-md p-8 lg:p-10"
+      >
+        <Outlet />
+      </motion.div>
+    </ShopLayout>
   );
+}
+
+// Info Page Component
+export function ShopInfoPage() {
+  return <ShopInfoForm />;
+}
+
+// Products Page Component
+export function ShopProductsPage() {
+  return <ProductManagement />;
 }

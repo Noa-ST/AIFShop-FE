@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Placeholder from "./pages/Placeholder";
@@ -18,7 +18,10 @@ import ProductDetail from "./pages/Products/Detail";
 import CreateShopPage from "./pages/Seller/CreateShop";
 import ProductManagement from "./pages/Seller/ProductManagement";
 import ShopInfo from "./pages/Seller/ShopInfo";
-import ShopManagement from "./pages/Seller/ShopManagement";
+import ShopManagement, {
+  ShopInfoPage,
+  ShopProductsPage,
+} from "./pages/Seller/ShopManagement";
 import SellerLayout from "./components/layout/SellerLayout";
 import React from "react";
 import CreateProduct from "./pages/Seller/CreateProduct";
@@ -38,74 +41,88 @@ import ProfilePage from "./pages/Profile/Index";
 
 const queryClient = new QueryClient();
 
+const InnerApp = () => {
+  const location = useLocation();
+  const pathname = location.pathname || "/";
+  // Hide header for seller dashboard pages that have their own sidebar
+  const isSellerDashboardPage =
+    pathname.startsWith("/seller/") && pathname !== "/seller/create-shop";
+  const showHeader = !isSellerDashboardPage;
+
+  return (
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <div className="min-h-screen flex flex-col bg-background text-foreground">
+          {showHeader && <SiteHeader />}
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/home" element={<Index />} />
+              <Route path="/shops" element={<ShopListPage />} />
+              <Route path="/shops/:id" element={<ShopDetail />} />
+              <Route path="/products" element={<ProductList />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              {/* Seller area with Admin-like navigation */}
+              <Route path="/seller" element={<SellerLayout />}>
+                <Route index element={<ShopManagement />} />
+                <Route path="shop-management" element={<ShopManagement />}>
+                  <Route path="info" element={<ShopInfoPage />} />
+                  <Route path="products" element={<ShopProductsPage />} />
+                  <Route index element={<ShopInfoPage />} />
+                </Route>
+                <Route path="products" element={<ProductManagement />} />
+                <Route path="shop" element={<ShopInfo />} />
+                <Route path="products/create" element={<CreateProduct />} />
+                <Route
+                  path="category/create"
+                  element={
+                    // Lazy load new CreateCategory page if needed
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <CreateCategory />
+                    </React.Suspense>
+                  }
+                />
+              </Route>
+              {/* Route outside seller layout for onboarding new sellers */}
+              <Route path="/seller/create-shop" element={<CreateShopPage />} />
+
+              {/* Admin Routes with nested layout */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route
+                  path="global-categories"
+                  element={<GlobalCategoryDashboard />}
+                />
+                <Route
+                  path="global-categories/create"
+                  element={<CreateGlobalCategory />}
+                />
+                <Route path="products" element={<AdminProductManagement />} />
+                <Route path="users" element={<AdminUserManagement />} />
+                <Route path="analytics" element={<AdminAnalytics />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+          <SiteFooter />
+        </div>
+      </TooltipProvider>
+    </AuthProvider>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <div className="min-h-screen flex flex-col bg-background text-foreground">
-            <SiteHeader />
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/home" element={<Index />} />
-                <Route path="/shops" element={<ShopListPage />} />
-                <Route path="/shops/:id" element={<ShopDetail />} />
-                <Route path="/products" element={<ProductList />} />
-                <Route path="/products/:id" element={<ProductDetail />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                {/* Seller area with Admin-like navigation */}
-                <Route path="/seller" element={<SellerLayout />}>
-                  <Route index element={<ShopManagement />} />
-                  <Route path="shop-management" element={<ShopManagement />} />
-                  <Route path="products" element={<ProductManagement />} />
-                  <Route path="shop" element={<ShopInfo />} />
-                  <Route path="products/create" element={<CreateProduct />} />
-                  <Route
-                    path="category/create"
-                    element={
-                      // Lazy load new CreateCategory page if needed
-                      <React.Suspense fallback={<div>Loading...</div>}>
-                        <CreateCategory />
-                      </React.Suspense>
-                    }
-                  />
-                </Route>
-                {/* Route outside seller layout for onboarding new sellers */}
-                <Route
-                  path="/seller/create-shop"
-                  element={<CreateShopPage />}
-                />
-
-                {/* Admin Routes with nested layout */}
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<AdminDashboard />} />
-                  <Route
-                    path="global-categories"
-                    element={<GlobalCategoryDashboard />}
-                  />
-                  <Route
-                    path="global-categories/create"
-                    element={<CreateGlobalCategory />}
-                  />
-                  <Route path="products" element={<AdminProductManagement />} />
-                  <Route path="users" element={<AdminUserManagement />} />
-                  <Route path="analytics" element={<AdminAnalytics />} />
-                  <Route path="settings" element={<AdminSettings />} />
-                </Route>
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-            <SiteFooter />
-          </div>
-        </TooltipProvider>
-      </AuthProvider>
+      <InnerApp />
     </BrowserRouter>
   </QueryClientProvider>
 );

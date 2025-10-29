@@ -4,29 +4,40 @@ import { useNavigate } from "react-router-dom";
 import { Search, Filter, MapPin, Star, Grid, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import ShopCard from "@/components/ShopCard";
 import { fetchAllActiveShops } from "@/lib/api";
+import provinces from "@/data/provinces";
 import { Shop, ShopFilters, ShopListPageProps } from "@/types/shop";
 import { mockShopsResponse } from "@/mock/shopData";
 
-const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
+const ShopListPage: React.FC<ShopListPageProps> = ({ locale = "vi" }) => {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<ShopFilters>({
-    search: '',
-    category: '',
-    location: '',
+    search: "",
+    category: "",
+    location: "",
     minRating: 0,
-    sortBy: 'rating'
+    sortBy: "rating",
   });
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Fetch shops data with fallback to mock data
-  const { data: shopsResponse, isLoading, error } = useQuery({
-    queryKey: ['shops', 'active'],
+  const {
+    data: shopsResponse,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["shops", "active"],
     queryFn: fetchAllActiveShops,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1, // Only retry once
@@ -34,8 +45,9 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
   });
 
   // Use mock data as fallback when API fails
-  const shops: Shop[] = shopsResponse?.data || (error ? mockShopsResponse.data : []);
-
+  const shops: Shop[] =
+    (shopsResponse?.data ?? shopsResponse) ||
+    (error ? mockShopsResponse.data : []);
   // Filter and sort shops
   const filteredShops = useMemo(() => {
     let filtered = [...shops];
@@ -43,36 +55,45 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(shop => 
-        shop.name.toLowerCase().includes(searchLower) ||
-        shop.description?.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        (shop) =>
+          shop.name.toLowerCase().includes(searchLower) ||
+          shop.description?.toLowerCase().includes(searchLower),
       );
     }
 
     // Location filter
-    if (filters.location && filters.location !== 'all') {
-      filtered = filtered.filter(shop => 
-        shop.location?.toLowerCase().includes(filters.location!.toLowerCase())
+    if (filters.location && filters.location !== "all") {
+      filtered = filtered.filter((shop) =>
+        shop.location?.toLowerCase().includes(filters.location!.toLowerCase()),
       );
     }
 
     // Rating filter
     if (filters.minRating && filters.minRating > 0) {
-      filtered = filtered.filter(shop => shop.averageRating >= filters.minRating!);
+      filtered = filtered.filter(
+        (shop) => shop.averageRating >= filters.minRating!,
+      );
     }
 
     // Sort
     switch (filters.sortBy) {
-      case 'rating':
+      case "rating":
         filtered.sort((a, b) => b.averageRating - a.averageRating);
         break;
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      case "newest":
+        filtered.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
         break;
-      case 'oldest':
-        filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      case "oldest":
+        filtered.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         break;
-      case 'name':
+      case "name":
         filtered.sort((a, b) => a.name.localeCompare(b.name));
         break;
     }
@@ -81,15 +102,15 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
   }, [shops, filters]);
 
   const handleSearchChange = (value: string) => {
-    setFilters(prev => ({ ...prev, search: value }));
+    setFilters((prev) => ({ ...prev, search: value }));
   };
 
   const handleLocationChange = (value: string) => {
-    setFilters(prev => ({ ...prev, location: value === 'all' ? '' : value }));
+    setFilters((prev) => ({ ...prev, location: value === "all" ? "" : value }));
   };
 
   const handleSortChange = (value: string) => {
-    setFilters(prev => ({ ...prev, sortBy: value as ShopFilters['sortBy'] }));
+    setFilters((prev) => ({ ...prev, sortBy: value as ShopFilters["sortBy"] }));
   };
 
   const handleViewShop = (shopId: string) => {
@@ -98,26 +119,26 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
 
   const handleChat = (shopId: string) => {
     // TODO: Implement chat functionality
-    console.log('Chat with shop:', shopId);
+    console.log("Chat with shop:", shopId);
   };
 
   const handleAddToFavorites = (shopId: string) => {
     // TODO: Implement favorites functionality
-    console.log('Add to favorites:', shopId);
+    console.log("Add to favorites:", shopId);
   };
 
   const clearFilters = () => {
     setFilters({
-      search: '',
-      category: '',
-      location: '',
+      search: "",
+      category: "",
+      location: "",
       minRating: 0,
-      sortBy: 'rating'
+      sortBy: "rating",
     });
   };
 
-  const activeFiltersCount = Object.values(filters).filter(value => 
-    value && value !== '' && value !== 0 && value !== 'rating'
+  const activeFiltersCount = Object.values(filters).filter(
+    (value) => value && value !== "" && value !== 0 && value !== "rating",
   ).length;
 
   if (error) {
@@ -132,9 +153,7 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
               <p className="text-gray-600 mb-4">
                 Không thể tải danh sách shop. Vui lòng thử lại sau.
               </p>
-              <Button onClick={() => window.location.reload()}>
-                Thử lại
-              </Button>
+              <Button onClick={() => window.location.reload()}>Thử lại</Button>
             </CardContent>
           </Card>
         </div>
@@ -191,17 +210,20 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
                   </label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Select value={filters.location} onValueChange={handleLocationChange}>
+                    <Select
+                      value={filters.location}
+                      onValueChange={handleLocationChange}
+                    >
                       <SelectTrigger className="pl-10">
                         <SelectValue placeholder="Chọn tỉnh/thành" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả</SelectItem>
-                        <SelectItem value="hanoi">Hà Nội</SelectItem>
-                        <SelectItem value="hcm">TP. Hồ Chí Minh</SelectItem>
-                        <SelectItem value="danang">Đà Nẵng</SelectItem>
-                        <SelectItem value="haiphong">Hải Phòng</SelectItem>
-                        <SelectItem value="cantho">Cần Thơ</SelectItem>
+                        {provinces.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -212,9 +234,14 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
                     Đánh giá tối thiểu
                   </label>
-                  <Select 
-                    value={filters.minRating?.toString()} 
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, minRating: parseInt(value) }))}
+                  <Select
+                    value={filters.minRating?.toString()}
+                    onValueChange={(value) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        minRating: parseInt(value),
+                      }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Chọn đánh giá" />
@@ -230,8 +257,8 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
 
                 {/* Clear Filters */}
                 {activeFiltersCount > 0 && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={clearFilters}
                     className="w-full"
                   >
@@ -251,9 +278,7 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
                   Hiển thị {filteredShops.length} shop
                 </span>
                 {activeFiltersCount > 0 && (
-                  <Badge variant="secondary">
-                    {activeFiltersCount} bộ lọc
-                  </Badge>
+                  <Badge variant="secondary">{activeFiltersCount} bộ lọc</Badge>
                 )}
               </div>
 
@@ -274,17 +299,17 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
                 {/* View Mode */}
                 <div className="flex border rounded-lg">
                   <Button
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    variant={viewMode === "grid" ? "default" : "ghost"}
                     size="sm"
-                    onClick={() => setViewMode('grid')}
+                    onClick={() => setViewMode("grid")}
                     className="rounded-r-none"
                   >
                     <Grid className="w-4 h-4" />
                   </Button>
                   <Button
-                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    variant={viewMode === "list" ? "default" : "ghost"}
                     size="sm"
-                    onClick={() => setViewMode('list')}
+                    onClick={() => setViewMode("list")}
                     className="rounded-l-none"
                   >
                     <List className="w-4 h-4" />
@@ -295,11 +320,13 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
 
             {/* Shops Grid/List */}
             {isLoading ? (
-              <div className={`grid gap-6 ${
-                viewMode === 'grid' 
-                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-                  : 'grid-cols-1'
-              }`}>
+              <div
+                className={`grid gap-6 ${
+                  viewMode === "grid"
+                    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    : "grid-cols-1"
+                }`}
+              >
                 {Array.from({ length: 8 }).map((_, index) => (
                   <Card key={index}>
                     <CardContent className="p-6">
@@ -333,11 +360,13 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = 'vi' }) => {
                 </CardContent>
               </Card>
             ) : (
-              <div className={`grid gap-6 ${
-                viewMode === 'grid' 
-                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-                  : 'grid-cols-1'
-              }`}>
+              <div
+                className={`grid gap-6 ${
+                  viewMode === "grid"
+                    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    : "grid-cols-1"
+                }`}
+              >
                 {filteredShops.map((shop) => (
                   <ShopCard
                     key={shop.id}

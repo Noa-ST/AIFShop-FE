@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import ProductCard, { Product } from "@/components/ProductCard";
-import ShopCard, { Shop } from "@/components/ShopCard";
+import ShopCard from "@/components/ShopCard";
+import { Shop } from "@/types/shop";
 
 const heroImg =
   "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?q=80&w=1600&auto=format&fit=crop";
@@ -72,7 +73,7 @@ const shops: Shop[] = [
     status: "online",
     yearsActive: 3,
     totalProducts: 450,
-    location: "Hà Nội"
+    location: "Hà Nội",
   },
   {
     id: "s2",
@@ -88,7 +89,7 @@ const shops: Shop[] = [
     status: "offline",
     yearsActive: 4,
     totalProducts: 320,
-    location: "TP. Hồ Chí Minh"
+    location: "TP. Hồ Chí Minh",
   },
 ];
 

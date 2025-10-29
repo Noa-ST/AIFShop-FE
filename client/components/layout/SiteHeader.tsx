@@ -20,7 +20,10 @@ export default function SiteHeader() {
   const { data: cartData } = useQuery({
     queryKey: ["cart"],
     queryFn: fetchCart,
-    enabled: !!isAuthenticated, // cart API requires auth
+    // Only fetch cart when auth is initialized and user is a Customer
+    enabled: Boolean(
+      initialized && isAuthenticated && user?.role === "Customer",
+    ),
     staleTime: 10_000,
   });
 

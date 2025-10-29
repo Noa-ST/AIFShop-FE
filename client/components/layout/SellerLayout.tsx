@@ -1,34 +1,7 @@
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Store, Package } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { fetchShopBySeller, isShopPresent } from "@/lib/api";
-
-const sellerMenuItems = [
-  {
-    title: "Quản lý Shop",
-    url: "/seller/shop-management",
-    icon: Store,
-  },
-  {
-    title: "Sản phẩm",
-    url: "/seller/products",
-    icon: Package,
-  },
-];
 
 export default function SellerLayout() {
   const { user, isAuthenticated, initialized } = useAuth();
@@ -86,60 +59,10 @@ export default function SellerLayout() {
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full">
-        <Sidebar className="border-r">
-          <div className="flex h-full flex-col">
-            <div className="p-4">
-              <h2 className="text-lg font-semibold">Seller Panel</h2>
-              <p className="text-sm text-muted-foreground">Shop Management</p>
-            </div>
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {sellerMenuItems.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <a
-                            href={item.url}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                              "hover:bg-accent hover:text-accent-foreground",
-                            )}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            {item.title}
-                          </a>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
-          </div>
-        </Sidebar>
-
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b bg-background px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger />
-                <h1 className="text-xl font-semibold">Quản lý Cửa hàng</h1>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Xin chào, {user?.fullname || user?.email}</span>
-              </div>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-auto p-6">
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+    <div className="min-h-screen bg-background">
+      <main className="flex-1">
+        <Outlet />
+      </main>
+    </div>
   );
 }

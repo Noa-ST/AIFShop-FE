@@ -1,22 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, updateShop } from "@/lib/api";
-import { useEffect } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { Store } from "lucide-react";
 
 export default function ShopInfo() {
-  // Combine auth usage to avoid calling hooks conditionally
   const { user, initialized } = useAuth();
   const sellerId = user?.id;
 
@@ -37,7 +31,6 @@ export default function ShopInfo() {
     logo: "",
   });
 
-  // When shop data is loaded, initialize the form
   useEffect(() => {
     if (normalized) {
       setForm({
@@ -53,11 +46,17 @@ export default function ShopInfo() {
       return await updateShop(payload);
     },
     onSuccess: () => {
-      alert("Cập nhật Shop thành công");
-      window.location.reload();
+      toast({
+        title: "Cập nhật thành công",
+        description: "Thông tin cửa hàng đã được lưu.",
+      });
     },
     onError: (err: any) => {
-      alert(err?.response?.data?.message || "Cập nhật thất bại");
+      toast({
+        title: "Lỗi",
+        description: err?.response?.data?.message || "Cập nhật thất bại",
+        variant: "destructive",
+      });
     },
   });
 
@@ -77,85 +76,114 @@ export default function ShopInfo() {
     mutation.mutate(payload);
   };
 
-  if (!initialized)
-    return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
+  if (!initialized) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Đang khôi phục phiên người dùng...
+      </div>
+    );
+  }
 
-  if (isLoading) return <div className="p-6">Đang tải...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-6 text-center text-gray-500">Đang tải dữ liệu...</div>
+    );
+  }
 
   return (
-    <div className="container py-8 max-w-4xl">
-      <Card className="shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-3xl">Thông tin Cửa hàng</CardTitle>
-          <CardDescription>
-            Quản lý tên, mô tả và logo của Shop.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex items-center space-x-6">
-              <img
-                src={form.logo || "/placeholder.svg"}
-                alt={form.name}
-                className="w-20 h-20 rounded-full object-cover border"
-              />
-              <div>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const url = prompt("Dán URL logo mới:");
-                    if (url) setForm((f) => ({ ...f, logo: url }));
-                  }}
+    <div className="max-w-3xl">
+      <div className="flex items-center gap-2 mb-6">
+        <Store className="w-6 h-6 text-rose-500" />
+        <h3 className="text-xl font-semibold text-gray-800">
+          Thông tin Cửa hàng
+        </h3>
+      </div>
+      <p className="text-sm text-gray-500 mb-6">
+        Quản lý tên, mô tả và logo của Shop.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Logo Section */}
+        <div className="flex items-center gap-6 mb-6">
+          <img
+            src={form.logo || "/placeholder.svg"}
+            alt={form.name || "Shop logo"}
+            className="w-20 h-20 rounded-full border-2 border-gray-300 object-cover"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              const url = prompt("Dán URL logo mới:");
+              if (url) setForm((f) => ({ ...f, logo: url }));
+            }}
+          >
+            Thay đổi Logo
+          </Button>
+        </div>
+
+        {/* Form Fields */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="shop-name" className="text-sm font-medium">
+              Tên Shop
+            </Label>
+            <Input
+              name="name"
+              id="shop-name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Nhập tên cửa hàng"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-medium">
+              Mô tả Shop
+            </Label>
+            <Textarea
+              name="description"
+              id="description"
+              rows={5}
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Mô tả về cửa hàng của bạn..."
+            />
+          </div>
+
+          {/* Rating */}
+          <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="text-yellow-500 font-semibold text-lg">
+                {normalized?.averageRating || 0}
+              </span>
+              <span className="text-gray-400">/5.0</span>
+              <span className="text-yellow-500">⭐</span>
+              <span className="text-gray-500">Đánh giá trung bình</span>
+              {normalized?.id || normalized?._id ? (
+                <RouterLink
+                  to={`/shops/${normalized.id || normalized._id}#reviews`}
+                  className="ml-auto text-rose-600 hover:text-rose-700 font-medium underline"
                 >
-                  Thay đổi Logo
-                </Button>
-              </div>
+                  Xem chi tiết
+                </RouterLink>
+              ) : null}
             </div>
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Tên Shop *</label>
-              <Input
-                name="name"
-                id="shop-name"
-                value={form.name}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Mô tả Shop</label>
-              <Textarea
-                name="description"
-                id="description"
-                rows={5}
-                value={form.description}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">
-                Đánh giá Trung bình
-              </label>
-              <div className="text-lg font-semibold text-amber-500">
-                {normalized?.rating || 0} / 5.0{" "}
-                {normalized?.id || normalized?._id ? (
-                  <RouterLink
-                    to={`/shops/${normalized.id || normalized._id}#reviews`}
-                    className="text-sm underline text-rose-600"
-                  >
-                    Xem chi tiết
-                  </RouterLink>
-                ) : null}
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full">
-              Lưu Cập nhật
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        {/* Submit Button */}
+        <div className="flex justify-end pt-4">
+          <Button
+            type="submit"
+            className="bg-rose-600 hover:bg-rose-700 text-white px-8"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
