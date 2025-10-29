@@ -268,6 +268,17 @@ export const deleteGlobalCategory = async (id: string) => {
   return res.data;
 };
 
+// Shop List API functions
+export const fetchAllActiveShops = async () => {
+  const res = await api.get("/api/Shops/getall-active");
+  return res.data;
+};
+
+export const fetchShopDetail = async (id: string) => {
+  const res = await api.get(`/api/Shops/get-single/${id}`);
+  return res.data;
+};
+
 export default api;
 
 // -----------------------------

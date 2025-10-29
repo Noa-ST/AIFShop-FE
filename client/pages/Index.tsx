@@ -63,12 +63,32 @@ const shops: Shop[] = [
     name: "Lumière Boutique",
     logo: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=300&auto=format&fit=crop",
     description: "Thời trang nữ cao cấp, tinh tế và hiện đại.",
+    averageRating: 4.8,
+    reviewCount: 1250,
+    sellerId: "seller-1",
+    isActive: true,
+    createdAt: "2022-01-15T00:00:00Z",
+    updatedAt: "2024-12-01T00:00:00Z",
+    status: "online",
+    yearsActive: 3,
+    totalProducts: 450,
+    location: "Hà Nội"
   },
   {
     id: "s2",
     name: "Vogue Atelier",
     logo: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=300&auto=format&fit=crop",
     description: "BST xu hướng, phụ kiện độc đáo, chất liệu cao cấp.",
+    averageRating: 4.7,
+    reviewCount: 890,
+    sellerId: "seller-2",
+    isActive: true,
+    createdAt: "2021-06-20T00:00:00Z",
+    updatedAt: "2024-11-28T00:00:00Z",
+    status: "offline",
+    yearsActive: 4,
+    totalProducts: 320,
+    location: "TP. Hồ Chí Minh"
   },
 ];
 
