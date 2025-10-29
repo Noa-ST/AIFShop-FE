@@ -13,7 +13,7 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface NavItem {
   icon: React.ElementType;
@@ -194,6 +194,16 @@ const NavItemComponent = ({
 export default function SellerSidebar() {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkDesktop();
+    window.addEventListener("resize", checkDesktop);
+    return () => window.removeEventListener("resize", checkDesktop);
+  }, []);
 
   const isActive = (href: string) => {
     if (href === "/seller/shop-management") {
@@ -239,27 +249,14 @@ export default function SellerSidebar() {
       <motion.aside
         initial={false}
         animate={{
-          x: isMobileOpen ? 0 : "-100%",
+          x: isDesktop ? 0 : isMobileOpen ? 0 : "-100%",
         }}
         transition={{ duration: 0.3 }}
         className={cn(
           "fixed lg:sticky top-0 left-0 h-screen w-64 bg-[#fdfdfd] border-r border-gray-200 p-6 flex flex-col justify-between z-40 lg:z-0",
-          "lg:translate-x-0",
         )}
       >
         <div className="flex-1 overflow-y-auto">
-          {/* Logo */}
-          <div className="mb-8">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#e91e63] to-[#f43f5e] flex items-center justify-center shadow-lg shadow-pink-500/30">
-                <Store className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-[#e91e63] to-[#d81b60] bg-clip-text text-transparent">
-                AIFShop
-              </span>
-            </Link>
-          </div>
-
           {/* Navigation */}
           <nav className="space-y-2">
             {navItems.map((item) => (

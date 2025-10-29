@@ -64,11 +64,11 @@ const ShopCard: React.FC<ShopCardProps> = ({
 
   return (
     <Card 
-      className="group relative overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-rose-500/20 border-0 bg-white"
+      className="group relative h-full min-h-[320px] flex flex-col overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-rose-500/20 border-0 bg-white"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-6 flex-1 flex flex-col">
         {/* Header with logo and basic info */}
         <div className="flex items-start gap-4 mb-4">
           {/* Shop Logo */}
@@ -111,7 +111,7 @@ const ShopCard: React.FC<ShopCardProps> = ({
               <div className="flex items-center gap-1">
                 {renderStars(shop.averageRating || 0)}
               </div>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 truncate">
                 {(shop.averageRating || 0).toFixed(1)} ({shop.reviewCount || 0} đánh giá)
               </span>
             </div>
@@ -147,7 +147,7 @@ const ShopCard: React.FC<ShopCardProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex gap-2">
+        <div className="mt-auto flex gap-2">
           <Button 
             onClick={handleViewShop}
             className="flex-1 bg-rose-600 hover:bg-rose-700 text-white"

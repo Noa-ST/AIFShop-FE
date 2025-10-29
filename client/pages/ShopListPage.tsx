@@ -361,21 +361,22 @@ const ShopListPage: React.FC<ShopListPageProps> = ({ locale = "vi" }) => {
               </Card>
             ) : (
               <div
-                className={`grid gap-6 ${
+                className={`grid gap-6 items-stretch ${
                   viewMode === "grid"
                     ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                     : "grid-cols-1"
                 }`}
               >
                 {filteredShops.map((shop) => (
-                  <ShopCard
-                    key={shop.id}
-                    shop={shop}
-                    locale={locale}
-                    onViewShop={handleViewShop}
-                    onChat={handleChat}
-                    onAddToFavorites={handleAddToFavorites}
-                  />
+                  <div key={shop.id} className="h-full">
+                    <ShopCard
+                      shop={shop}
+                      locale={locale}
+                      onViewShop={handleViewShop}
+                      onChat={handleChat}
+                      onAddToFavorites={handleAddToFavorites}
+                    />
+                  </div>
                 ))}
               </div>
             )}

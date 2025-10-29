@@ -16,6 +16,94 @@ export default function ProductList() {
     const list: any[] = data?.data || data || [];
     let out = [...list];
 
+    // Debug: Log tổng số sản phẩm và status distribution
+    if (process.env.NODE_ENV === 'development' && list.length > 0) {
+      const statusCounts = {
+        total: list.length,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+        other: 0,
+      };
+      list.forEach((p: any) => {
+        const status = p?.status;
+        if (status === 1 || status === "Approved" || status === "approved" || p?.isApproved === true) {
+          statusCounts.approved++;
+        } else if (status === 0 || status === "Pending" || status === "pending") {
+          statusCounts.pending++;
+        } else if (status === 2 || status === "Rejected" || status === "rejected") {
+          statusCounts.rejected++;
+        } else {
+          statusCounts.other++;
+        }
+      });
+      console.log("Product status distribution:", statusCounts);
+    }
+
+    // Chỉ hiển thị sản phẩm đã được admin duyệt (Approved)
+    // Pending = đang chờ duyệt (status = 0 hoặc "Pending")
+    // Approved = đã được duyệt (status = 1 hoặc "Approved")
+    const beforeFilter = out.length;
+    out = out.filter((p) => {
+      const status = p?.status;
+      const isApproved = p?.isApproved;
+      const isActive = p?.isActive;
+      const approvalStatus = p?.approvalStatus || p?.productStatus || p?.moderationStatus;
+      
+      // Debug logging trong development
+      if (process.env.NODE_ENV === 'development' && !status && !isApproved && !isActive) {
+        console.log("Product without clear status:", {
+          id: p?.id,
+          name: p?.name,
+          status,
+          isApproved,
+          isActive,
+          approvalStatus,
+        });
+      }
+      
+      // Logic 1: Check explicit isApproved flag
+      if (typeof isApproved === 'boolean' && isApproved) {
+        return true;
+      }
+      
+      // Logic 2: Check isActive (thường là approved)
+      if (typeof isActive === 'boolean' && isActive) {
+        // Nếu có status cụ thể, kiểm tra status
+        if (status !== undefined && status !== null) {
+          // status = 1 hoặc "Approved" => đã duyệt
+          return status === 1 || status === "Approved" || status === "approved";
+        }
+        return true; // isActive = true thường có nghĩa là approved
+      }
+      
+      // Logic 3: Check status field
+      if (status !== undefined && status !== null) {
+        // Theo Admin ProductManagement: status = 1 => Approved, status = 0 => Pending
+        if (typeof status === 'number') {
+          return status === 1; // Chỉ Approved
+        }
+        if (typeof status === 'string') {
+          const statusLower = status.toLowerCase().trim();
+          return statusLower === 'approved' || statusLower === '1';
+        }
+      }
+      
+      // Logic 4: Check approvalStatus/productStatus/moderationStatus
+      if (approvalStatus) {
+        const approvalLower = String(approvalStatus).toLowerCase().trim();
+        return approvalLower === 'approved' || approvalLower === '1' || approvalLower === 'active';
+      }
+      
+      // Mặc định: không hiển thị nếu không có thông tin status rõ ràng
+      return false;
+    });
+
+    // Debug: Log số sản phẩm sau khi filter
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Filtered products: ${out.length} / ${beforeFilter} (only Approved)`);
+    }
+
     if (filters.search && filters.search.trim()) {
       const q = filters.search.trim().toLowerCase();
       out = out.filter((p) =>

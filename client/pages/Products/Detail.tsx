@@ -63,23 +63,77 @@ export default function ProductDetail() {
   const product: any = data || {};
 
   const images: string[] = useMemo((): string[] => {
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Product data for images:", product);
+      console.log("product.imageUrls:", product?.imageUrls);
+      console.log("product.productImages:", product?.productImages);
+    }
+    
     const normalize = (arr: any[]): string[] =>
       (arr || [])
         .map((i: any) => {
           if (!i) return null as any;
-          if (typeof i === "string") return i;
-          return i.url || i.imageUrl || i.src || i.path || i.Location || null;
+          if (typeof i === "string") {
+            // Validate string URL or base64
+            const trimmed = i.trim();
+            if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
+              return trimmed;
+            }
+            return null;
+          }
+          const url = i.url || i.imageUrl || i.src || i.path || i.Location || null;
+          if (url && typeof url === 'string') {
+            const trimmed = url.trim();
+            if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
+              return trimmed;
+            }
+          }
+          return null;
         })
         .filter(Boolean) as string[];
 
-    return (
-      normalize(product?.productImages) ||
-      normalize(product?.images) ||
-      normalize(product?.gallery) ||
-      (product?.imageUrl ? [product.imageUrl] : undefined) ||
-      (product?.image ? [product.image] : undefined) ||
-      []
-    );
+    // Xử lý imageUrls (array of strings - từ form tạo sản phẩm) - có thể là base64
+    let imageUrlsArray: string[] = [];
+    if (product?.imageUrls && Array.isArray(product.imageUrls)) {
+      imageUrlsArray = product.imageUrls
+        .filter((url: any) => {
+          if (!url || typeof url !== 'string') return false;
+          const trimmed = url.trim();
+          // Accept http URLs, base64 data URLs, or relative paths
+          return trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'));
+        });
+    }
+
+    // Try other image sources
+    const normalizedImages = normalize(product?.productImages) || normalize(product?.images) || normalize(product?.gallery) || [];
+    
+    // Single image fields
+    const singleImages: string[] = [];
+    if (product?.imageUrl && typeof product.imageUrl === 'string') {
+      const trimmed = product.imageUrl.trim();
+      if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
+        singleImages.push(trimmed);
+      }
+    }
+    if (product?.image && typeof product.image === 'string') {
+      const trimmed = product.image.trim();
+      if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
+        singleImages.push(trimmed);
+      }
+    }
+
+    const result = imageUrlsArray.length > 0 
+      ? imageUrlsArray 
+      : (normalizedImages.length > 0 
+          ? normalizedImages 
+          : (singleImages.length > 0 ? singleImages : []));
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Final images array:", result);
+    }
+
+    return result;
   }, [product]);
 
   useEffect(() => {
@@ -227,10 +281,6 @@ export default function ProductDetail() {
                   {ratingCount ? `(${ratingCount})` : ""}
                 </div>
               )}
-
-              <div className="mt-4 text-slate-600">
-                {product?.shortDescription || product?.description}
-              </div>
 
               <div className="mt-6 flex items-center gap-4">
                 <input

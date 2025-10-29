@@ -101,7 +101,7 @@ export default function ShopInfoForm() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-w-3xl mx-auto"
+      className="w-full max-w-4xl mx-auto"
     >
       {/* Header */}
       <div className="mb-8">
@@ -126,37 +126,39 @@ export default function ShopInfoForm() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl border border-pink-100"
+          className="p-6 bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl border border-pink-100"
         >
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#e91e63] to-[#f43f5e] rounded-full blur-lg opacity-0 group-hover:opacity-30 transition-opacity" />
-            <img
-              src={form.logo || "/placeholder.svg"}
-              alt={form.name || "Shop logo"}
-              className="relative w-24 h-24 rounded-full border-4 border-white object-cover shadow-xl"
-            />
-            {!form.logo && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-full">
-                <ImageIcon className="w-8 h-8 text-gray-400" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1">
-            <Label className="text-sm font-semibold text-gray-700 mb-2 block">
-              Logo cửa hàng
-            </Label>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleLogoChange}
-              className="border-2 border-gray-200 hover:border-[#e91e63] hover:text-[#e91e63] transition-colors"
-            >
-              <ImageIcon className="w-4 h-4 mr-2" />
-              Thay đổi Logo
-            </Button>
-            <p className="text-xs text-gray-500 mt-2">
-              Hỗ trợ JPG, PNG hoặc URL hình ảnh
-            </p>
+          <Label className="text-sm font-semibold text-gray-700 mb-4 block">
+            Logo cửa hàng
+          </Label>
+          <div className="flex items-start sm:items-center gap-6 flex-wrap">
+            <div className="relative group flex-shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#e91e63] to-[#f43f5e] rounded-full blur-lg opacity-0 group-hover:opacity-30 transition-opacity" />
+              <img
+                src={form.logo || "/placeholder.svg"}
+                alt={form.name || "Shop logo"}
+                className="relative w-24 h-24 rounded-full border-4 border-white object-cover shadow-xl"
+              />
+              {!form.logo && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-full">
+                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLogoChange}
+                className="border-2 border-gray-200 hover:border-[#e91e63] hover:text-[#e91e63] transition-colors mb-2"
+              >
+                <ImageIcon className="w-4 h-4 mr-2" />
+                Thay đổi Logo
+              </Button>
+              <p className="text-xs text-gray-500">
+                Hỗ trợ JPG, PNG hoặc URL hình ảnh
+              </p>
+            </div>
           </div>
         </motion.div>
 
