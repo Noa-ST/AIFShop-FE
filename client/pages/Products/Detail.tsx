@@ -6,7 +6,16 @@ import { toast } from "@/components/ui/use-toast";
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingCart } from "lucide-react";
+import { MessageCircle, Send, ShoppingCart } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function ProductDetail() {
   // ----------------------------------------------
@@ -18,6 +27,17 @@ export default function ProductDetail() {
 
   const [qty, setQty] = useState<number>(1);
   const [mainImage, setMainImage] = useState<string>("/placeholder.svg");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<
+    { from: "me" | "shop"; text: string; time: number }[]
+  >([
+    {
+      from: "shop",
+      text: "Xin chào! Mình có thể hỗ trợ gì cho bạn?",
+      time: Date.now(),
+    },
+  ]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["product", id],
@@ -91,7 +111,7 @@ export default function ProductDetail() {
     product?.ratingCount ?? product?.reviewsCount ?? product?.totalReviews ?? 0,
   );
 
-  // Early returns AFTER all hooks are declared
+  // Early returns AFTER all hooks are declared11
   if (isLoading) return <div className="p-8">Đang tải...</div>;
   if (error)
     return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
@@ -108,6 +128,24 @@ export default function ProductDetail() {
     if (!id) return;
     const quantity = Math.max(1, Number(qty || 1));
     await mutateAdd({ productId: id, quantity });
+  };
+
+  const handleSendMessage = () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setMessages((prev) => [...prev, { from: "me", text, time: Date.now() }]);
+    setChatInput("");
+    // No API yet – placeholder auto-reply
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          from: "shop",
+          text: "Cảm ơn bạn! Tính năng chat sẽ sớm được kích hoạt.",
+          time: Date.now(),
+        },
+      ]);
+    }, 400);
   };
 
   return (
@@ -211,9 +249,60 @@ export default function ProductDetail() {
                 >
                   <ShoppingCart size={18} /> Thêm vào giỏ
                 </button>
-                <button className="px-4 py-2 rounded-full border border-slate-200">
-                  Yêu thích
-                </button>
+                <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="inline-flex items-center gap-2"
+                    >
+                      <MessageCircle size={18} /> Chat với shop
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Chat với shop</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3">
+                      <div className="h-64 border rounded-md p-3 overflow-y-auto bg-slate-50">
+                        {messages.map((m, idx) => (
+                          <div
+                            key={idx}
+                            className={`mb-2 flex ${m.from === "me" ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
+                                m.from === "me"
+                                  ? "bg-rose-600 text-white"
+                                  : "bg-white border"
+                              }`}
+                            >
+                              {m.text}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Nhập tin nhắn..."
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
+                        />
+                        <Button
+                          onClick={handleSendMessage}
+                          className="inline-flex items-center gap-2"
+                        >
+                          <Send size={16} /> Gửi
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="mt-6 border-t pt-4">
