@@ -19,7 +19,7 @@ import ForgotPassword from "@/pages/Auth/ForgotPassword";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import ProductList from "@/pages/Products/List";
 import ProductDetail from "@/pages/Products/Detail";
-import CreateShopPage from "@/pages/Seller/CreateShop.tsx";
+import CreateShopPage from "@/pages/Seller/CreateShop";
 import ProductManagement from "@/pages/Seller/ProductManagement";
 import ShopInfo from "@/pages/Seller/ShopInfo";
 import ShopManagement, {

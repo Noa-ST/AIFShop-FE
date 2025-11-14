@@ -32,6 +32,20 @@ export const processPayment = async (
   console.log(`📤 Processing payment for order ${orderId} with method ${method}`);
   
   try {
+    // ✅ Friendly guard: require login token before processing
+    try {
+      const token = typeof window !== "undefined"
+        ? window.localStorage.getItem("aifshop_token")
+        : null;
+      if (!token) {
+        const err = new Error("Bạn cần đăng nhập để thực hiện thanh toán.");
+        (err as any).code = "NO_TOKEN";
+        throw err;
+      }
+    } catch (_) {
+      // Ignore storage access errors (SSR), continue to attempt API call
+    }
+
     const response = await axiosClient.post<ServiceResponse<PayOSCreatePaymentResponse>>(
       `/api/Payment/${orderId}/process`,
       { method },
@@ -66,6 +80,43 @@ export const processPayment = async (
       statusText: error.response?.statusText,
       data: error.response?.data,
     });
+    
+    // ✅ If 401 Unauthorized, surface a clear message to the UI
+    if (error?.response?.status === 401) {
+      const unauthorized = new Error(
+        error?.response?.data?.message ||
+          "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
+      );
+      (unauthorized as any).response = error.response;
+      throw unauthorized;
+    }
+    
+    // ✅ Fallback to lowercase endpoint shapes if backend expects lowercase
+    if (error?.response?.status === 404 || error?.response?.status === 405) {
+      try {
+        const alt = await axiosClient.post<ServiceResponse<PayOSCreatePaymentResponse>>(
+          `/api/payment/${orderId}/process`,
+          { method },
+        );
+        const responseData: any = alt.data;
+        const normalizedResponse: ServiceResponse<PayOSCreatePaymentResponse> = {
+          Succeeded: responseData?.Succeeded ?? responseData?.succeeded ?? false,
+          Data: responseData?.Data ?? responseData?.data ?? null,
+          Message: responseData?.Message ?? responseData?.message,
+          StatusCode: responseData?.StatusCode ?? responseData?.statusCode ?? 200,
+        };
+        if (!normalizedResponse.Succeeded) {
+          const errorMessage = normalizedResponse.Message || "Xử lý thanh toán thất bại";
+          const err = new Error(errorMessage);
+          (err as any).serviceResponse = normalizedResponse;
+          throw err;
+        }
+        return normalizedResponse.Data!;
+      } catch (fallbackErr: any) {
+        // Continue to generic error handling below
+        error = fallbackErr;
+      }
+    }
     
     // ✅ Extract error message từ backend response
     if (error.response?.data?.message) {
