@@ -1,4 +1,3 @@
-specVersion: "1"
 services:
   - name: aifshop-web
     type: web
