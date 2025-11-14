@@ -19,20 +19,20 @@ import ForgotPassword from "@/pages/Auth/ForgotPassword";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import ProductList from "@/pages/Products/List";
 import ProductDetail from "@/pages/Products/Detail";
-import ProductManagement from "@/pages/Seller/ProductManagement";
-import ShopInfo from "@/pages/Seller/ShopInfo";
+import ProductManagement from "@/pages/seller/ProductManagement";
+import ShopInfo from "@/pages/seller/ShopInfo";
 import ShopManagement, {
   ShopInfoPage,
   ShopProductsPage,
-} from "@/pages/Seller/ShopManagement";
-import SettingsPage from "@/pages/Seller/Settings";
+} from "@/pages/seller/ShopManagement";
+import SettingsPage from "@/pages/seller/Settings";
 import SellerLayout from "@/components/layout/SellerLayout";
 import React from "react";
-import CreateProduct from "@/pages/Seller/CreateProduct";
-import UpdateProduct from "@/pages/Seller/UpdateProduct";
-import CreateCategory from "@/pages/Seller/CreateCategory";
-import ShopCategories from "@/pages/Seller/ShopCategories";
-import SellerBalancePage from "@/pages/Seller/Balance";
+import CreateProduct from "@/pages/seller/CreateProduct";
+import UpdateProduct from "@/pages/seller/UpdateProduct";
+import CreateCategory from "@/pages/seller/CreateCategory";
+import ShopCategories from "@/pages/seller/ShopCategories";
+import SellerBalancePage from "@/pages/seller/Balance";
 import ShopDetail from "@/pages/Shop/Detail";
 import ShopListPage from "@/pages/ShopListPage";
 import AdminLayout from "@/components/layout/AdminLayout";
@@ -58,7 +58,7 @@ import AddressManagementPage from "@/pages/Address/Index";
 import PaymentReturnPage from "@/pages/Payment/Return";
 import PaymentCancelPage from "@/pages/Payment/Cancel";
 // Đổi import CreateShopPage sang alias "@"
-import CreateShopPage from "@/pages/Seller/CreateShop";
+import CreateShopPage from "@/pages/seller/CreateShop";
 
 const queryClient = new QueryClient();
 
