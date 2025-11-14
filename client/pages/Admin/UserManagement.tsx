@@ -57,6 +57,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import axiosClient from "@/services/axiosClient";
 
 // API Response Types
 interface User {
@@ -86,45 +87,36 @@ const userApi = {
     isActive?: boolean,
     search?: string,
   ): Promise<PagedResult<User>> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      pageSize: pageSize.toString(),
+    const resp = await axiosClient.get(`/api/admin/users`, {
+      params: {
+        page,
+        pageSize,
+        role,
+        isActive,
+        search,
+      },
     });
-    if (role && role !== "all") params.append("role", role);
-    if (isActive !== undefined) params.append("isActive", isActive.toString());
-    if (search) params.append("search", search);
-
-    const response = await fetch(`/api/admin/users?${params}`);
-    if (!response.ok) throw new Error("Failed to fetch users");
-    return response.json();
+    return resp.data as PagedResult<User>;
   },
 
   async updateUserStatus(userId: string, isActive: boolean) {
-    const response = await fetch(`/api/admin/users/${userId}/status`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive }),
-    });
-    if (!response.ok) throw new Error("Failed to update user status");
-    return response.json();
+    const resp = await axiosClient.put(
+      `/api/admin/users/${userId}/status`,
+      { isActive },
+    );
+    return resp.data;
   },
 
   async updateUserRole(userId: string, role: string) {
-    const response = await fetch(`/api/admin/users/${userId}/role`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
+    const resp = await axiosClient.put(`/api/admin/users/${userId}/role`, {
+      role,
     });
-    if (!response.ok) throw new Error("Failed to update user role");
-    return response.json();
+    return resp.data;
   },
 
   async deleteUser(userId: string) {
-    const response = await fetch(`/api/admin/users/${userId}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) throw new Error("Failed to delete user");
-    return response.json();
+    const resp = await axiosClient.delete(`/api/admin/users/${userId}`);
+    return resp.data;
   },
 };
 
@@ -299,7 +291,13 @@ export default function AdminUserManagement() {
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString("vi-VN");
+      if (!dateString) return "-";
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return "-";
+      const year = d.getFullYear();
+      // Ẩn các giá trị mặc định như 0001-01-01 hoặc năm quá nhỏ
+      if (year < 2000) return "-";
+      return d.toLocaleDateString("vi-VN");
     } catch {
       return "N/A";
     }
@@ -436,9 +434,7 @@ export default function AdminUserManagement() {
                 <TableRow>
                   <TableHead>Người dùng</TableHead>
                   <TableHead>Vai trò</TableHead>
-                  <TableHead>Trạng thái</TableHead>
                   <TableHead>Ngày tạo</TableHead>
-                  <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -464,62 +460,10 @@ export default function AdminUserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{getRoleBadge(user.roles)}</TableCell>
-                    <TableCell>{getStatusBadge(user.isActive)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-gray-500">
                         <Calendar className="w-3 h-3" />
                         {formatDate(user.createdAt)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {/* Toggle Active/Inactive */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            handleStatusToggle(user.id, user.isActive)
-                          }
-                          disabled={
-                            updateUserStatusMutation.isPending ||
-                            deleteUserMutation.isPending
-                          }
-                          title={user.isActive ? "Vô hiệu hoá" : "Kích hoạt"}
-                        >
-                          {user.isActive ? (
-                            <span className="text-lg">🔒</span>
-                          ) : (
-                            <span className="text-lg">🔓</span>
-                          )}
-                        </Button>
-
-                        {/* Change Role */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRoleChange(user)}
-                          disabled={
-                            updateUserRoleMutation.isPending ||
-                            deleteUserMutation.isPending
-                          }
-                          title="Thay đổi vai trò"
-                        >
-                          <Edit className="h-4 w-4 text-blue-600" />
-                        </Button>
-
-                        {/* Delete User */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
-                          disabled={
-                            deleteUserMutation.isPending ||
-                            updateUserStatusMutation.isPending
-                          }
-                          title="Xoá người dùng"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

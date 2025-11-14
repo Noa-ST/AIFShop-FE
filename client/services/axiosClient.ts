@@ -14,8 +14,7 @@ const resolveBaseURL = () => {
     env?.DEV === true ||
       env?.MODE === "development" ||
       (typeof window !== "undefined" &&
-        /localhost|127\.0\.0\.1/.test(window.location.hostname) &&
-        (window.location.port === "5173" || window.location.port === "")),
+        /localhost|127\.0\.0\.1/.test(window.location.hostname)),
   );
 
   // In development: respect env override if provided; otherwise use relative for proxy

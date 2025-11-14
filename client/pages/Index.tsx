@@ -1,115 +1,37 @@
 import { motion } from "framer-motion";
-import ProductCard, { Product } from "@/components/ProductCard";
+import ProductCard from "@/components/ProductCard";
 import ShopCard from "@/components/ShopCard";
-import { Shop } from "@/types/shop";
 import { useEffect } from "react";
 import eventsService from "@/services/eventsService";
 import { useNavigate } from "react-router-dom";
+import {
+  useFeaturedCategories,
+  useFeaturedShops,
+  useFeaturedProducts,
+} from "@/hooks/use-featured";
 
 const heroImg =
   "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?q=80&w=1600&auto=format&fit=crop";
 
-const featuredCategories = [
-  {
-    key: "dress",
-    name: "Váy",
-    image:
-      "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    key: "shoes",
-    name: "Giày",
-    image:
-      "https://images.unsplash.com/photo-1520256862855-398228c41684?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    key: "bag",
-    name: "Túi xách",
-    image:
-      "https://images.unsplash.com/photo-1593030761757-71fae45fa0a1?q=80&w=1200&auto=format&fit=crop",
-  },
-];
-
-const products: Product[] = [
-  {
-    id: "p1",
-    name: "Đầm lụa cổ điển",
-    price: 1299000,
-    image:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    id: "p2",
-    name: "Giày cao gót ánh kim",
-    price: 1599000,
-    image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    id: "p3",
-    name: "Túi xách da mini",
-    price: 1899000,
-    image:
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    id: "p4",
-    name: "Áo khoác dạ cao cấp",
-    price: 2399000,
-    image:
-      "https://images.unsplash.com/photo-1542060748-10c28b62716f?q=80&w=1200&auto=format&fit=crop",
-  },
-];
-
-const shops: Shop[] = [
-  {
-    id: "s1",
-    name: "Lumière Boutique",
-    logo: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=300&auto=format&fit=crop",
-    description: "Thời trang nữ cao cấp, tinh tế và hiện đại.",
-    averageRating: 4.8,
-    reviewCount: 1250,
-    sellerId: "seller-1",
-    street: "12 Phố Huế",
-    city: "Hà Nội",
-    country: "Việt Nam",
-    isActive: true,
-    createdAt: "2022-01-15T00:00:00Z",
-    updatedAt: "2024-12-01T00:00:00Z",
-    status: "online",
-    yearsActive: 3,
-    totalProducts: 450,
-    location: "Hà Nội",
-  },
-  {
-    id: "s2",
-    name: "Vogue Atelier",
-    logo: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=300&auto=format&fit=crop",
-    description: "BST xu hướng, phụ kiện độc đáo, chất liệu cao cấp.",
-    averageRating: 4.7,
-    reviewCount: 890,
-    sellerId: "seller-2",
-    street: "88 Nguyễn Huệ",
-    city: "TP. Hồ Chí Minh",
-    country: "Việt Nam",
-    isActive: true,
-    createdAt: "2021-06-20T00:00:00Z",
-    updatedAt: "2024-11-28T00:00:00Z",
-    status: "offline",
-    yearsActive: 4,
-    totalProducts: 320,
-    location: "TP. Hồ Chí Minh",
-  },
-];
+// Dữ liệu động: Featured từ backend (có fallback trong hooks)
+// Categories
+// Shops
+// Products
 
 export default function Index() {
   const navigate = useNavigate();
+  const { data: featuredCats = [], isLoading: loadingCats } = useFeaturedCategories(3);
+  const { data: featuredShops = [], isLoading: loadingShops } = useFeaturedShops(2);
+  const { data: featuredProducts = [], isLoading: loadingProducts } = useFeaturedProducts(4);
 
   useEffect(() => {
-    for (const c of featuredCategories) {
-      eventsService.trackImpression("category", c.key);
-    }
-  }, []);
+    // Tracking impressions cho danh mục động
+    try {
+      for (const c of featuredCats) {
+        eventsService.trackImpression("category", (c as any).id);
+      }
+    } catch {}
+  }, [featuredCats]);
   return (
     <div>
       {/* Hero */}
@@ -160,20 +82,20 @@ export default function Index() {
         <div className="container mx-auto">
           <h2 className="font-semibold text-xl mb-4">Danh mục nổi bật</h2>
           <div className="grid md:grid-cols-3 gap-6">
-            {featuredCategories.map((c) => (
+            {(loadingCats ? Array.from({ length: 3 }) : featuredCats).map((c: any, i: number) => (
               <div
-                key={c.key}
+                key={c?.id ?? `cat-skeleton-${i}`}
                 className="group relative overflow-hidden rounded-2xl"
-                onClick={() => eventsService.trackClick("category", c.key)}
+                onClick={() => c?.id && eventsService.trackClick("category", c.id)}
               >
                 <img
-                  src={c.image}
-                  alt={c.name}
+                  src={c?.image ?? "/placeholder.svg"}
+                  alt={c?.name ?? "Danh mục"}
                   className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white font-medium">
-                  {c.name}
+                  {c?.name ?? "Đang tải..."}
                 </div>
               </div>
             ))}
@@ -191,7 +113,7 @@ export default function Index() {
             </a>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            {shops.map((s) => (
+            {(loadingShops ? [] : featuredShops).map((s: any) => (
               <ShopCard
                 key={s.id}
                 shop={s}
@@ -212,7 +134,7 @@ export default function Index() {
             </a>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((p) => (
+            {(loadingProducts ? [] : featuredProducts).map((p: any) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>

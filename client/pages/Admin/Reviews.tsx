@@ -27,7 +27,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X, Eye } from "lucide-react";
 import axiosClient from "@/services/axiosClient";
 import type { PagedResult } from "@/services/types";
 
@@ -73,6 +73,8 @@ export default function AdminReviews() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewReview, setViewReview] = useState<ReviewDto | null>(null);
 
   // Fetch pending reviews
   const { data, isLoading, error } = useQuery({
@@ -134,6 +136,11 @@ export default function AdminReviews() {
       return;
     }
     rejectMutation.mutate({ id: selectedReviewId, reason: rejectReason });
+  };
+
+  const handleViewClick = (review: ReviewDto) => {
+    setViewReview(review);
+    setIsViewDialogOpen(true);
   };
 
   const reviews = data?.data || [];
@@ -223,6 +230,15 @@ export default function AdminReviews() {
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex justify-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="hover:bg-gray-100 text-gray-600 hover:text-gray-800"
+                        title="Xem chi tiết"
+                        onClick={() => handleViewClick(review)}
+                      >
+                        <Eye className="w-5 h-5" />
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -329,6 +345,76 @@ export default function AdminReviews() {
                 <Loader2 className="w-4 h-4 animate-spin mr-1" />
               ) : null}
               Từ chối
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chi tiết đánh giá</DialogTitle>
+            <DialogDescription>
+              Xem đầy đủ thông tin đánh giá sản phẩm
+            </DialogDescription>
+          </DialogHeader>
+          {viewReview ? (
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm text-gray-500">Sản phẩm</div>
+                <div className="font-medium">
+                  {viewReview.productName || viewReview.productId}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-gray-500">Người dùng</div>
+                  <div className="font-medium">
+                    {viewReview.userFullName || viewReview.userId}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Ngày tạo</div>
+                  <div className="font-medium">
+                    {new Date(viewReview.createdAt).toLocaleString("vi-VN")}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Rating</div>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={
+                        i < viewReview.rating
+                          ? "text-yellow-400 text-lg"
+                          : "text-gray-300 text-lg"
+                      }
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Bình luận</div>
+                <div className="text-sm whitespace-pre-wrap break-words">
+                  {viewReview.comment || "(Không có)"}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                setViewReview(null);
+              }}
+            >
+              Đóng
             </Button>
           </DialogFooter>
         </DialogContent>

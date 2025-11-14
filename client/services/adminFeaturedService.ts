@@ -41,14 +41,47 @@ export interface StatsResponse {
 
 const adminFeaturedService = {
   async pin(req: PinRequest): Promise<{ succeeded: boolean; message?: string }> {
+    // Helper: map entityType to potential backend enum casing
+    const toPascal = (t: EntityType): string => {
+      if (t === "category") return "GlobalCategory"; // common backend naming
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    };
+
+    // Helper: build alternative payload shapes for compatibility
+    const altPayload = {
+      EntityType: toPascal(req.entityType),
+      EntityId: req.entityId,
+      IsPinned: req.pinned,
+      // Some backends require non-Z ISO or trimmed seconds
+      ExpiresAt: req.expiresAt ? req.expiresAt.substring(0, 19) : undefined,
+    } as any;
+
+    // First try the canonical endpoint with the natural payload
     try {
       const resp = await axiosClient.post("/api/Admin/Featured/pin", req);
       return resp.data;
     } catch (err: any) {
       const status = err?.response?.status;
+      // If route casing mismatches, attempt lowercase Featured segment
       if (status === 404 || status === 405) {
         const resp2 = await axiosClient.post("/api/Admin/featured/pin", req);
         return resp2.data;
+      }
+      // Bad Request: try alternative payload casing/shape
+      if (status === 400) {
+        try {
+          const resp3 = await axiosClient.post("/api/Admin/Featured/pin", altPayload);
+          return resp3.data;
+        } catch (err2: any) {
+          const st2 = err2?.response?.status;
+          if (st2 === 404 || st2 === 405) {
+            const resp4 = await axiosClient.post("/api/Admin/featured/pin", altPayload);
+            return resp4.data;
+          }
+          // Surface readable error if available
+          const message = err2?.response?.data?.message || err2?.message || "Bad Request";
+          return { succeeded: false, message };
+        }
       }
       throw err;
     }

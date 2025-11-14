@@ -74,9 +74,9 @@ export const getProductImageUrl = (product: any, fallback: string = "/placeholde
     if (s) {
       // http(s) and data URLs return directly
       if (isUsable(s)) return s;
-      // Yêu cầu mới: giữ nguyên URL như backend trả về, không tự chuyển sang /uploads
-      // Trả về chuỗi nguyên bản để FE hiển thị đúng URL lưu trong DB
-      return s;
+      // Đối với các đường dẫn tương đối hoặc chỉ là filename,
+      // ghép với API base để tránh bị load từ domain FE khi deploy
+      return withApiBase(s);
     }
   }
   return fallback;

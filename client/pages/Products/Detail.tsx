@@ -152,6 +152,43 @@ export default function ProductDetail() {
     enabled: !!id,
   });
 
+  // Thống kê sao: ưu tiên dùng từ BE nếu có, fallback tính theo trang hiện tại
+  const reviewsStats = useMemo(() => {
+    const paged: any = reviewsPaged as any;
+    const fromBE = paged?.stats;
+    const list: ReviewDto[] = (paged?.data as ReviewDto[]) || [];
+
+    const distributionPage: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let sum = 0;
+    for (const r of list) {
+      const rate = Math.round(Number(r?.rating) || 0);
+      if (rate >= 1 && rate <= 5) {
+        distributionPage[rate] += 1;
+        sum += rate;
+      }
+    }
+    const count = list.length;
+    const avgPage = count ? sum / count : 0;
+    const totalApproved = Number(paged?.totalCount || 0);
+
+    const average =
+      typeof fromBE?.averageRating === "number" ? fromBE.averageRating : avgPage;
+    const distribution =
+      (fromBE?.ratingDistribution as Record<number, number>) || distributionPage;
+    const totalApprovedCount =
+      typeof fromBE?.totalApprovedCount === "number"
+        ? Number(fromBE.totalApprovedCount)
+        : totalApproved;
+
+    const hasGlobalStats = Boolean(
+      fromBE &&
+        (typeof fromBE.averageRating !== "undefined" ||
+          typeof fromBE.totalApprovedCount !== "undefined"),
+    );
+
+    return { average, distribution, totalApprovedCount, hasGlobalStats };
+  }, [reviewsPaged]);
+
   const {
     data: myReview,
     refetch: refetchMyReview,
@@ -474,8 +511,16 @@ export default function ProductDetail() {
       (img) => img.startsWith("/") && !img.startsWith("data:"),
     );
 
-    // Prioritize: base64 first (always work), then relative paths, then HTTP URLs
-    const result = [...base64Images, ...relativeImages, ...httpImages];
+    // Convert relative paths to absolute using API base to avoid loading from FE domain in production
+    const DEFAULT_BASE = "https://aifshop-backend.onrender.com";
+    const apiBase = axiosClient?.defaults?.baseURL || DEFAULT_BASE;
+    const base = String(apiBase).replace(/\/+$/g, "");
+    const absoluteRelativeImages = relativeImages.map((p) =>
+      `${base}/${String(p).replace(/^\/+/, "")}`,
+    );
+
+    // Prioritize: base64 first (always work), then absolute relative paths, then HTTP URLs
+    const result = [...base64Images, ...absoluteRelativeImages, ...httpImages];
 
     if (process.env.NODE_ENV === "development") {
       console.log("Final images array:", result);
@@ -995,6 +1040,47 @@ export default function ProductDetail() {
                     <div className="flex items-center justify-between">
                       <div className="font-semibold">Đánh giá sản phẩm</div>
                     </div>
+                    {/* Thống kê sao - dùng số liệu BE nếu có, fallback từ trang hiện tại */}
+                    {!loadingReviews && reviewsPaged ? (
+                      <div className="mt-3 mb-4 rounded-xl border bg-white p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold">Thống kê sao</div>
+                          <div className="text-xs text-slate-500">
+                            {reviewsStats.hasGlobalStats ? "Theo BE" : "Tạm tính từ trang hiện tại"}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-4">
+                          <div className="text-2xl font-bold">
+                            {(reviewsStats.average?.toFixed?.(1) ?? "0.0")} / 5
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            Tổng {reviewsStats.totalApprovedCount} đánh giá
+                          </div>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {[5, 4, 3, 2, 1].map((star) => {
+                            const count = Number(reviewsStats.distribution?.[star] || 0);
+                            const total = Number(reviewsStats.totalApprovedCount || 0);
+                            const pct = total > 0 ? Math.min(100, (count / total) * 100) : 0;
+                            return (
+                              <div key={star} className="flex items-center gap-2">
+                                <div className="w-16 text-sm">{star} sao</div>
+                                <div className="flex-1 h-2 rounded bg-slate-200">
+                                  <div
+                                    className="h-2 rounded bg-pink-500"
+                                    style={{ width: `${pct}%` }}
+                                    aria-valuenow={Math.round(pct)}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                  />
+                                </div>
+                                <div className="w-12 text-right text-sm">{count}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                     {loadingReviews ? (
                       <div className="text-sm text-slate-500">
                         Đang tải danh sách đánh giá...
@@ -1007,7 +1093,7 @@ export default function ProductDetail() {
                           <div key={r.id} className="rounded-xl border p-3">
                             <div className="flex items-start justify-between">
                               <div className="text-sm font-medium">
-                                {r.userName || "Người dùng"}
+                                {r.userFullName || r.userName || "Người dùng"}
                               </div>
                               <div className="text-xs text-slate-500">
                                 {new Date(r.createdAt).toLocaleString("vi-VN")}

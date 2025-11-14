@@ -22,12 +22,18 @@ function toISO(dt?: string): string | undefined {
   }
 }
 
+function isGuid(value: string): boolean {
+  // Basic GUID v4 pattern (accept both lowercase/uppercase)
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+}
+
 export default function AdminFeatured() {
   // Pin/Unpin form state
   const [pinEntityType, setPinEntityType] = useState<EntityType>("product");
   const [pinEntityId, setPinEntityId] = useState("");
   const [pinned, setPinned] = useState(true);
   const [expiresAtLocal, setExpiresAtLocal] = useState<string>("");
+  const isValidId = isGuid(pinEntityId.trim());
 
   const pinMutation = useMutation({
     mutationFn: async () => {
@@ -107,7 +113,15 @@ export default function AdminFeatured() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Entity ID</label>
-              <Input value={pinEntityId} onChange={(e) => setPinEntityId(e.target.value)} placeholder="vd. 123e4567-e89b-12d3-a456-426614174000" />
+              <Input
+                value={pinEntityId}
+                onChange={(e) => setPinEntityId(e.target.value)}
+                placeholder="vd. 123e4567-e89b-12d3-a456-426614174000"
+                className={!isValidId && pinEntityId ? "border-red-500" : undefined}
+              />
+              {!isValidId && pinEntityId && (
+                <p className="text-xs text-red-600">ID phải là GUID hợp lệ</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -133,7 +147,7 @@ export default function AdminFeatured() {
             <Button
               onClick={() => pinMutation.mutate()}
               className="bg-gradient-to-r from-[#e91e63] to-[#f43f5e]"
-              disabled={!pinEntityId || pinMutation.isPending}
+              disabled={!isValidId || pinMutation.isPending}
             >
               {pinned ? <Pin className="h-4 w-4 mr-2" /> : <PinOff className="h-4 w-4 mr-2" />} {pinned ? "Pin" : "Unpin"}
             </Button>

@@ -7,6 +7,7 @@ export interface ReviewDto {
   id: string;
   productId: string;
   userId: string;
+  userFullName?: string | null;
   userName?: string | null;
   rating: number;
   comment: string;
@@ -40,7 +41,14 @@ class ReviewsService {
     page: number = 1,
     pageSize: number = 10,
     onlyApproved: boolean = true,
-  ): Promise<PagedResult<ReviewDto>> {
+  ): Promise<PagedResult<ReviewDto> & {
+    // Optional stats fields if BE provides aggregation
+    stats?: {
+      averageRating?: number;
+      ratingDistribution?: Record<number, number>;
+      totalApprovedCount?: number;
+    };
+  }> {
     const params = new URLSearchParams();
     params.append("page", String(page));
     params.append("pageSize", String(pageSize));
@@ -48,8 +56,49 @@ class ReviewsService {
     const resp = await axiosClient.get(
       `/api/products/${encodeURIComponent(productId)}/reviews?${params.toString()}`,
     );
-    // API may return { data: {...} } or raw object
-    return (resp.data?.data ?? resp.data) as PagedResult<ReviewDto>;
+    // Unwrap ServiceResponse<PagedResult<GetReview>> when BE wraps result
+    const outer: any = resp?.data ?? {};
+    const isServiceResponse =
+      outer && typeof outer === "object" && ("Data" in outer || "Succeeded" in outer);
+    const core: any = isServiceResponse ? outer?.Data ?? outer?.data : outer?.data ?? outer;
+
+    // Normalize PagedResult from the core object
+    const normalizedPage = Number(core?.page ?? core?.Page ?? 1);
+    const coreDataArr: any = core?.data ?? core?.Data ?? core?.items ?? core?.Items ?? [];
+    const normalizedPageSize = Number(
+      core?.pageSize ?? core?.PageSize ?? (Array.isArray(coreDataArr) ? coreDataArr.length : 10),
+    );
+    const normalizedTotalCount = Number(
+      core?.totalCount ?? core?.TotalCount ?? core?.total ?? core?.Total ?? 0,
+    );
+    const normalizedTotalPages = Number(
+      core?.totalPages ?? core?.TotalPages ?? (normalizedPageSize > 0 ? Math.ceil(normalizedTotalCount / normalizedPageSize) : 0),
+    );
+    const hasPreviousPage = Boolean(
+      core?.hasPreviousPage ?? core?.HasPreviousPage ?? normalizedPage > 1,
+    );
+    const hasNextPage = Boolean(
+      core?.hasNextPage ?? core?.HasNextPage ?? (normalizedTotalPages > 0 ? normalizedPage < normalizedTotalPages : false),
+    );
+    const data: ReviewDto[] = (Array.isArray(coreDataArr) ? coreDataArr : []) as ReviewDto[];
+    const stats = core?.stats ?? undefined;
+
+    return {
+      data,
+      page: normalizedPage,
+      pageSize: normalizedPageSize,
+      totalCount: normalizedTotalCount,
+      totalPages: normalizedTotalPages,
+      hasPreviousPage,
+      hasNextPage,
+      ...(stats ? { stats } : {}),
+    } as PagedResult<ReviewDto> & {
+      stats?: {
+        averageRating?: number;
+        ratingDistribution?: Record<number, number>;
+        totalApprovedCount?: number;
+      };
+    };
   }
 
   async getMyReview(productId: string): Promise<MyReviewResponse> {

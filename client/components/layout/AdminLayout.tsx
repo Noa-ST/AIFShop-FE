@@ -1,4 +1,4 @@
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import {
@@ -71,6 +71,12 @@ const adminMenuItems = [
 
 export default function AdminLayout() {
   const { user, isAuthenticated, initialized } = useAuth();
+  const location = useLocation();
+
+  const isActive = (url: string) => {
+    if (url === "/admin") return location.pathname === "/admin";
+    return location.pathname.startsWith(url);
+  };
 
   // Check if user was logged out (tokens cleared but still on admin page)
   useEffect(() => {
@@ -103,14 +109,12 @@ export default function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full">
-        <Sidebar className="border-r">
+      <div className="flex h-screen w-full bg-[#fefefe]">
+        <Sidebar className="border-r border-gray-200 bg-[#fdfdfd]">
           <div className="flex h-full flex-col">
-            <div className="p-4">
-              <h2 className="text-lg font-semibold">Admin Panel</h2>
-              <p className="text-sm text-muted-foreground">
-                Management Dashboard
-              </p>
+            <div className="p-6">
+              <h2 className="text-lg font-semibold">AIFShop</h2>
+              <p className="text-sm text-gray-500">Admin</p>
             </div>
             <SidebarContent>
               <SidebarGroup>
@@ -119,17 +123,26 @@ export default function AdminLayout() {
                   <SidebarMenu>
                     {adminMenuItems.map((item) => (
                       <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <a
-                            href={item.url}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                              "hover:bg-accent hover:text-accent-foreground",
-                            )}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            {item.title}
-                          </a>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive(item.url)}
+                          className={cn(
+                            "group flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                            "text-gray-700 hover:text-[#d81b60] hover:bg-white",
+                            "data-[active=true]:text-[#d81b60] data-[active=true]:bg-transparent data-[active=true]:font-medium",
+                            "data-[active=true]:border-l-2 data-[active=true]:border-[#d81b60]",
+                          )}
+                        >
+                          <Link to={item.url} className="flex items-center gap-3 w-full">
+                            <item.icon
+                              className={cn(
+                                "h-4 w-4",
+                                "text-gray-400 group-hover:text-[#d81b60]",
+                                isActive(item.url) ? "text-[#d81b60]" : "",
+                              )}
+                            />
+                            <span>{item.title}</span>
+                          </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
@@ -141,7 +154,7 @@ export default function AdminLayout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b bg-background px-6 py-4">
+          <header className="border-b bg-[#fdfdfd] px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <SidebarTrigger />

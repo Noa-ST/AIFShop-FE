@@ -96,6 +96,7 @@ export default function SellerNavbar() {
                   >
                     Quản lý Shop
                   </Link>
+                  {/* Đã bỏ mục Doanh thu khỏi dropdown
                   <Link
                     to="/seller/balance"
                     className="block px-4 py-2 text-sm hover:bg-slate-50"
@@ -103,6 +104,7 @@ export default function SellerNavbar() {
                   >
                     Doanh thu
                   </Link>
+                  */}
                   <button
                     onClick={() => {
                       logoutUser?.();
