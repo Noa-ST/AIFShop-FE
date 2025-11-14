@@ -31,6 +31,7 @@ export default function SellerDashboard() {
       return await fetchShopBySeller(sellerId);
     },
     enabled: !!sellerId,
+    staleTime: 5 * 60 * 1000, // Cache 5 phút - shop data không thay đổi thường xuyên
   });
 
   const shopId = useMemo(() => {

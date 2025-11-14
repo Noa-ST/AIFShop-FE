@@ -3,8 +3,7 @@ import { ShoppingCart, Store, Home, Boxes, LogIn, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCart } from "@/lib/api";
+import { useCart } from "@/contexts/CartContext";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -13,32 +12,17 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function SiteHeader() {
   const { isAuthenticated, user, logoutUser, initialized } = useAuth();
+  const { getTotalItems } = useCart();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // Subscribe to cart to reflect real-time count in header
-  const { data: cartData } = useQuery({
-    queryKey: ["cart"],
-    queryFn: fetchCart,
-    // Only fetch cart when auth is initialized and user is a Customer
-    enabled: Boolean(
-      initialized && isAuthenticated && user?.role === "Customer",
-    ),
-    staleTime: 10_000,
-  });
-
   const cartCount = useMemo(() => {
-    const rawItems = (cartData?.items || cartData?.cartItems || cartData) ?? [];
-    if (!Array.isArray(rawItems)) return 0;
-    try {
-      return rawItems.reduce(
-        (sum: number, it: any) => sum + Number(it.quantity ?? 0),
-        0,
-      );
-    } catch {
+    if (!initialized) {
       return 0;
     }
-  }, [cartData]);
+    // Lấy tổng số item trong giỏ nếu có; với Seller có thể là 0
+    return getTotalItems();
+  }, [initialized, getTotalItems]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -93,7 +77,7 @@ export default function SiteHeader() {
             </Link>
           )}
 
-          {/* Cart button only for Customers or guests */}
+          {/* Chỉ hiển thị giỏ hàng cho khách (chưa login) hoặc Customer */}
           {(!isAuthenticated || user?.role === "Customer") && (
             <Link
               to="/cart"
@@ -127,6 +111,14 @@ export default function SiteHeader() {
                   >
                     Hồ sơ
                   </Link>
+                  {user?.role === "Customer" && (
+                    <Link
+                      to="/orders/my"
+                      className="block px-4 py-2 text-sm hover:bg-slate-50"
+                    >
+                      Đơn hàng của tôi
+                    </Link>
+                  )}
                   {user?.role === "Seller" && (
                     <Link
                       to="/seller/shop-management"
@@ -135,13 +127,16 @@ export default function SiteHeader() {
                       Quản lý Shop
                     </Link>
                   )}
+                  {/* Bỏ mục Đơn hàng cửa hàng khỏi menu trang chủ - đã có trong quản lý shop */}
                   {user?.role === "Admin" && (
-                    <Link
-                      to="/admin/global-categories"
-                      className="block px-4 py-2 text-sm hover:bg-slate-50"
-                    >
-                      Dashboard Admin
-                    </Link>
+                    <>
+                      <Link
+                        to="/admin/global-categories"
+                        className="block px-4 py-2 text-sm hover:bg-slate-50"
+                      >
+                        Dashboard Admin
+                      </Link>
+                    </>
                   )}
                   <button
                     onClick={() => logoutUser()}

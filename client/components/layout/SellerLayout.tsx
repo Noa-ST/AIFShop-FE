@@ -1,6 +1,7 @@
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchShopBySeller, isShopPresent } from "@/lib/api";
 import SellerNavbar from "@/components/seller/SellerNavbar";
 import SellerSidebar from "@/components/seller/SellerSidebar";
@@ -8,40 +9,56 @@ import SellerSidebar from "@/components/seller/SellerSidebar";
 export default function SellerLayout() {
   const { user, isAuthenticated, initialized } = useAuth();
   const navigate = useNavigate();
-  const [checkingShop, setCheckingShop] = useState(true);
+
+  // Sử dụng React Query để cache shop data, tránh gọi API nhiều lần
+  const {
+    data: shop,
+    isLoading: checkingShop,
+    error,
+  } = useQuery({
+    queryKey: ["shopBySeller", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      return await fetchShopBySeller(user.id);
+    },
+    enabled:
+      initialized && isAuthenticated && user?.role === "Seller" && !!user?.id,
+    staleTime: 5 * 60 * 1000, // Cache 5 phút - shop data không thay đổi thường xuyên
+    retry: (failureCount, error: any) => {
+      // Chỉ retry nếu không phải lỗi 404 hoặc 400 (shop chưa tồn tại)
+      const status = error?.response?.status;
+      if (status === 404 || status === 400) {
+        return false; // Không retry nếu shop không tồn tại
+      }
+      return failureCount < 1; // Chỉ retry 1 lần cho các lỗi khác
+    },
+  });
 
   useEffect(() => {
-    const run = async () => {
-      if (!initialized) return;
+    if (!initialized) return;
 
-      if (!isAuthenticated || user?.role !== "Seller") {
-        navigate("/login", { replace: true });
+    if (!isAuthenticated || user?.role !== "Seller") {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    // Kiểm tra shop sau khi query hoàn thành
+    if (!checkingShop) {
+      const status = error?.response?.status;
+      if (status === 404 || status === 400 || !isShopPresent(shop)) {
+        navigate("/seller/create-shop", { replace: true });
         return;
       }
-
-      try {
-        if (!user?.id) {
-          setCheckingShop(false);
-          return;
-        }
-        const shop = await fetchShopBySeller(user.id);
-        if (!isShopPresent(shop)) {
-          navigate("/seller/create-shop", { replace: true });
-          return;
-        }
-      } catch (e: any) {
-        const status = e?.response?.status;
-        if (status === 404 || status === 400) {
-          navigate("/seller/create-shop", { replace: true });
-          return;
-        }
-      } finally {
-        setCheckingShop(false);
-      }
-    };
-
-    run();
-  }, [initialized, isAuthenticated, user, navigate]);
+    }
+  }, [
+    initialized,
+    isAuthenticated,
+    user?.role,
+    shop,
+    checkingShop,
+    error,
+    navigate,
+  ]);
 
   if (!initialized || checkingShop) {
     return (
@@ -69,12 +86,8 @@ export default function SellerLayout() {
         <SellerSidebar />
 
         {/* Main Content */}
-        <main className="flex-1 lg:ml-64 min-h-[calc(100vh-4rem)]">
-          <div className="p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
-              <Outlet />
-            </div>
-          </div>
+        <main className="flex-1 min-h-[calc(100vh-4rem)] overflow-auto p-6 lg:p-8">
+          <Outlet />
         </main>
       </div>
     </div>

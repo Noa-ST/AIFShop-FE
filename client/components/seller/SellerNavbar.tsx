@@ -31,16 +31,15 @@ export default function SellerNavbar() {
       className="fixed top-0 left-0 right-0 z-50 w-full backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-slate-200"
     >
       <div className="container mx-auto flex items-center justify-between h-16">
-        {/* Logo - Only icon, no text */}
-        <Link to="/" className="flex items-center">
+        {/* Logo + brand text to sync with SiteHeader */}
+        <Link to="/" className="flex items-center gap-2">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 shadow flex items-center justify-center"
-          >
-            <Store size={20} className="text-white" />
-          </motion.div>
+            className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 shadow"
+          />
+          <span className="text-xl font-semibold tracking-tight">AIFShop</span>
         </Link>
 
         {/* Navigation Links */}
@@ -65,8 +64,10 @@ export default function SellerNavbar() {
           </NavLink>
         </nav>
 
-        {/* User Info */}
+        {/* Cart + User Info */}
         <div className="flex items-center gap-2">
+          {/* Bỏ nút giỏ hàng với Seller */}
+          {/* (đã xóa block Link to="/cart") */}
           {user && (
             <div className="relative" ref={ref}>
               <button
@@ -94,6 +95,13 @@ export default function SellerNavbar() {
                     onClick={() => setOpen(false)}
                   >
                     Quản lý Shop
+                  </Link>
+                  <Link
+                    to="/seller/balance"
+                    className="block px-4 py-2 text-sm hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
+                  >
+                    Doanh thu
                   </Link>
                   <button
                     onClick={() => {

@@ -1,20 +1,14 @@
 // Shop data types for ShopListPage
-export interface Shop {
-  id: string;
-  name: string;
-  description?: string;
-  logo?: string;
-  averageRating: number;
-  reviewCount: number;
-  sellerId: string;
+// This interface extends GetShop from shopService for backward compatibility
+import { GetShop } from '@/services/shopService';
+
+export interface Shop extends Omit<GetShop, 'sellerName'> {
   seller?: {
     id: string;
     fullname?: string;
     email: string;
   };
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  isActive?: boolean;
   // Additional fields for display
   status?: 'online' | 'offline';
   yearsActive?: number;

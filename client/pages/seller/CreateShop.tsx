@@ -11,22 +11,17 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CascadeAddressSelect } from "@/components/CascadeAddressSelect";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createShop, fetchShopBySeller, isShopPresent } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
-import { vietnameseProvinces } from "@/data/vietnamese-provinces";
+// Province list replaced by CascadeAddressSelect which fetches full VN admin data
 
 export default function CreateShopPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [shopData, setShopData] = useState({
     name: "",
@@ -39,24 +34,24 @@ export default function CreateShopPage() {
   // ✅ FIX: Lấy sellerId chính xác — fallback to localStorage when AuthContext hasn't initialized yet
   const sellerId = user?.id || localStorage.getItem("aifshop_userid") || null;
 
+  // Sử dụng React Query để check shop - sử dụng cache từ SellerLayout
+  const { data: existingShop } = useQuery({
+    queryKey: ["shopBySeller", sellerId],
+    queryFn: async () => {
+      if (!sellerId) return null;
+      return await fetchShopBySeller(sellerId);
+    },
+    enabled: !!sellerId,
+    staleTime: 2 * 60 * 1000, // Cache 2 phút
+  });
+
   // On mount: if seller already has shop, redirect to home
   useEffect(() => {
-    const check = async () => {
-      if (!sellerId) return;
-      try {
-        const shop = await fetchShopBySeller(sellerId);
-        if (isShopPresent(shop)) {
-          // seller already has a shop; redirect to shop management
-          navigate("/seller/shop-management");
-          return;
-        }
-      } catch (err) {
-        // If 404 or not found, keep showing form
-        console.warn("Shop existence check failed:", err);
-      }
-    };
-    check();
-  }, [sellerId, navigate]);
+    if (isShopPresent(existingShop)) {
+      // seller already has a shop; redirect to shop management
+      navigate("/seller/shop-management");
+    }
+  }, [existingShop, navigate]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -99,27 +94,128 @@ export default function CreateShopPage() {
         sellerId, // Gửi Seller ID
       };
 
+      console.log("Sending create shop request with payload:", payload);
+      
       const res = await createShop(payload);
-
-      // If backend returned created shop, redirect to shop management
-      if (res && (res.id || res.shopId || res._id || res.name)) {
-        navigate("/seller/shop-management");
-        return;
+      
+      console.log("Full API response:", res);
+      console.log("Response type:", typeof res);
+      console.log("Is array?", Array.isArray(res));
+      
+      // Handle different response formats
+      let shop = null;
+      if (res) {
+        // Check if response has a data wrapper (common API pattern)
+        if (res.data && (res.data.id || res.data.shopId || res.data._id || res.data.name)) {
+          shop = res.data;
+        } 
+        // Check if response is the shop object directly
+        else if (res.id || res.shopId || res._id || res.name) {
+          shop = res;
+        }
+        // Check if response has succeeded flag with data
+        else if (res.succeeded && res.data) {
+          shop = res.data;
+        }
       }
-
-      // Fallback: navigate to shop management
-      navigate("/seller/shop-management");
+      
+      console.log("Extracted shop object:", shop);
+      
+      // Invalidate cache để React Query tự động refetch shop data
+      if (sellerId) {
+        console.log("Invalidating shop cache and refetching...");
+        // Invalidate cache và đợi refetch
+        await queryClient.invalidateQueries({ queryKey: ["shopBySeller", sellerId] });
+        
+        // Đợi một chút để database commit và React Query refetch
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Refetch shop data từ cache (sẽ tự động gọi API nếu cần)
+        const verifyShop = await queryClient.fetchQuery({
+          queryKey: ["shopBySeller", sellerId],
+          queryFn: async () => {
+            return await fetchShopBySeller(sellerId);
+          },
+          staleTime: 0, // Force fetch mới
+        });
+        
+        console.log("Verified shop from server:", verifyShop);
+        
+        if (isShopPresent(verifyShop)) {
+          console.log("Shop verified successfully, redirecting...");
+          navigate("/seller/shop-management");
+          return;
+        } else {
+          console.warn("Shop not found after creation. Response was:", res);
+          // Nếu có response từ API nhưng verify không thấy, vẫn navigate (có thể cache delay)
+          if (shop || res) {
+            console.log("Got success response but verification returned empty, navigating anyway...");
+            navigate("/seller/shop-management");
+            return;
+          }
+          alert("Shop được tạo nhưng không tìm thấy sau khi kiểm tra. Vui lòng refresh trang hoặc thử lại.");
+          return;
+        }
+      }
+      
+      // Fallback: if we got a response but couldn't verify, still navigate
+      if (shop || res) {
+        console.log("Navigating to shop management with response:", res);
+        // Invalidate cache để refresh khi vào shop management
+        if (sellerId) {
+          queryClient.invalidateQueries({ queryKey: ["shopBySeller", sellerId] });
+        }
+        navigate("/seller/shop-management");
+      } else {
+        throw new Error("Không nhận được dữ liệu shop từ server");
+      }
     } catch (err: any) {
       // Xử lý lỗi từ Backend (Lỗi 400 Bad Request)
       console.error("Lỗi tạo Shop:", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data ||
-        err?.message ||
-        "Không thể tạo Shop";
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      
+      let msg = "Không thể tạo Shop";
+      if (data?.message) {
+        msg = data.message;
+      } else if (typeof data === "string") {
+        msg = data;
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      
+      if (status === 401 || status === 403) {
+        msg += "\nVui lòng đăng nhập lại.";
+        setTimeout(() => navigate("/login"), 2000);
+      }
+      
       alert(`Lỗi: ${msg}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Basic guard: ~2.5MB limit
+    if (file.size > 2.5 * 1024 * 1024) {
+      alert("Ảnh quá lớn (tối đa ~2.5MB)");
+      return;
+    }
+    const toBase64 = (f: File) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(f);
+      });
+    try {
+      const base64 = await toBase64(file);
+      setShopData((s) => ({ ...s, logo: base64 }));
+    } catch (err) {
+      console.error("Read image failed", err);
+      alert("Không thể đọc ảnh. Vui lòng thử ảnh khác.");
     }
   };
 
@@ -158,21 +254,21 @@ export default function CreateShopPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="logo">Link Logo (URL)</Label>
-              <Input
-                id="logo"
-                name="logo"
-                value={shopData.logo}
-                onChange={handleChange}
-                placeholder="Dán URL hình ảnh logo của bạn"
-              />
+              <Label htmlFor="logoFile">Logo Shop (ảnh, tự chuyển sang Base64)</Label>
+              <Input id="logoFile" type="file" accept="image/*" onChange={handleLogoFileChange} />
               {shopData.logo && (
-                <img
-                  src={shopData.logo}
-                  alt="Logo Preview"
-                  className="w-16 h-16 object-cover rounded-full mt-2 border"
-                />
+                <div className="flex items-center gap-3">
+                  <img
+                    src={shopData.logo}
+                    alt="Logo Preview"
+                    className="w-16 h-16 object-cover rounded-full mt-2 border"
+                  />
+                  <Button type="button" variant="secondary" onClick={() => setShopData((s) => ({ ...s, logo: "" }))}>
+                    Xóa logo
+                  </Button>
+                </div>
               )}
+              <p className="text-xs text-slate-500">Hỗ trợ PNG/JPG, tối đa ~2.5MB. Ảnh sẽ được lưu dạng Base64.</p>
             </div>
 
             <div className="space-y-2">
@@ -188,25 +284,16 @@ export default function CreateShopPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="city">Tỉnh/Thành phố *</Label>
-              <Select
-                value={shopData.city}
-                onValueChange={(value) => {
-                  setShopData({ ...shopData, city: value });
+              <Label>Tỉnh/Thành phố *</Label>
+              <CascadeAddressSelect
+                onChange={(addr) => {
+                  // Only city (province name) is stored in Shop per API contract
+                  setShopData((s) => ({ ...s, city: addr.labels.province || "" }));
                 }}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn tỉnh/thành phố" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vietnameseProvinces.map((province) => (
-                    <SelectItem key={province.value} value={province.label}>
-                      {province.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
+              {shopData.city && (
+                <p className="text-xs text-slate-500">Đã chọn: {shopData.city}. Bạn có thể ghi phường/xã, quận/huyện vào trường địa chỉ phía trên nếu muốn.</p>
+              )}
             </div>
 
             <CardFooter className="p-0 pt-4">

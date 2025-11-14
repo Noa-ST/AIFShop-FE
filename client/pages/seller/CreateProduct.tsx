@@ -2,15 +2,20 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchShopBySeller, createProduct, fetchGlobalCategories } from "@/lib/api";
+import { fetchShopBySeller, fetchGlobalCategories } from "@/lib/api";
+import productService, { type CreateProduct as CreateProductInput } from "@/services/productService";
+import { ProductValidator } from "@/utils/productValidator";
+import { ProductErrorHandler } from "@/utils/productErrorHandler";
+import ProductImageUploader from "@/components/products/ProductImageUploader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, X, Upload, Package, ChevronRight, Folder, FolderOpen } from "lucide-react";
+import { Package, ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { uploadBase64Images, isBase64Image } from "@/services/imageUploadService";
 
 export default function CreateProduct() {
   const { user, initialized } = useAuth();
@@ -26,6 +31,7 @@ export default function CreateProduct() {
       return await fetchShopBySeller(sellerId);
     },
     enabled: !!sellerId,
+    staleTime: 5 * 60 * 1000, // Cache 5 phút - shop data không thay đổi thường xuyên
   });
 
   const shopId = useMemo(() => {
@@ -78,28 +84,6 @@ export default function CreateProduct() {
     return out;
   }, [globalCategories]);
 
-  // Handle file uploads (convert to base64 data urls) as fallback if backend doesn't accept file uploads
-  const handleFiles = (files?: FileList | null) => {
-    if (!files) return;
-    const list = Array.from(files).slice(0, 5);
-    const readers = list.map((file) => {
-      return new Promise<string>((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(String(fr.result));
-        fr.onerror = (e) => reject(e);
-        fr.readAsDataURL(file);
-      });
-    });
-    Promise.all(readers)
-      .then((urls) => setForm((f) => ({ ...f, imageUrls: urls })))
-      .catch(() => {
-        toast({
-          title: "Lỗi",
-          description: "Không thể đọc file ảnh",
-          variant: "destructive",
-        });
-      });
-  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -121,102 +105,59 @@ export default function CreateProduct() {
       return;
     }
 
-    // Validation
-    if (!form.name.trim()) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập tên sản phẩm",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!form.description.trim()) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập mô tả sản phẩm",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!form.price || Number(form.price) <= 0) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập giá sản phẩm hợp lệ",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!form.stockQuantity || Number(form.stockQuantity) < 0) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập số lượng tồn kho hợp lệ",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Tách URL có sẵn và ảnh base64
+    const existingUrls = (form.imageUrls || []).filter(
+        (u) => typeof u === "string" && (u.startsWith("http://") || u.startsWith("https://"))
+    );
+    const base64Images = (form.imageUrls || []).filter(isBase64Image);
 
     setIsSubmitting(true);
-    const payload = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      price: Number(form.price),
-      stockQuantity: Number(form.stockQuantity),
-      shopId,
-      categoryId: form.categoryId || undefined,
-      imageUrls: form.imageUrls,
-    };
-
-    // Debug: Log payload để kiểm tra
-    console.log("Creating product with payload:", {
-      ...payload,
-      imageUrls: payload.imageUrls?.map(url => url.substring(0, 50) + "...") // Chỉ log preview của base64
-    });
-
     try {
-      await createProduct(payload);
+      // Upload base64 -> nhận về URLs từ backend (Cloudinary/S3)
+      let uploadedUrls: string[] = [];
+      if (base64Images.length > 0) {
+        uploadedUrls = await uploadBase64Images(base64Images);
+      }
+
+      const allImageUrls = [...existingUrls, ...uploadedUrls];
+
+      const payload: CreateProductInput = {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        price: Number(form.price),
+        stockQuantity: Number(form.stockQuantity),
+        shopId,
+        categoryId: form.categoryId || "",
+        imageUrls: allImageUrls.length > 0 ? allImageUrls : undefined,
+      };
+
+      // Validate using ProductValidator
+      const validationErrors = ProductValidator.validateCreateProduct(payload);
+      if (ProductValidator.hasErrors(validationErrors)) {
+        const firstError = Object.values(validationErrors)[0];
+        toast({
+          title: "Lỗi validation",
+          description: firstError,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = await productService.create(payload);
       toast({
         title: "Thành công",
-        description: "Đã tạo sản phẩm mới thành công!",
+        description:
+          result.message || "Đã tạo sản phẩm mới thành công! Đang chờ phê duyệt.",
       });
       // Delay navigation để user có thể thấy toast message
       setTimeout(() => {
         navigate("/seller/products");
-      }, 1000);
+      }, 1500);
     } catch (err: any) {
-      // Parse error response từ backend
-      console.error("Full error response:", err?.response);
-      console.error("Error data:", err?.response?.data);
-      
-      let errorMessage = "Tạo sản phẩm thất bại";
-      
-      if (err?.response?.data) {
-        const errorData = err.response.data;
-        
-        // Nếu có validation errors (ModelState trong .NET)
-        if (errorData.errors && typeof errorData.errors === 'object') {
-          const validationErrors = Object.entries(errorData.errors)
-            .map(([field, messages]: [string, any]) => {
-              const msgList = Array.isArray(messages) ? messages : [messages];
-              return `${field}: ${msgList.join(", ")}`;
-            })
-            .join(", ");
-          errorMessage = validationErrors;
-        }
-        // Nếu có message trực tiếp
-        else if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-        // Nếu là string
-        else if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        }
-      } else if (err?.message) {
-        errorMessage = err.message;
-      }
-      
+      const apiError = ProductErrorHandler.handleError(err);
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: apiError.message,
         variant: "destructive",
       });
     } finally {
@@ -224,12 +165,6 @@ export default function CreateProduct() {
     }
   };
 
-  const removeImage = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
-    }));
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -384,55 +319,13 @@ export default function CreateProduct() {
               {/* Image Upload */}
               <div className="space-y-4">
                 <Label className="text-sm font-medium">
-                  Hình ảnh sản phẩm (tối đa 5 ảnh)
+                  Hình ảnh sản phẩm (tối đa 10 ảnh)
                 </Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-rose-400 transition-colors">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">
-                    Kéo thả ảnh vào đây hoặc click để chọn
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => handleFiles(e.target.files)}
-                    className="hidden"
-                    id="image-upload"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('image-upload')?.click()}
-                    className="mt-2"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Chọn ảnh
-                  </Button>
-                </div>
-
-                {/* Image Preview */}
-                {form.imageUrls.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {form.imageUrls.map((url, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-24 object-cover rounded-lg border"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removeImage(index)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <ProductImageUploader
+                  onImagesChange={(images) => setForm(prev => ({ ...prev, imageUrls: images }))}
+                  maxImages={10}
+                  existingImages={form.imageUrls}
+                />
               </div>
 
               {/* Action Buttons */}

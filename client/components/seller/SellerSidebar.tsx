@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
+  FolderTree,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -34,6 +36,11 @@ const navItems: NavItem[] = [
         href: "/seller/shop-management/info",
       },
       {
+        icon: FolderTree,
+        label: "Danh mục Shop",
+        href: "/seller/shop-management/categories",
+      },
+      {
         icon: Package,
         label: "Sản phẩm",
         href: "/seller/shop-management/products",
@@ -41,6 +48,7 @@ const navItems: NavItem[] = [
     ],
   },
   { icon: ShoppingCart, label: "Đơn hàng", href: "/seller/orders" },
+  { icon: DollarSign, label: "Doanh thu", href: "/seller/balance" },
   { icon: Settings, label: "Cài đặt", href: "/seller/settings" },
 ];
 
@@ -253,7 +261,8 @@ export default function SellerSidebar() {
         }}
         transition={{ duration: 0.3 }}
         className={cn(
-          "fixed lg:sticky top-0 left-0 h-screen w-64 bg-[#fdfdfd] border-r border-gray-200 p-6 flex flex-col justify-between z-40 lg:z-0",
+          // On desktop, position the sidebar below the fixed seller navbar (height 4rem)
+          "fixed lg:sticky top-0 lg:top-16 left-0 h-screen lg:h-[calc(100vh-4rem)] w-64 bg-[#fdfdfd] border-r border-gray-200 p-6 flex flex-col justify-between z-40 lg:z-0",
         )}
       >
         <div className="flex-1 overflow-y-auto">

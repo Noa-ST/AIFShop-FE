@@ -1,128 +1,10 @@
-import axios from "axios";
+import axiosClient, {
+  ACCESS_TOKEN_STORAGE_KEY as ACCESS_KEY,
+  REFRESH_TOKEN_STORAGE_KEY as REFRESH_KEY,
+} from "@/services/axiosClient";
+import { globalCategoryService } from "@/services/globalCategoryService";
 
-const API_BASE =
-  (import.meta.env.VITE_API_BASE as string) || "https://localhost:7109";
-
-const ACCESS_KEY = "aifshop_token";
-const REFRESH_KEY = "aifshop_refresh";
-
-const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(ACCESS_KEY);
-  if (token) {
-    if (config.headers && typeof config.headers.set === "function") {
-      config.headers.set("Authorization", `Bearer ${token}`);
-    } else if (config.headers) {
-      (config.headers as Record<string, string>)["Authorization"] =
-        `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (val?: any) => void;
-  reject: (err?: any) => void;
-  config: any;
-}> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((p) => {
-    if (error) p.reject(error);
-    else p.resolve(token);
-  });
-  failedQueue = [];
-};
-
-api.interceptors.response.use(
-  (res) => res,
-  async (err) => {
-    const originalRequest = err.config;
-    if (
-      err.response &&
-      err.response.status === 401 &&
-      !originalRequest._retry
-    ) {
-      if (isRefreshing) {
-        return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject, config: originalRequest });
-        })
-          .then(() => api(originalRequest))
-          .catch((e) => Promise.reject(e));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-      const refreshToken = localStorage.getItem(REFRESH_KEY);
-      try {
-        if (!refreshToken) throw new Error("No refresh token available");
-
-        let lastErr: any = null;
-
-        // 1) Try path-based GET: /api/Authencation/refresh/{refreshToken}
-        try {
-          const resp = await axios.get(
-            `${API_BASE}/api/Authencation/refresh/${encodeURIComponent(
-              refreshToken,
-            )}`,
-          );
-          const responseData = resp?.data?.data || resp?.data || {};
-          const accessToken = responseData.accessToken || responseData.token;
-          const newRefresh = responseData.refreshToken;
-          if (accessToken) {
-            localStorage.setItem(ACCESS_KEY, accessToken);
-            if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-            api.defaults.headers.common["Authorization"] =
-              `Bearer ${accessToken}`;
-            processQueue(null, accessToken);
-            return api(originalRequest);
-          }
-        } catch (e) {
-          lastErr = e;
-        }
-        throw lastErr || new Error("Refresh failed for all endpoints");
-      } catch (e) {
-        processQueue(e, null);
-        // clear tokens and user info
-        localStorage.removeItem(ACCESS_KEY);
-        localStorage.removeItem(REFRESH_KEY);
-        localStorage.removeItem("aifshop_role");
-        localStorage.removeItem("aifshop_email");
-        localStorage.removeItem("aifshop_fullname");
-        localStorage.removeItem("aifshop_userid");
-
-        // Only redirect to login if not already on login page and not in admin flow
-        if (typeof window !== "undefined") {
-          const currentPath = window.location.pathname;
-          const isOnLoginPage = currentPath === "/login";
-          const isInAdminFlow = currentPath.startsWith("/admin");
-
-          // Don't redirect if already on login page or if in admin flow (let AdminLayout handle it)
-          if (!isOnLoginPage && !isInAdminFlow) {
-            try {
-              window.location.href = "/login";
-            } catch (redirErr) {
-              console.warn("Redirect to /login failed", redirErr);
-            }
-          }
-        }
-
-        return Promise.reject(e);
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
-    return Promise.reject(err);
-  },
-);
+const api = axiosClient;
 
 export const register = async (payload: any) => {
   const res = await api.post("/api/Authencation/create", payload);
@@ -213,16 +95,38 @@ export const updateShop = async (payload: any) => {
 export const fetchShopBySeller = async (sellerId: string) => {
   const path = `/api/Shops/seller/${sellerId}`;
 
+  console.log("🔍 fetchShopBySeller called:", { sellerId, path });
+
   try {
     const res = await api.get(path);
+    console.log("✅ fetchShopBySeller response:", res.status, res.data);
+
     if (res && res.status === 200) {
       return res.data;
     }
     throw new Error("Shop not found for seller: " + sellerId);
   } catch (err: any) {
+    console.error("❌ fetchShopBySeller error:", {
+      message: err.message,
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      data: err.response?.data,
+      code: err.code,
+    });
+
     if (err?.response?.status === 404 || err?.response?.status === 400) {
       throw err;
     }
+
+    // ✅ Handle timeout and network errors
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      throw new Error("Request timeout. Vui lòng thử lại.");
+    }
+
+    if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
+      throw new Error("Không thể kết nối đến server. Vui lòng kiểm tra kết nối.");
+    }
+
     throw err;
   }
 };
@@ -246,24 +150,192 @@ export const isShopPresent = (shop: any) => {
 // Thêm hàm API cho Global Category (GC)
 
 export const fetchGlobalCategories = async () => {
-  // Gọi endpoint Admin để lấy toàn bộ danh mục dạng cây (nếu đã triển khai)
-  const res = await api.get("/api/Admin/GlobalCategory/all");
-  // Giả định BE trả về ServiceResponse<IEnumerable<GetGlobalCategory>>
-  return res.data.data || [];
+  // Sử dụng service thay vì gọi API trực tiếp
+  let raw: any[] = [];
+  
+  try {
+    const response = await globalCategoryService.getAll(true);
+    
+    if (!response.succeeded || !response.data) {
+      console.warn("Failed to fetch global categories:", response.message);
+      // Tiếp tục thử fallback thay vì trả về rỗng ngay
+      raw = [];
+    }
+    
+    raw = response.data;
+    if (!Array.isArray(raw)) {
+      console.warn("Global categories data is not an array:", raw);
+      raw = [];
+    }
+  } catch (error: any) {
+    console.error("Error fetching global categories:", error);
+    // Fallback: thử gọi API trực tiếp nếu service lỗi
+    try {
+      const res = await api.get("/api/GlobalCategory/all?includeChildren=true");
+      raw = (res as any)?.data?.data ?? (res as any)?.data ?? [];
+      if (!Array.isArray(raw)) return [];
+    } catch (fallbackError) {
+      console.error("Fallback API call also failed:", fallbackError);
+      raw = [];
+    }
+  }
+
+  // Nếu vẫn rỗng, thử cơ chế dự phòng: gọi theo parentId để xây cây
+  if (!Array.isArray(raw) || raw.length === 0) {
+    try {
+      const rootsResp = await globalCategoryService.getByParentId(null);
+      if (rootsResp?.succeeded && Array.isArray(rootsResp.data)) {
+        const buildChildren = async (parentIds: string[]): Promise<Record<string, any[]>> => {
+          const map: Record<string, any[]> = {};
+          for (const pid of parentIds) {
+            try {
+              const childrenResp = await globalCategoryService.getByParentId(pid);
+              const children = childrenResp?.succeeded && Array.isArray(childrenResp.data)
+                ? childrenResp.data
+                : [];
+              map[pid] = children;
+            } catch (e) {
+              map[pid] = [];
+            }
+          }
+          return map;
+        };
+
+        // Xây cây sâu 2-3 lớp tùy vào dữ liệu; tránh gọi quá nhiều lần
+        const roots = rootsResp.data.map(r => ({ ...r, children: [] as any[] }));
+        const level1Map = await buildChildren(roots.map(r => r.id));
+        for (const r of roots) {
+          const children = level1Map[r.id] || [];
+          (r as any).children = children.map((c: any) => ({ ...c, children: [] }));
+        }
+
+        const level2Ids: string[] = [];
+        for (const r of roots) {
+          for (const c of (r as any).children) level2Ids.push(c.id);
+        }
+        if (level2Ids.length) {
+          const level2Map = await buildChildren(level2Ids);
+          for (const r of roots) {
+            for (const c of (r as any).children) {
+              const gkids = level2Map[c.id] || [];
+              (c as any).children = gkids.map((gc: any) => ({ ...gc, children: [] }));
+            }
+          }
+        }
+
+        raw = roots as any[];
+      }
+    } catch (parentFallbackErr) {
+      console.warn("ParentId fallback fetching failed:", parentFallbackErr);
+      // Nếu thất bại, trả về rỗng
+      raw = [];
+    }
+  }
+
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+
+  // 1) Flatten regardless of current shape (handles mixed tree/flat responses)
+  type Node = {
+    id: string;
+    name: string;
+    description?: string;
+    parentId: string | null;
+    createdAt?: string;
+    productCount?: number;
+  };
+  const flat: Node[] = [];
+
+  const getDirectProductCount = (node: any): number => {
+    if (typeof node?.productCount === "number") return node.productCount;
+    if (typeof node?.productsCount === "number") return node.productsCount;
+    if (typeof node?.totalProducts === "number") return node.totalProducts;
+    if (Array.isArray(node?.products)) return node.products.length;
+    if (Array.isArray(node?.productList)) return node.productList.length;
+    if (Array.isArray(node?.items)) return node.items.length;
+    return 0;
+  };
+
+  const pushNode = (it: any, parentIdOverride: string | null = null) => {
+    const id = String(it?.id ?? it?._id ?? "");
+    if (!id) return;
+    flat.push({
+      id,
+      name: it?.name ?? "",
+      description: it?.description ?? "",
+      parentId:
+        parentIdOverride ?? (it?.parentId ?? it?.parent?.id ?? null)
+          ? String(it?.parentId ?? it?.parent?.id)
+          : null,
+      createdAt: it?.createdAt ?? it?.created_at ?? "",
+      productCount: getDirectProductCount(it),
+    });
+    const children = (it?.children ?? it?.subCategories ?? []) as any[];
+    if (Array.isArray(children) && children.length) {
+      for (const ch of children) pushNode(ch, id);
+    }
+  };
+
+  for (const it of raw) pushNode(it, it?.parent ? String(it.parent.id) : null);
+
+  // 2) Rebuild full tree from flat list
+  const byId = new Map<string, any>();
+  const roots: any[] = [];
+  for (const it of flat) {
+    byId.set(it.id, { ...it, children: [] as any[] });
+  }
+  for (const it of flat) {
+    const node = byId.get(it.id);
+    if (it.parentId && byId.has(it.parentId)) {
+      const parentNode = byId.get(it.parentId);
+      node.parent = parentNode; // provide parent for UI badges
+      parentNode.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  const computeTotals = (node: any): number => {
+    const own = Number(node.productCount ?? 0) || 0;
+    if (!Array.isArray(node.children) || node.children.length === 0) {
+      node.totalProductCount = own;
+      return node.totalProductCount;
+    }
+    const childSum = node.children.reduce((sum: number, child: any) => {
+      return sum + computeTotals(child);
+    }, 0);
+    node.totalProductCount = own + childSum;
+    return node.totalProductCount;
+  };
+
+  roots.forEach((root) => computeTotals(root));
+  return roots;
 };
 
+// Re-export wrapper functions from the new service for backward compatibility
 export const createGlobalCategory = async (payload: any) => {
+  return await globalCategoryService.create(payload);
+};
+
+export const updateGlobalCategory = async (id: string, payload: any) => {
+  return await globalCategoryService.update(id, payload);
+};
+
+export const deleteGlobalCategory = async (id: string) => {
+  return await globalCategoryService.delete(id);
+};
+
+// Legacy implementations using old Admin endpoints (for fallback)
+export const createGlobalCategoryLegacy = async (payload: any) => {
   const res = await api.post("/api/Admin/GlobalCategory/add", payload);
   return res.data;
 };
 
-export const updateGlobalCategory = async (id: string, payload: any) => {
+export const updateGlobalCategoryLegacy = async (id: string, payload: any) => {
   const res = await api.put(`/api/Admin/GlobalCategory/update/${id}`, payload);
   return res.data;
 };
 
-export const deleteGlobalCategory = async (id: string) => {
-  // API này là xóa mềm (soft delete)
+export const deleteGlobalCategoryLegacy = async (id: string) => {
   const res = await api.delete(`/api/Admin/GlobalCategory/delete/${id}`);
   return res.data;
 };

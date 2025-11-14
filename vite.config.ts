@@ -6,13 +6,18 @@ export default defineConfig({
   server: {
     host: "localhost",
     port: 5173,
-    open: true, // tự động mở trình duyệt khi run dev
+    open: true,
     proxy: {
-      // ✅ Proxy toàn bộ request /api → .NET backend
       "/api": {
-        target: "http://localhost:5000", // hoặc 5001 nếu dùng HTTPS
+        target: "https://aifshop-backend.onrender.com",
         changeOrigin: true,
-        secure: false,
+        secure: true,
+      },
+      "/hubs": {
+        target: "https://aifshop-backend.onrender.com",
+        changeOrigin: true,
+        secure: true,
+        ws: true,
       },
     },
   },
@@ -25,5 +30,11 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: "dist",
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: path.resolve(__dirname, "./client/test/setup.ts"),
+    css: true,
   },
 });

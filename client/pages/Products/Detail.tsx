@@ -1,12 +1,14 @@
 import { useParams, Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addToCart as addToCartApi, fetchProductById } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/components/ui/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { fetchProductById } from "@/lib/api";
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, ShoppingCart } from "lucide-react";
+import { MessageCircle, Send } from "lucide-react";
+import AddToCartButton from "@/components/products/AddToCartButton";
+import ProductCard from "@/components/ProductCard";
+import productService from "@/services/productService";
+import { getProductImageUrl } from "@/utils/imageUrl";
 import {
   Dialog,
   DialogContent,
@@ -16,28 +18,68 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useChat } from "@/contexts/ChatContext";
+import { useChatHubClient } from "@/hooks/useChatHubClient";
+import chatService from "@/services/chatService";
+import { shopService } from "@/services/shopService";
+import axiosClient from "@/services/axiosClient";
+import { HubConnectionState } from "@microsoft/signalr";
+import { useAuth } from "@/contexts/AuthContext";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import reviewsService, { ReviewDto, ReviewStatus } from "@/services/reviews";
 
 export default function ProductDetail() {
   // ----------------------------------------------
   // Hooks MUST be called unconditionally at top level
   // ----------------------------------------------
   const { id } = useParams();
-  const { isAuthenticated, initialized } = useAuth();
-  const queryClient = useQueryClient();
-
-  const [qty, setQty] = useState<number>(1);
   const [mainImage, setMainImage] = useState<string>("/placeholder.svg");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<
-    { from: "me" | "shop"; text: string; time: number }[]
-  >([
-    {
-      from: "shop",
-      text: "Xin chào! Mình có thể hỗ trợ gì cho bạn?",
-      time: Date.now(),
-    },
-  ]);
+  const { user } = useAuth();
+  // Chat (real) integration states
+  const {
+    enableChat,
+    sendMessage,
+    messages: chatMessages,
+    loadConversation,
+    markAsRead,
+    isEnabled,
+  } = useChat();
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  // Determine SignalR base URL (same logic as ChatContext)
+  const signalRBaseUrl = useMemo(() => {
+    const apiBaseUrl = axiosClient.defaults.baseURL;
+    const isDev = import.meta.env.DEV;
+    const isLocalhost =
+      apiBaseUrl &&
+      (apiBaseUrl.includes("localhost") || apiBaseUrl.includes("127.0.0.1"));
+
+    if (isDev && isLocalhost) {
+      return undefined; // Use relative path for Vite proxy
+    }
+    return apiBaseUrl || undefined;
+  }, []);
+
+  // Only enable SignalR client when chat is enabled (via useChat context)
+  // This ensures we don't try to connect before user is authenticated
+  const { client, state } = useChatHubClient({
+    enabled: isEnabled,
+    baseUrl: signalRBaseUrl,
+    // Force WebSockets when using remote backend to avoid negotiation issues
+    forceWebSockets: !!signalRBaseUrl, // if baseUrl is set, it means remote backend
+    skipNegotiation: !!signalRBaseUrl,
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["product", id],
@@ -45,48 +87,319 @@ export default function ProductDetail() {
     enabled: !!id,
   });
 
-  const { mutateAsync: mutateAdd, isPending } = useMutation({
-    mutationFn: addToCartApi,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cart"] });
-      toast({ title: "Đã thêm vào giỏ hàng" });
-    },
-    onError: () => {
-      toast({
-        title: "Thêm vào giỏ thất bại",
-        description: "Vui lòng thử lại.",
-      });
-    },
+  const { data: allProducts, isLoading: loadingAllProducts } = useQuery({
+    queryKey: ["all-products"],
+    queryFn: () => productService.getAll(),
+    enabled: !!id,
   });
+
+  // Tabs initial value: support deep link to reviews via ?tab=reviews or #reviews
+  const initialTab = useMemo(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      const hash = (
+        typeof window !== "undefined" ? window.location.hash : ""
+      ).replace("#", "");
+      if (tabParam === "reviews" || hash === "reviews") return "reviews";
+    } catch {}
+    return "desc";
+  }, []);
 
   // Non-hook derived values
   const product: any = data || {};
 
+  const similarProducts: any[] = useMemo(() => {
+    const list = Array.isArray(allProducts) ? allProducts : [];
+    const currentId = product?.id;
+    const currentGlobalCat = (product as any)?.globalCategoryId ?? null;
+    const currentCat = product?.categoryId ?? null;
+    const filtered = list.filter((p: any) => {
+      const pid = p?.id;
+      if (!pid || pid === currentId) return false;
+      const pGlobal = (p as any)?.globalCategoryId ?? null;
+      const pCat = p?.categoryId ?? null;
+      if (currentGlobalCat && pGlobal)
+        return String(pGlobal) === String(currentGlobalCat);
+      if (!currentGlobalCat && currentCat && pCat)
+        return String(pCat) === String(currentCat);
+      return false;
+    });
+    return filtered.slice(0, 4);
+  }, [allProducts, product]);
+
+  // -----------------------------
+  // Reviews state & queries (always show only Approved reviews)
+  // -----------------------------
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsPageSize] = useState(10);
+  // Hard-code onlyApproved = true to always fetch and display approved reviews only
+  const onlyApproved = true;
+
+  const {
+    data: reviewsPaged,
+    refetch: refetchReviews,
+    isLoading: loadingReviews,
+  } = useQuery({
+    queryKey: ["product-reviews", id, reviewsPage, reviewsPageSize, "approved"],
+    queryFn: () =>
+      reviewsService.getProductReviews(
+        String(id),
+        reviewsPage,
+        reviewsPageSize,
+        onlyApproved,
+      ),
+    enabled: !!id,
+  });
+
+  const {
+    data: myReview,
+    refetch: refetchMyReview,
+    isLoading: loadingMyReview,
+  } = useQuery({
+    queryKey: ["product-my-review", id, user?.id],
+    queryFn: () => reviewsService.getMyReview(String(id)),
+    enabled: !!id && !!user,
+  });
+
+  const [ratingInput, setRatingInput] = useState<string>("5");
+  const [commentInput, setCommentInput] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const hasReviewed = Boolean(myReview?.hasReviewed);
+  const existing = myReview?.review ?? null;
+  const reviewStatus: ReviewStatus | null = (myReview?.status ??
+    existing?.status ??
+    null) as any;
+  const rejectionReason =
+    myReview?.rejectionReason ?? existing?.rejectionReason ?? null;
+
+  useEffect(() => {
+    if (existing) {
+      setRatingInput(String(existing.rating ?? 5));
+      setCommentInput(existing.comment ?? "");
+    } else {
+      // reset fields for create mode
+      setRatingInput("5");
+      setCommentInput("");
+    }
+  }, [existing?.id]);
+
+  const handleCreate = async () => {
+    if (!id) return;
+    setSubmitting(true);
+    try {
+      const resp = await reviewsService.create({
+        productId: String(id),
+        rating: Number(ratingInput),
+        comment: commentInput.trim(),
+      });
+      if (resp?.Succeeded) {
+        toast({ title: "Đánh giá của bạn đang chờ duyệt" });
+        await refetchMyReview();
+        // Always refresh reviews list (backend will show only Approved reviews)
+        await refetchReviews();
+      } else {
+        const msg = (resp?.Message || "Không thể gửi đánh giá").toString();
+        toast({ title: msg });
+      }
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 401) toast({ title: "Bạn cần đăng nhập để đánh giá" });
+      else if (status === 403)
+        toast({ title: "Bạn chưa đủ điều kiện để đánh giá" });
+      else if (status === 400)
+        toast({
+          title: e?.response?.data?.message || "Dữ liệu đánh giá không hợp lệ",
+        });
+      else toast({ title: "Đã có lỗi xảy ra, vui lòng thử lại" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!existing) return;
+    setSubmitting(true);
+    try {
+      const resp = await reviewsService.update(existing.id, {
+        rating: Number(ratingInput),
+        comment: commentInput.trim(),
+      });
+      if (resp?.Succeeded) {
+        toast({ title: "Cập nhật review thành công, chờ duyệt" });
+        await refetchMyReview();
+        // Ensure reviews list is refreshed
+        await refetchReviews();
+      } else {
+        toast({ title: resp?.Message || "Không thể cập nhật đánh giá" });
+      }
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 401) toast({ title: "Bạn cần đăng nhập" });
+      else if (status === 400)
+        toast({ title: e?.response?.data?.message || "Dữ liệu không hợp lệ" });
+      else toast({ title: "Đã có lỗi xảy ra, vui lòng thử lại" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!existing) return;
+    setSubmitting(true);
+    try {
+      const resp = await reviewsService.remove(existing.id);
+      if (resp?.Succeeded) {
+        toast({ title: "Đã xóa đánh giá" });
+        await refetchMyReview();
+        await refetchReviews();
+      } else {
+        toast({ title: resp?.Message || "Không thể xóa đánh giá" });
+      }
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 401) toast({ title: "Bạn cần đăng nhập" });
+      else toast({ title: "Đã có lỗi xảy ra, vui lòng thử lại" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ✅ Helper function to clean up malformed base64 URLs
+  const cleanImageUrl = (url: string): string => {
+    if (!url || typeof url !== "string") return url || "";
+    // Loại bỏ ký tự dư thừa ở đầu/cuối như khoảng trắng, dấu nháy, backtick
+    let trimmed = url.trim().replace(/^['"`\s]+|['"`\s]+$/g, "");
+
+    // ✅ If URL contains base64 but doesn't start with data:image/, it's malformed
+    // Example: "https://aifshop-backend.onrender.comdata:image/webp;base64,..."
+    // Example: "http://localhost:7109data:image/webp;base64,..."
+    if (trimmed.includes("data:image/") && !trimmed.startsWith("data:image/")) {
+      // Extract base64 part using regex - more comprehensive pattern
+      // Matches: data:image/[type];base64,[base64data] (handles multiline base64)
+      const base64Match = trimmed.match(
+        /data:image\/[a-zA-Z0-9+]+;base64,[A-Za-z0-9+/=\s]+/,
+      );
+      if (base64Match) {
+        const cleaned = base64Match[0].replace(/\s+/g, ""); // Remove any whitespace in base64
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "🧹 Cleaned malformed URL in Detail:",
+            trimmed.substring(0, 60) + "... → base64",
+          );
+        }
+        return cleaned;
+      }
+      // Fallback: try to find data:image/ and extract everything after it
+      const dataImageIndex = trimmed.indexOf("data:image/");
+      if (dataImageIndex > 0) {
+        const extracted = trimmed.substring(dataImageIndex);
+        // Take until we hit a quote, whitespace, or end of string (but keep base64 data)
+        const endMatch = extracted.match(
+          /^data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/,
+        );
+        if (endMatch) {
+          if (process.env.NODE_ENV === "development") {
+            console.log(
+              "🧹 Cleaned malformed URL (fallback) in Detail:",
+              trimmed.substring(0, 60) + "... → base64",
+            );
+          }
+          return endMatch[0];
+        }
+      }
+    }
+
+    // ✅ Handle URLs that might have http/https prefix incorrectly combined
+    // Check if it looks like a URL but has invalid characters
+    if (trimmed.startsWith("http") && trimmed.includes("data:image")) {
+      // Try to extract just the base64 part
+      const base64Index = trimmed.indexOf("data:image/");
+      if (base64Index > 0) {
+        const base64Part = trimmed.substring(base64Index);
+        const base64Match = base64Part.match(
+          /^data:image\/[a-zA-Z0-9+]+;base64,[A-Za-z0-9+/=\s]+/,
+        );
+        if (base64Match) {
+          return base64Match[0].replace(/\s+/g, "");
+        }
+      }
+    }
+
+    // Cuối cùng, trả lại chuỗi đã loại bỏ ký tự dư
+    return trimmed;
+  };
+
   const images: string[] = useMemo((): string[] => {
     // Debug logging
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log("Product data for images:", product);
       console.log("product.imageUrls:", product?.imageUrls);
       console.log("product.productImages:", product?.productImages);
     }
-    
+
+    // Helper to get API base (without trailing slash). Prefer axiosClient default baseURL when present.
+    const getApiBase = () => {
+      try {
+        const base = axiosClient?.defaults?.baseURL;
+        if (base && typeof base === "string") return base.replace(/\/+$/g, "");
+      } catch {}
+      // Fallback to current origin
+      return window.location.origin.replace(/\/+$/g, "");
+    };
+
     const normalize = (arr: any[]): string[] =>
       (arr || [])
         .map((i: any) => {
           if (!i) return null as any;
           if (typeof i === "string") {
+            // ✅ Clean up malformed URLs first
+            const cleaned = cleanImageUrl(i);
             // Validate string URL or base64
-            const trimmed = i.trim();
-            if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
-              return trimmed;
+            if (
+              cleaned &&
+              (cleaned.startsWith("http") ||
+                cleaned.startsWith("data:image") ||
+                cleaned.startsWith("/"))
+            ) {
+              return cleaned;
+            }
+            // If cleaned looks like a bare filename (e.g. "79c0c4d76136...webp"), build full URL using API base
+            if (cleaned && /^[\w\-]+\.[a-zA-Z]{2,6}$/.test(cleaned)) {
+              const apiBase = getApiBase();
+              return `${apiBase}/uploads/products/${cleaned.replace(/^\/+/, "")}`;
             }
             return null;
           }
-          const url = i.url || i.imageUrl || i.src || i.path || i.Location || null;
-          if (url && typeof url === 'string') {
-            const trimmed = url.trim();
-            if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
-              return trimmed;
+          // Accept a variety of common keys the backend might use for images
+          const url =
+            i.url ||
+            i.imageUrl ||
+            i.src ||
+            i.path ||
+            i.Location ||
+            i.fileName ||
+            i.filename ||
+            i.name ||
+            i.blobName ||
+            i.key ||
+            null;
+          if (url && typeof url === "string") {
+            // ✅ Clean up malformed URLs first
+            const cleaned = cleanImageUrl(url);
+            if (
+              cleaned &&
+              (cleaned.startsWith("http") ||
+                cleaned.startsWith("data:image") ||
+                cleaned.startsWith("/"))
+            ) {
+              return cleaned;
+            }
+            // If object contains just filename-like property
+            if (cleaned && /^[\w\-]+\.[a-zA-Z]{2,6}$/.test(cleaned)) {
+              const apiBase = getApiBase();
+              return `${apiBase}/uploads/products/${cleaned.replace(/^\/+/, "")}`;
             }
           }
           return null;
@@ -97,39 +410,74 @@ export default function ProductDetail() {
     let imageUrlsArray: string[] = [];
     if (product?.imageUrls && Array.isArray(product.imageUrls)) {
       imageUrlsArray = product.imageUrls
-        .filter((url: any) => {
-          if (!url || typeof url !== 'string') return false;
-          const trimmed = url.trim();
+        .map((url: any) => {
+          if (!url || typeof url !== "string") return null;
+          // ✅ Clean up malformed URLs first
+          const cleaned = cleanImageUrl(url);
           // Accept http URLs, base64 data URLs, or relative paths
-          return trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'));
-        });
+          if (
+            cleaned &&
+            (cleaned.startsWith("http") ||
+              cleaned.startsWith("data:image") ||
+              cleaned.startsWith("/"))
+          ) {
+            return cleaned;
+          }
+          return null;
+        })
+        .filter(Boolean);
     }
 
     // Try other image sources
-    const normalizedImages = normalize(product?.productImages) || normalize(product?.images) || normalize(product?.gallery) || [];
-    
+    const normalizedImages =
+      normalize(product?.productImages) ||
+      normalize(product?.images) ||
+      normalize(product?.gallery) ||
+      [];
+
     // Single image fields
     const singleImages: string[] = [];
-    if (product?.imageUrl && typeof product.imageUrl === 'string') {
-      const trimmed = product.imageUrl.trim();
-      if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
-        singleImages.push(trimmed);
+    if (product?.imageUrl && typeof product.imageUrl === "string") {
+      // ✅ Clean up malformed URLs first
+      const cleaned = cleanImageUrl(product.imageUrl);
+      if (
+        cleaned &&
+        (cleaned.startsWith("http") ||
+          cleaned.startsWith("data:image") ||
+          cleaned.startsWith("/"))
+      ) {
+        singleImages.push(cleaned);
       }
     }
-    if (product?.image && typeof product.image === 'string') {
-      const trimmed = product.image.trim();
-      if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
-        singleImages.push(trimmed);
+    if (product?.image && typeof product.image === "string") {
+      // ✅ Clean up malformed URLs first
+      const cleaned = cleanImageUrl(product.image);
+      if (
+        cleaned &&
+        (cleaned.startsWith("http") ||
+          cleaned.startsWith("data:image") ||
+          cleaned.startsWith("/"))
+      ) {
+        singleImages.push(cleaned);
       }
     }
 
-    const result = imageUrlsArray.length > 0 
-      ? imageUrlsArray 
-      : (normalizedImages.length > 0 
-          ? normalizedImages 
-          : (singleImages.length > 0 ? singleImages : []));
+    // Combine all images, but prioritize base64 images (they're already available)
+    const allImages = [...imageUrlsArray, ...normalizedImages, ...singleImages];
 
-    if (process.env.NODE_ENV === 'development') {
+    // Separate base64 images from HTTP URLs
+    const base64Images = allImages.filter((img) =>
+      img.startsWith("data:image"),
+    );
+    const httpImages = allImages.filter((img) => img.startsWith("http"));
+    const relativeImages = allImages.filter(
+      (img) => img.startsWith("/") && !img.startsWith("data:"),
+    );
+
+    // Prioritize: base64 first (always work), then relative paths, then HTTP URLs
+    const result = [...base64Images, ...relativeImages, ...httpImages];
+
+    if (process.env.NODE_ENV === "development") {
       console.log("Final images array:", result);
     }
 
@@ -137,9 +485,43 @@ export default function ProductDetail() {
   }, [product]);
 
   useEffect(() => {
-    if (images && images.length) setMainImage(images[0]);
+    if (images && images.length) {
+      // Prioritize base64 images for main image (they're always available)
+      const base64Image = images.find((img) => img.startsWith("data:image"));
+      setMainImage(base64Image || images[0]);
+    }
   }, [images]);
 
+  // Tham gia/rời nhóm SignalR, bỏ phụ thuộc trực tiếp vào HubConnectionState
+  // ✅ MOVED BEFORE early returns to ensure consistent hook order
+  useEffect(() => {
+    if (!client || !conversationId) return;
+
+    // Only try to join if SignalR is connected
+    if (state.status !== HubConnectionState.Connected) {
+      // SignalR is not connected, chat will work via polling (handled by ChatContext)
+      return;
+    }
+
+    void client.joinConversation(conversationId).catch((e) => {
+      // Nếu kết nối chưa sẵn sàng hoặc hub chưa xác thực, fallback sang polling
+      console.warn("Join hub group thất bại (sẽ fallback polling):", e);
+    });
+
+    return () => {
+      // Only leave if still connected
+      if (state.status === HubConnectionState.Connected) {
+        void client?.leaveConversation(conversationId).catch(() => undefined);
+      }
+    };
+  }, [client, conversationId, state.status]);
+
+  // Early returns AFTER all hooks are declared
+  if (isLoading) return <div className="p-8">Đang tải...</div>;
+  if (error)
+    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
+
+  // Non-hook derived values (safe to compute after early returns)
   const shop = product?.shop || product?.shopInfo || product?.seller;
 
   const currentPrice = Number(
@@ -165,41 +547,109 @@ export default function ProductDetail() {
     product?.ratingCount ?? product?.reviewsCount ?? product?.totalReviews ?? 0,
   );
 
-  // Early returns AFTER all hooks are declared11
-  if (isLoading) return <div className="p-8">Đang tải...</div>;
-  if (error)
-    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
+  const stockQuantity = Number(
+    product?.stockQuantity ?? product?.stock ?? product?.quantity ?? 0,
+  );
 
-  const handleAddToCart = async () => {
-    if (!initialized) return;
-    if (!isAuthenticated) {
-      toast({ title: "Vui lòng đăng nhập để thêm vào giỏ" });
-      try {
-        window.location.href = "/login";
-      } catch {}
-      return;
+  // Helper lấy sellerId từ payload hiện có hoặc gọi Shop API
+  const getSellerUserId = async (): Promise<string | null> => {
+    const inline =
+      (product?.sellerId as string | undefined) ??
+      (product?.shop?.sellerId as string | undefined) ??
+      (product?.shopId as string | undefined) ??
+      (product?.shop?.id as string | undefined) ??
+      null;
+
+    // Nếu inline đã là sellerId → trả luôn
+    if (inline && inline.length > 20) return inline; // thường GUID dài
+    // Nếu inline thực chất là shopId → gọi shopService để lấy sellerId
+    const shopId =
+      (product?.shopId as string | undefined) ??
+      (product?.shop?.id as string | undefined) ??
+      inline ??
+      null;
+
+    if (!shopId) return null;
+    try {
+      const shop = await shopService.getById(shopId);
+      return shop?.sellerId ?? null;
+    } catch {
+      return null;
     }
-    if (!id) return;
-    const quantity = Math.max(1, Number(qty || 1));
-    await mutateAdd({ productId: id, quantity });
   };
 
-  const handleSendMessage = () => {
+  const openChat = async () => {
+    setChatOpen(true);
+    if (!isEnabled) enableChat();
+
+    const sellerUserId = await getSellerUserId();
+    if (!sellerUserId) {
+      console.warn("Không tìm thấy sellerUserId để tạo hội thoại");
+      return;
+    }
+
+    try {
+      const resp = await chatService.createConversation({
+        targetUserId: sellerUserId,
+      });
+      if (resp.succeeded && resp.data?.conversationId) {
+        const cid = resp.data.conversationId;
+        setConversationId(cid);
+        await loadConversation(cid);
+        await markAsRead(cid);
+      } else {
+        console.warn("Create conversation response:", resp);
+        // Try to get existing conversation if creation failed
+        // The backend might return existing conversation in error response
+        if (resp.data?.conversationId) {
+          setConversationId(resp.data.conversationId);
+          await loadConversation(resp.data.conversationId);
+        }
+      }
+    } catch (e: any) {
+      console.error("Create/join conversation failed:", e);
+      // Log detailed error for debugging
+      if (e?.response?.data) {
+        console.error("Error details:", e.response.data);
+      }
+      // If it's a 400 error, the conversation might already exist
+      // Try to load conversations and find the existing one
+      if (e?.response?.status === 400) {
+        console.info(
+          "Conversation might already exist. Checking existing conversations...",
+        );
+        try {
+          const listResp = await chatService.getConversations(1, 50);
+          const items = listResp.data?.data || [];
+          const existing = items.find((c: any) => {
+            const pid = c.partnerId ?? c.PartnerId;
+            return pid && String(pid) === String(sellerUserId);
+          });
+          if (existing?.conversationId) {
+            const cid = existing.conversationId;
+            setConversationId(cid);
+            await loadConversation(cid);
+            await markAsRead(cid);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.warn("Fallback conversation lookup failed:", fallbackErr);
+        }
+      }
+    }
+  };
+
+  const displayedMessages = conversationId
+    ? chatMessages[conversationId] || []
+    : [];
+
+  const handleSendMessage = async () => {
     const text = chatInput.trim();
-    if (!text) return;
-    setMessages((prev) => [...prev, { from: "me", text, time: Date.now() }]);
-    setChatInput("");
-    // No API yet – placeholder auto-reply
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          from: "shop",
-          text: "Cảm ơn bạn! Tính năng chat sẽ sớm được kích hoạt.",
-          time: Date.now(),
-        },
-      ]);
-    }, 400);
+    if (!text || !conversationId) return;
+    const ok = await sendMessage(conversationId, text, "Text", id ?? undefined);
+    if (ok) {
+      setChatInput("");
+    }
   };
 
   return (
@@ -217,11 +667,71 @@ export default function ProductDetail() {
                   src={mainImage}
                   alt={product?.name}
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      "/placeholder.svg";
-                    (e.currentTarget as HTMLImageElement).onerror = null;
+                    const target = e.currentTarget as HTMLImageElement;
+                    // Use attempt counter to try a couple of fallbacks before final placeholder
+                    const attempts = Number(target.dataset.attempts || "0");
+                    target.dataset.attempts = String(attempts + 1);
+
+                    // 1) If there is a base64 image available, use it immediately
+                    if (images.length > 0) {
+                      const base64Image = images.find(
+                        (img) =>
+                          img.startsWith("data:image") && img !== mainImage,
+                      );
+                      if (base64Image) {
+                        target.src = base64Image;
+                        setMainImage(base64Image);
+                        return;
+                      }
+                    }
+
+                    // 2) For HTTP/HTTPS URLs, try swapping protocol (http <-> https) on first attempt
+                    const src = target.src || "";
+                    if (attempts === 0 && /^https?:\/\//i.test(src)) {
+                      try {
+                        const alt = src.replace(
+                          /^https?:/,
+                          window.location.protocol,
+                        );
+                        // If swapping changes the url, try it
+                        if (alt && alt !== src) {
+                          target.src = alt;
+                          return;
+                        }
+                      } catch {}
+                    }
+
+                    // 3) Try rebuilding URL from filename using various known path prefixes
+                    try {
+                      const fn = src.split("/").pop();
+                      if (fn) {
+                        const DEFAULT_BASE =
+                          "https://aifshop-backend.onrender.com";
+                        const apiBase =
+                          axiosClient?.defaults?.baseURL || DEFAULT_BASE;
+                        const base = String(apiBase).replace(/\/+$/g, "");
+                        const candidates = [
+                          `${base}/uploads/products/${fn}`,
+                          `${base}/uploads/${fn}`,
+                          `/uploads/products/${fn}`,
+                          `/uploads/${fn}`,
+                          `/images/products/${fn}`,
+                        ];
+                        const next =
+                          candidates[attempts] ||
+                          candidates.find((c) => c !== src);
+                        if (next && next !== src) {
+                          target.src = next;
+                          return;
+                        }
+                      }
+                    } catch {}
+
+                    // Final fallback after attempts
+                    target.src = "/placeholder.svg";
+                    target.onerror = null;
                   }}
-                  className="w-full h-[520px] object-cover transition-transform duration-300 ease-out group-hover:scale-105 cursor-zoom-in"
+                  className="w-full h-[520px] object-contain bg-white transition-transform duration-300 ease-out group-hover:scale-105 cursor-zoom-in"
                 />
               </motion.div>
 
@@ -245,10 +755,74 @@ export default function ProductDetail() {
                       <img
                         src={img}
                         alt={`thumb-${idx}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain bg-white"
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src =
-                            "/placeholder.svg";
+                          const target = e.currentTarget as HTMLImageElement;
+                          // Use attempt counter to try a couple of fallbacks before final placeholder
+                          const attempts = Number(
+                            target.dataset.attempts || "0",
+                          );
+                          target.dataset.attempts = String(attempts + 1);
+
+                          // If there's any base64 image, use it
+                          if (
+                            img &&
+                            !img.startsWith("data:image") &&
+                            images.length > 0
+                          ) {
+                            const base64Image = images.find((im) =>
+                              im.startsWith("data:image"),
+                            );
+                            if (base64Image) {
+                              target.src = base64Image;
+                              return;
+                            }
+                          }
+
+                          const src = target.src || img || "";
+                          // Try swapping protocol first
+                          if (attempts === 0 && /^https?:\/\//i.test(src)) {
+                            try {
+                              const alt = src.replace(
+                                /^https?:/,
+                                window.location.protocol,
+                              );
+                              if (alt && alt !== src) {
+                                target.src = alt;
+                                return;
+                              }
+                            } catch {}
+                          }
+
+                          // Try rebuilding URL from filename with multiple known prefixes
+                          try {
+                            const fn = src.split("/").pop();
+                            if (fn) {
+                              const DEFAULT_BASE =
+                                "https://aifshop-backend.onrender.com";
+                              const apiBase =
+                                axiosClient?.defaults?.baseURL || DEFAULT_BASE;
+                              const base = String(apiBase).replace(/\/+$/g, "");
+                              const candidates = [
+                                `${base}/uploads/products/${fn}`,
+                                `${base}/uploads/${fn}`,
+                                `/uploads/products/${fn}`,
+                                `/uploads/${fn}`,
+                                `/images/products/${fn}`,
+                              ];
+                              const next =
+                                candidates[attempts] ||
+                                candidates.find((c) => c !== src);
+                              if (next && next !== src) {
+                                target.src = next;
+                                return;
+                              }
+                            }
+                          } catch {}
+
+                          // Final fallback to placeholder
+                          target.src = "/placeholder.svg";
+                          target.onerror = null;
                         }}
                       />
                     </button>
@@ -274,36 +848,42 @@ export default function ProductDetail() {
                   </div>
                 )}
               </div>
-
               {(rating > 0 || ratingCount > 0) && (
                 <div className="mt-2 text-sm text-slate-600">
                   ⭐ {rating.toFixed(1)} / 5{" "}
                   {ratingCount ? `(${ratingCount})` : ""}
                 </div>
               )}
-
-              <div className="mt-6 flex items-center gap-4">
-                <input
-                  type="number"
-                  value={qty}
-                  onChange={(e) =>
-                    setQty(Math.max(1, Number(e.target.value || 1)))
-                  }
-                  min={1}
-                  className="w-20 px-3 py-2 border rounded-md"
-                />
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isPending}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#2563EB] to-[#3B82F6] text-white disabled:opacity-60 hover:shadow-md transition"
-                >
-                  <ShoppingCart size={18} /> Thêm vào giỏ
-                </button>
+              <div className="mt-6">
+                {(user?.role === "Seller" || user?.role === "Admin") && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertTitle>
+                      {user?.role === "Admin"
+                        ? "Admin không thể mua hàng hoặc chat"
+                        : "Seller không thể mua hàng"}
+                    </AlertTitle>
+                    <AlertDescription>
+                      Vui lòng dùng tài khoản Khách hàng để mua hoặc nhắn tin.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {id && (
+                  <AddToCartButton
+                    productId={id}
+                    stockQuantity={stockQuantity}
+                    className="mb-4"
+                    disabled={user?.role === "Seller" || user?.role === "Admin"}
+                  />
+                )}
                 <Dialog open={chatOpen} onOpenChange={setChatOpen}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
                       className="inline-flex items-center gap-2"
+                      onClick={openChat}
+                      disabled={
+                        user?.role === "Seller" || user?.role === "Admin"
+                      }
                     >
                       <MessageCircle size={18} /> Chat với shop
                     </Button>
@@ -314,22 +894,28 @@ export default function ProductDetail() {
                     </DialogHeader>
                     <div className="flex flex-col gap-3">
                       <div className="h-64 border rounded-md p-3 overflow-y-auto bg-slate-50">
-                        {messages.map((m, idx) => (
-                          <div
-                            key={idx}
-                            className={`mb-2 flex ${m.from === "me" ? "justify-end" : "justify-start"}`}
-                          >
-                            <div
-                              className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
-                                m.from === "me"
-                                  ? "bg-rose-600 text-white"
-                                  : "bg-white border"
-                              }`}
-                            >
-                              {m.text}
-                            </div>
+                        {displayedMessages.length === 0 ? (
+                          <div className="text-sm text-slate-500">
+                            Chưa có tin nhắn
                           </div>
-                        ))}
+                        ) : (
+                          displayedMessages.map((m, idx) => (
+                            <div
+                              key={m.messageId ?? idx}
+                              className={`mb-2 flex ${m.senderId === (product?.currentUserId || "") ? "justify-end" : "justify-start"}`}
+                            >
+                              <div
+                                className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
+                                  m.senderId === (product?.currentUserId || "")
+                                    ? "bg-rose-600 text-white"
+                                    : "bg-white border"
+                                }`}
+                              >
+                                {m.content}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Input
@@ -339,12 +925,13 @@ export default function ProductDetail() {
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              handleSendMessage();
+                              void handleSendMessage();
                             }
                           }}
                         />
                         <Button
                           onClick={handleSendMessage}
+                          disabled={!conversationId || !chatInput.trim()}
                           className="inline-flex items-center gap-2"
                         >
                           <Send size={16} /> Gửi
@@ -354,7 +941,6 @@ export default function ProductDetail() {
                   </DialogContent>
                 </Dialog>
               </div>
-
               <div className="mt-6 border-t pt-4">
                 {shop && (
                   <div className="flex items-center justify-between">
@@ -393,11 +979,10 @@ export default function ProductDetail() {
 
           <div className="mt-10">
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <Tabs defaultValue="desc">
+              <Tabs defaultValue={initialTab}>
                 <TabsList>
                   <TabsTrigger value="desc">Mô tả</TabsTrigger>
                   <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
-                  <TabsTrigger value="related">Sản phẩm tương tự</TabsTrigger>
                 </TabsList>
                 <TabsContent value="desc" className="mt-4">
                   <div className="prose max-w-none text-slate-700">
@@ -405,10 +990,67 @@ export default function ProductDetail() {
                   </div>
                 </TabsContent>
                 <TabsContent value="reviews" className="mt-4 text-slate-600">
-                  Tính năng đánh giá sẽ cập nhật sau.
-                </TabsContent>
-                <TabsContent value="related" className="mt-4 text-slate-600">
-                  Đang phát triển danh sách sản phẩm tương tự.
+                  <div className="space-y-6">
+                    {/* Reviews list - chỉ hiển thị đánh giá đã duyệt */}
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold">Đánh giá sản phẩm</div>
+                    </div>
+                    {loadingReviews ? (
+                      <div className="text-sm text-slate-500">
+                        Đang tải danh sách đánh giá...
+                      </div>
+                    ) : reviewsPaged &&
+                      reviewsPaged.data &&
+                      reviewsPaged.data.length > 0 ? (
+                      <div className="space-y-3">
+                        {reviewsPaged.data.map((r: ReviewDto) => (
+                          <div key={r.id} className="rounded-xl border p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="text-sm font-medium">
+                                {r.userName || "Người dùng"}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {new Date(r.createdAt).toLocaleString("vi-VN")}
+                              </div>
+                            </div>
+                            <div className="mt-1 text-sm">⭐ {r.rating}/5</div>
+                            <div className="mt-1 text-slate-700 text-sm">
+                              {r.comment}
+                            </div>
+                          </div>
+                        ))}
+                        {/* Pagination */}
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="text-xs text-slate-500">
+                            Trang {reviewsPaged.page}/{reviewsPaged.totalPages}{" "}
+                            • Tổng {reviewsPaged.totalCount}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              disabled={!reviewsPaged.hasPreviousPage}
+                              onClick={() =>
+                                setReviewsPage((p) => Math.max(1, p - 1))
+                              }
+                            >
+                              Trước
+                            </Button>
+                            <Button
+                              variant="outline"
+                              disabled={!reviewsPaged.hasNextPage}
+                              onClick={() => setReviewsPage((p) => p + 1)}
+                            >
+                              Sau
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">
+                        Chưa có đánh giá nào.
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
@@ -416,7 +1058,7 @@ export default function ProductDetail() {
         </div>
 
         <aside className="hidden lg:block">
-          <div className="bg-white rounded-2xl p-6 shadow-md">
+          <div className="bg-white rounded-2xl p-6 shadow-md h-[200px] overflow-y-auto">
             <h4 className="font-semibold mb-2">Thông tin nhanh</h4>
             <p className="text-sm text-slate-600">
               Tồn kho:{" "}
@@ -430,6 +1072,68 @@ export default function ProductDetail() {
                 {product?.categoryName || product?.category || "-"}
               </span>
             </p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-md mt-6 h-[390px] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold">Sản phẩm tương tự</h4>
+              {(() => {
+                const catId = product?.categoryId ?? null;
+                const globalCatId = (product as any)?.globalCategoryId ?? null;
+                const href = catId
+                  ? `/products?categoryId=${encodeURIComponent(String(catId))}`
+                  : globalCatId
+                    ? `/products?gc=${encodeURIComponent(String(globalCatId))}`
+                    : `/products`;
+                return (
+                  <Link
+                    to={href}
+                    className="text-xs text-rose-600 hover:underline"
+                  >
+                    Xem thêm
+                  </Link>
+                );
+              })()}
+            </div>
+            {loadingAllProducts ? (
+              <div className="text-xs text-slate-500">Đang tải...</div>
+            ) : similarProducts && similarProducts.length > 0 ? (
+              <div className="space-y-2">
+                {similarProducts.map((p: any) => {
+                  const imgSrc = getProductImageUrl(p);
+                  return (
+                    <Link
+                      key={p.id}
+                      to={`/products/${p.id}`}
+                      className="flex items-center gap-3 group"
+                    >
+                      <div className="w-16 h-16 rounded-md bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={imgSrc}
+                          alt={p?.name || "product"}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src =
+                              "/placeholder.svg";
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-900 truncate group-hover:text-rose-700">
+                          {p?.name}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-0.5">
+                          {(p?.price ?? 0).toLocaleString("vi-VN")}₫
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">
+                Không có sản phẩm tương tự.
+              </div>
+            )}
           </div>
         </aside>
       </div>

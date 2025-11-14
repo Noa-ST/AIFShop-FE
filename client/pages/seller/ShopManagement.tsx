@@ -20,7 +20,7 @@ export default function ShopManagement() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl shadow-md p-8 lg:p-10"
+      className="w-full bg-white rounded-2xl shadow-md p-6 lg:p-8"
     >
       <Outlet />
     </motion.div>

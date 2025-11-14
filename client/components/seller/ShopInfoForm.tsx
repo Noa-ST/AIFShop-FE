@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, updateShop } from "@/lib/api";
@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Store, Star, Image as ImageIcon, Save } from "lucide-react";
+import { Store, Star, Image as ImageIcon, Save, Upload, X } from "lucide-react";
 import { motion } from "framer-motion";
+import { CascadeAddressSelect } from "@/components/CascadeAddressSelect";
+import ImageUploader from "@/utils/imageUploader";
 
 export default function ShopInfoForm() {
   const { user, initialized } = useAuth();
@@ -22,6 +24,7 @@ export default function ShopInfoForm() {
       return await fetchShopBySeller(sellerId);
     },
     enabled: !!sellerId,
+    staleTime: 5 * 60 * 1000, // Cache 5 phút - shop data không thay đổi thường xuyên
   });
 
   const normalized = shop && (Array.isArray(shop) ? shop[0] : shop);
@@ -30,7 +33,13 @@ export default function ShopInfoForm() {
     name: "",
     description: "",
     logo: "",
+    street: "",
+    city: "",
+    country: "Việt Nam",
   });
+  const [addrLabels, setAddrLabels] = useState<{ province?: string; district?: string; ward?: string }>({});
+  const [logoUploading, setLogoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (normalized) {
@@ -38,6 +47,9 @@ export default function ShopInfoForm() {
         name: normalized.name || "",
         description: normalized.description || "",
         logo: normalized.logo || "",
+        street: normalized.street || "",
+        city: normalized.city || "",
+        country: normalized.country || "Việt Nam",
       });
     }
   }, [normalized]);
@@ -69,17 +81,84 @@ export default function ShopInfoForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Compose full street with ward/district if provided via selector
+    const ward = addrLabels.ward?.trim();
+    const district = addrLabels.district?.trim();
+    let composedStreet = form.street?.trim() || "";
+    const partsToAppend = [ward, district].filter(Boolean);
+    if (partsToAppend.length) {
+      const exist = partsToAppend.every((p) => composedStreet.includes(String(p)));
+      if (!exist) composedStreet = composedStreet ? `${composedStreet}, ${partsToAppend.join(", ")}` : partsToAppend.join(", ");
+    }
+
     const payload = {
       ...form,
+      street: composedStreet,
       id: normalized?.id || normalized?._id,
       sellerId,
     };
     mutation.mutate(payload);
   };
 
-  const handleLogoChange = () => {
-    const url = prompt("Dán URL logo mới:");
-    if (url) setForm((f) => ({ ...f, logo: url }));
+  // ✅ Handler cho upload logo file
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const validation = ImageUploader.validateImage(file);
+    if (!validation.valid) {
+      toast({
+        title: "Lỗi",
+        description: validation.error || "File không hợp lệ",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLogoUploading(true);
+    try {
+      // Compress image (optional - giảm kích thước)
+      const compressedFile = await ImageUploader.compressImage(file, 800, 0.85); // Max width 800px, quality 85%
+      
+      // Convert to Base64
+      const base64 = await ImageUploader.fileToBase64(compressedFile);
+      
+      setForm((f) => ({ ...f, logo: base64 }));
+      toast({
+        title: "Thành công",
+        description: "Đã tải logo lên. Nhớ nhấn 'Lưu thay đổi' để lưu.",
+      });
+    } catch (err: any) {
+      console.error("Error uploading logo:", err);
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải logo. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setLogoUploading(false);
+      // Reset input để cho phép chọn lại cùng file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // ✅ Handler cho paste URL logo
+  const handleLogoUrlChange = () => {
+    const url = prompt("Dán URL logo (hoặc để trống để hủy):");
+    if (url && url.trim()) {
+      setForm((f) => ({ ...f, logo: url.trim() }));
+    }
+  };
+
+  // ✅ Handler để xóa logo
+  const handleRemoveLogo = () => {
+    setForm((f) => ({ ...f, logo: "" }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   if (!initialized) {
@@ -101,7 +180,7 @@ export default function ShopInfoForm() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-4xl mx-auto"
+      className="w-full"
     >
       {/* Header */}
       <div className="mb-8">
@@ -139,6 +218,16 @@ export default function ShopInfoForm() {
                 alt={form.name || "Shop logo"}
                 className="relative w-24 h-24 rounded-full border-4 border-white object-cover shadow-xl"
               />
+              {form.logo && (
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg"
+                  title="Xóa logo"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
               {!form.logo && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-full">
                   <ImageIcon className="w-8 h-8 text-gray-400" />
@@ -146,17 +235,38 @@ export default function ShopInfoForm() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleLogoChange}
-                className="border-2 border-gray-200 hover:border-[#e91e63] hover:text-[#e91e63] transition-colors mb-2"
-              >
-                <ImageIcon className="w-4 h-4 mr-2" />
-                Thay đổi Logo
-              </Button>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleLogoFileChange}
+                  disabled={logoUploading}
+                  className="hidden"
+                  id="logo-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={logoUploading}
+                  className="border-2 border-gray-200 hover:border-[#e91e63] hover:text-[#e91e63] transition-colors flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  {logoUploading ? "Đang tải..." : "Tải ảnh lên"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleLogoUrlChange}
+                  disabled={logoUploading}
+                  className="border-2 border-gray-200 hover:border-[#e91e63] hover:text-[#e91e63] transition-colors"
+                >
+                  Dán URL
+                </Button>
+              </div>
               <p className="text-xs text-gray-500">
-                Hỗ trợ JPG, PNG hoặc URL hình ảnh
+                Hỗ trợ JPG, PNG hoặc URL hình ảnh. Tối đa 5MB.
               </p>
             </div>
           </div>
@@ -209,6 +319,68 @@ export default function ShopInfoForm() {
               className="border-2 border-gray-200 focus:border-[#e91e63] focus:ring-[#e91e63]/20 rounded-xl transition-all resize-none"
             />
           </motion.div>
+
+          {/* Address - simple fields: street, city, country */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="street" className="text-sm font-semibold text-gray-700">
+                Địa chỉ đường
+              </Label>
+              <Input
+                name="street"
+                id="street"
+                value={form.street}
+                onChange={handleChange}
+                placeholder="Số nhà + Tên đường, phường/xã, quận/huyện"
+                className="h-12 border-2 border-gray-200 focus:border-[#e91e63] focus:ring-[#e91e63]/20 rounded-xl transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-700">
+                Tỉnh/Thành phố
+              </Label>
+              <CascadeAddressSelect
+                onChange={(addr) => {
+                  setForm((f) => ({ ...f, city: addr.labels.province || "" }));
+                  setAddrLabels(addr.labels);
+                }}
+              />
+              {form.city ? (
+                <p className="text-xs text-slate-500">Đã chọn: {form.city}. Có thể ghi phường/xã, quận/huyện ở ô địa chỉ đường.</p>
+              ) : null}
+            </div>
+            <div className="space-y-2 md:col-span-3">
+              <Label htmlFor="country" className="text-sm font-semibold text-gray-700">
+                Quốc gia
+              </Label>
+              <Input
+                name="country"
+                id="country"
+                value={form.country}
+                onChange={handleChange}
+                placeholder="Việt Nam"
+                className="h-12 border-2 border-gray-200 focus:border-[#e91e63] focus:ring-[#e91e63]/20 rounded-xl transition-all"
+              />
+            </div>
+          </motion.div>
+
+          {/* Current address display */}
+          <div className="text-xs text-slate-500 -mt-2">
+            Địa chỉ hiện tại: {[
+              form.street?.trim(),
+              addrLabels.ward?.trim(),
+              addrLabels.district?.trim(),
+              form.city?.trim(),
+              form.country?.trim(),
+            ]
+              .filter(Boolean)
+              .join(", ") || "(chưa có)"}
+          </div>
 
           {/* Rating */}
           <motion.div

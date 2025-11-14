@@ -15,3 +15,30 @@ export function formatCurrencyVND(value: number | string | null | undefined): st
     return `${amount}₫`;
   }
 }
+
+// Format price with currency symbol (more flexible)
+export function formatPrice(price: number | string | null | undefined): string {
+  const amount = typeof price === "string" ? Number(price) : price ?? 0;
+  if (Number.isNaN(amount as number)) return "0₫";
+  
+  try {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount as number);
+  } catch {
+    return formatCurrencyVND(amount);
+  }
+}
+
+// Format price without currency symbol (just number with separators)
+export function formatPriceNumber(price: number | string | null | undefined): string {
+  const amount = typeof price === "string" ? Number(price) : price ?? 0;
+  if (Number.isNaN(amount as number)) return "0";
+  
+  try {
+    return new Intl.NumberFormat('vi-VN').format(amount as number);
+  } catch {
+    return String(amount);
+  }
+}

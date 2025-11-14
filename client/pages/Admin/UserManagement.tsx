@@ -58,145 +58,201 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Mock data interface - replace with actual API types
+// API Response Types
 interface User {
   id: string;
   email: string;
-  fullname: string;
-  role: "Admin" | "Seller" | "Customer";
-  status: "active" | "inactive" | "pending";
-  avatar?: string;
+  fullName: string;
+  userName: string;
+  roles: string[];
+  isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
-  shop?: {
-    id: string;
-    name: string;
-    status: "active" | "inactive" | "pending";
-  };
-  stats?: {
-    totalOrders?: number;
-    totalSpent?: number;
-    totalProducts?: number;
-  };
 }
 
-// Mock data - replace with actual API calls
-const mockUsers: User[] = [
-  {
-    id: "1",
-    email: "admin@aifshop.com",
-    fullname: "Admin User",
-    role: "Admin",
-    status: "active",
-    createdAt: "2024-01-01",
-    lastLoginAt: "2024-01-20",
+interface PagedResult<T> {
+  data: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+// API Service for user management
+const userApi = {
+  async getUsers(
+    page: number = 1,
+    pageSize: number = 20,
+    role?: string,
+    isActive?: boolean,
+    search?: string,
+  ): Promise<PagedResult<User>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    });
+    if (role && role !== "all") params.append("role", role);
+    if (isActive !== undefined) params.append("isActive", isActive.toString());
+    if (search) params.append("search", search);
+
+    const response = await fetch(`/api/admin/users?${params}`);
+    if (!response.ok) throw new Error("Failed to fetch users");
+    return response.json();
   },
-  {
-    id: "2",
-    email: "seller1@aifshop.com",
-    fullname: "Nguyễn Văn A",
-    role: "Seller",
-    status: "active",
-    createdAt: "2024-01-05",
-    lastLoginAt: "2024-01-19",
-    shop: {
-      id: "shop1",
-      name: "TechStore",
-      status: "active",
-    },
-    stats: {
-      totalProducts: 25,
-    },
+
+  async updateUserStatus(userId: string, isActive: boolean) {
+    const response = await fetch(`/api/admin/users/${userId}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive }),
+    });
+    if (!response.ok) throw new Error("Failed to update user status");
+    return response.json();
   },
-  {
-    id: "3",
-    email: "customer1@aifshop.com",
-    fullname: "Trần Thị B",
-    role: "Customer",
-    status: "active",
-    createdAt: "2024-01-10",
-    lastLoginAt: "2024-01-18",
-    stats: {
-      totalOrders: 15,
-      totalSpent: 2500000,
-    },
+
+  async updateUserRole(userId: string, role: string) {
+    const response = await fetch(`/api/admin/users/${userId}/role`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    if (!response.ok) throw new Error("Failed to update user role");
+    return response.json();
   },
-  {
-    id: "4",
-    email: "seller2@aifshop.com",
-    fullname: "Lê Văn C",
-    role: "Seller",
-    status: "pending",
-    createdAt: "2024-01-15",
-    shop: {
-      id: "shop2",
-      name: "FashionStore",
-      status: "pending",
-    },
-    stats: {
-      totalProducts: 0,
-    },
+
+  async deleteUser(userId: string) {
+    const response = await fetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Failed to delete user");
+    return response.json();
   },
-  {
-    id: "5",
-    email: "customer2@aifshop.com",
-    fullname: "Phạm Thị D",
-    role: "Customer",
-    status: "inactive",
-    createdAt: "2024-01-12",
-    lastLoginAt: "2024-01-10",
-    stats: {
-      totalOrders: 3,
-      totalSpent: 500000,
-    },
-  },
-];
+};
 
 export default function AdminUserManagement() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedUserForRoleChange, setSelectedUserForRoleChange] =
+    useState<User | null>(null);
+  const [newRole, setNewRole] = useState<string>("Customer");
 
-  // Mock query - replace with actual API call
-  const { data: users = mockUsers, isLoading } = useQuery({
-    queryKey: ["adminUsers", searchTerm, roleFilter, statusFilter],
-    queryFn: async () => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return mockUsers;
-    },
+  const pageSize = 20;
+
+  // Fetch users from backend API
+  const {
+    data: usersData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["adminUsers", currentPage, searchTerm, roleFilter],
+    queryFn: () =>
+      userApi.getUsers(
+        currentPage,
+        pageSize,
+        roleFilter !== "all" ? roleFilter : undefined,
+        undefined,
+        searchTerm || undefined,
+      ),
+    staleTime: 30000,
   });
 
-  // Mock mutation for user status update
+  const users = usersData?.data || [];
+  const totalCount = usersData?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // Mutation for updating user status
   const updateUserStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return { id, status };
-    },
+    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
+      userApi.updateUserStatus(userId, isActive),
     onSuccess: () => {
       toast({
         title: "Thành công",
         description: "Đã cập nhật trạng thái người dùng.",
       });
-      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      refetch();
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
-        description: "Cập nhật trạng thái thất bại.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Cập nhật trạng thái thất bại.",
         variant: "destructive",
       });
     },
   });
 
-  const handleStatusChange = (userId: string, newStatus: string) => {
-    updateUserStatusMutation.mutate({ id: userId, status: newStatus });
+  // Mutation for updating user role
+  const updateUserRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      userApi.updateUserRole(userId, role),
+    onSuccess: () => {
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật vai trò người dùng.",
+      });
+      setSelectedUserForRoleChange(null);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Lỗi",
+        description:
+          error instanceof Error ? error.message : "Cập nhật vai trò thất bại.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for deleting user
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) => userApi.deleteUser(userId),
+    onSuccess: () => {
+      toast({
+        title: "Thành công",
+        description: "Đã xoá người dùng.",
+      });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Lỗi",
+        description:
+          error instanceof Error ? error.message : "Xoá người dùng thất bại.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStatusToggle = (userId: string, currentStatus: boolean) => {
+    updateUserStatusMutation.mutate({ userId, isActive: !currentStatus });
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
+  const handleRoleChange = (user: User) => {
+    setSelectedUserForRoleChange(user);
+    setNewRole(user.roles[0] || "Customer");
+  };
+
+  const handleConfirmRoleChange = () => {
+    if (selectedUserForRoleChange) {
+      updateUserRoleMutation.mutate({
+        userId: selectedUserForRoleChange.id,
+        role: newRole,
+      });
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (confirm("Bạn chắc chắn muốn xoá người dùng này?")) {
+      deleteUserMutation.mutate(userId);
+    }
+  };
+
+  const getRoleBadge = (roles: string[]) => {
+    const primaryRole = roles[0] || "Customer";
+    switch (primaryRole) {
       case "Admin":
         return (
           <Badge className="bg-purple-100 text-purple-800">
@@ -219,65 +275,43 @@ export default function AdminUserManagement() {
           </Badge>
         );
       default:
-        return <Badge variant="secondary">{role}</Badge>;
+        return <Badge variant="secondary">{primaryRole}</Badge>;
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return (
-          <Badge className="bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Hoạt động
-          </Badge>
-        );
-      case "inactive":
-        return (
-          <Badge className="bg-red-100 text-red-800">
-            <XCircle className="w-3 h-3 mr-1" />
-            Không hoạt động
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Chờ duyệt
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+  const getStatusBadge = (isActive: boolean) => {
+    if (isActive) {
+      return (
+        <Badge className="bg-green-100 text-green-800">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Hoạt động
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge className="bg-red-100 text-red-800">
+          <XCircle className="w-3 h-3 mr-1" />
+          Không hoạt động
+        </Badge>
+      );
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN");
+    try {
+      return new Date(dateString).toLocaleDateString("vi-VN");
+    } catch {
+      return "N/A";
+    }
   };
-
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString("vi-VN") + "₫";
-  };
-
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    const matchesStatus =
-      statusFilter === "all" || user.status === statusFilter;
-
-    return matchesSearch && matchesRole && matchesStatus;
-  });
 
   const getStats = () => {
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.status === "active").length;
-    const pendingUsers = users.filter((u) => u.status === "pending").length;
-    const sellers = users.filter((u) => u.role === "Seller").length;
-    const customers = users.filter((u) => u.role === "Customer").length;
+    const totalUsers = totalCount;
+    const activeUsers = users.filter((u) => u.isActive).length;
+    const sellers = users.filter((u) => u.roles.includes("Seller")).length;
+    const customers = users.filter((u) => u.roles.includes("Customer")).length;
 
-    return { totalUsers, activeUsers, pendingUsers, sellers, customers };
+    return { totalUsers, activeUsers, sellers, customers };
   };
 
   const stats = getStats();
@@ -294,7 +328,7 @@ export default function AdminUserManagement() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -310,29 +344,7 @@ export default function AdminUserManagement() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Đang hoạt động
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground">Người dùng tích cực</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chờ duyệt</CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingUsers}</div>
-            <p className="text-xs text-muted-foreground">Cần xem xét</p>
-          </CardContent>
-        </Card>
+        {/* Removed Active Users card as requested */}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -390,18 +402,6 @@ export default function AdminUserManagement() {
                 <SelectItem value="Customer">Customer</SelectItem>
               </SelectContent>
             </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="active">Hoạt động</SelectItem>
-                <SelectItem value="pending">Chờ duyệt</SelectItem>
-                <SelectItem value="inactive">Không hoạt động</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -411,7 +411,8 @@ export default function AdminUserManagement() {
         <CardHeader>
           <CardTitle>Danh sách Người dùng</CardTitle>
           <CardDescription>
-            Quản lý và theo dõi tất cả người dùng trên nền tảng.
+            Quản lý và theo dõi tất cả người dùng trên nền tảng. Tổng cộng:{" "}
+            {totalCount} người dùng
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -422,7 +423,7 @@ export default function AdminUserManagement() {
                 <p>Đang tải người dùng...</p>
               </div>
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="h-24 flex items-center justify-center">
               <div className="text-center text-gray-500">
                 <User className="w-12 h-12 mx-auto mb-2 text-gray-300" />
@@ -435,15 +436,13 @@ export default function AdminUserManagement() {
                 <TableRow>
                   <TableHead>Người dùng</TableHead>
                   <TableHead>Vai trò</TableHead>
-                  <TableHead>Shop</TableHead>
-                  <TableHead>Thống kê</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Ngày tạo</TableHead>
                   <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -451,7 +450,7 @@ export default function AdminUserManagement() {
                           <User className="w-5 h-5 text-gray-400" />
                         </div>
                         <div>
-                          <div className="font-medium">{user.fullname}</div>
+                          <div className="font-medium">{user.fullName}</div>
                           <div className="text-sm text-gray-500 flex items-center gap-1">
                             <Mail className="w-3 h-3" />
                             {user.email}
@@ -464,59 +463,8 @@ export default function AdminUserManagement() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{getRoleBadge(user.role)}</TableCell>
-                    <TableCell>
-                      {user.shop ? (
-                        <div>
-                          <div className="font-medium">{user.shop.name}</div>
-                          <Badge
-                            variant={
-                              user.shop.status === "active"
-                                ? "default"
-                                : user.shop.status === "pending"
-                                  ? "secondary"
-                                  : "destructive"
-                            }
-                            className="text-xs"
-                          >
-                            {user.shop.status === "active"
-                              ? "Hoạt động"
-                              : user.shop.status === "pending"
-                                ? "Chờ duyệt"
-                                : "Không hoạt động"}
-                          </Badge>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">Không có</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {user.stats ? (
-                        <div className="space-y-1">
-                          {user.stats.totalOrders && (
-                            <div className="text-sm">
-                              <span className="text-gray-500">Đơn hàng:</span>{" "}
-                              {user.stats.totalOrders}
-                            </div>
-                          )}
-                          {user.stats.totalSpent && (
-                            <div className="text-sm">
-                              <span className="text-gray-500">Chi tiêu:</span>{" "}
-                              {formatCurrency(user.stats.totalSpent)}
-                            </div>
-                          )}
-                          {user.stats.totalProducts && (
-                            <div className="text-sm">
-                              <span className="text-gray-500">Sản phẩm:</span>{" "}
-                              {user.stats.totalProducts}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(user.status)}</TableCell>
+                    <TableCell>{getRoleBadge(user.roles)}</TableCell>
+                    <TableCell>{getStatusBadge(user.isActive)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-gray-500">
                         <Calendar className="w-3 h-3" />
@@ -524,57 +472,55 @@ export default function AdminUserManagement() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Xem chi tiết
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Chỉnh sửa
-                          </DropdownMenuItem>
-                          {user.status === "pending" && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusChange(user.id, "active")
-                              }
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Duyệt người dùng
-                            </DropdownMenuItem>
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Toggle Active/Inactive */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleStatusToggle(user.id, user.isActive)
+                          }
+                          disabled={
+                            updateUserStatusMutation.isPending ||
+                            deleteUserMutation.isPending
+                          }
+                          title={user.isActive ? "Vô hiệu hoá" : "Kích hoạt"}
+                        >
+                          {user.isActive ? (
+                            <span className="text-lg">🔒</span>
+                          ) : (
+                            <span className="text-lg">🔓</span>
                           )}
-                          {user.status === "active" && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusChange(user.id, "inactive")
-                              }
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Vô hiệu hóa
-                            </DropdownMenuItem>
-                          )}
-                          {user.status === "inactive" && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusChange(user.id, "active")
-                              }
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Kích hoạt
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Xóa
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        </Button>
+
+                        {/* Change Role */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRoleChange(user)}
+                          disabled={
+                            updateUserRoleMutation.isPending ||
+                            deleteUserMutation.isPending
+                          }
+                          title="Thay đổi vai trò"
+                        >
+                          <Edit className="h-4 w-4 text-blue-600" />
+                        </Button>
+
+                        {/* Delete User */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          disabled={
+                            deleteUserMutation.isPending ||
+                            updateUserStatusMutation.isPending
+                          }
+                          title="Xoá người dùng"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -583,6 +529,94 @@ export default function AdminUserManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1 || isLoading}
+              >
+                Trước
+              </Button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    disabled={isLoading}
+                  >
+                    {page}
+                  </Button>
+                ),
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages || isLoading}
+              >
+                Tiếp
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Role Change Dialog */}
+      <Dialog
+        open={selectedUserForRoleChange !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserForRoleChange(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Thay đổi vai trò</DialogTitle>
+            <DialogDescription>
+              Cập nhật vai trò cho {selectedUserForRoleChange?.fullName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn vai trò" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Admin">Admin</SelectItem>
+                <SelectItem value="Seller">Seller</SelectItem>
+                <SelectItem value="Customer">Customer</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedUserForRoleChange(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleConfirmRoleChange}
+                disabled={updateUserRoleMutation.isPending}
+              >
+                {updateUserRoleMutation.isPending
+                  ? "Đang cập nhật..."
+                  : "Xác nhận"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

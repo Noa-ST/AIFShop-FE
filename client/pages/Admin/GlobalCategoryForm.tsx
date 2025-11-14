@@ -32,6 +32,8 @@ interface GlobalCategory {
   parent?: GlobalCategory | null;
   children?: GlobalCategory[];
   createdAt: string;
+  productCount?: number;
+  totalProductCount?: number;
   // Giả định categories từ cache không phải là dạng cây,
   // nếu là dạng cây, cần hàm flattenCategories
 }

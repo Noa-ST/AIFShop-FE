@@ -20,6 +20,9 @@ import {
   Users,
   Package,
   BarChart3,
+  ClipboardList,
+  Star,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +46,16 @@ const adminMenuItems = [
     title: "Products",
     url: "/admin/products",
     icon: Package,
+  },
+  {
+    title: "Featured",
+    url: "/admin/featured",
+    icon: Star,
+  },
+  {
+    title: "Reviews",
+    url: "/admin/reviews",
+    icon: MessageSquare,
   },
   {
     title: "Analytics",
@@ -135,9 +148,7 @@ export default function AdminLayout() {
                 <h1 className="text-xl font-semibold">Admin Dashboard</h1>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  Welcome, {user?.fullname || user?.email}
-                </span>
+                <span>Welcome, {user?.fullname || user?.email}</span>
               </div>
             </div>
           </header>

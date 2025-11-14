@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchGlobalCategories, deleteGlobalCategory } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
@@ -31,6 +30,8 @@ interface GlobalCategory {
   parent?: GlobalCategory | null;
   children?: GlobalCategory[];
   createdAt: string;
+  productCount?: number;
+  totalProductCount?: number;
 }
 
 // Component hiển thị một danh mục với tính năng collapsible
@@ -38,7 +39,7 @@ const CategoryItem: React.FC<{
   category: GlobalCategory;
   level: number;
   onEdit: (cat: GlobalCategory) => void;
-  onDelete: (id: string) => void;
+  onDelete: (cat: GlobalCategory) => void;
 }> = ({ category, level, onEdit, onDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
   const hasChildren = category.children && category.children.length > 0;
@@ -86,17 +87,9 @@ const CategoryItem: React.FC<{
             </div>
 
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                ID: {category.id}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                Cha: {getParentName(category.parent)}
-              </Badge>
-              {hasChildren && (
-                <Badge variant="default" className="text-xs">
-                  {category.children?.length} con
-                </Badge>
-              )}
+
+
+              
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
@@ -113,9 +106,9 @@ const CategoryItem: React.FC<{
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(category.id);
+                    onDelete(category);
                   }}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:hover:text-gray-300"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -179,9 +172,9 @@ export default function GlobalCategoryDashboard() {
   };
 
   // Xử lý khi nhấn nút Xóa
-  const handleDelete = (id: string) => {
+  const handleDelete = (category: GlobalCategory) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa mềm danh mục này không?")) {
-      deleteMutation.mutate(id);
+      deleteMutation.mutate(category.id);
     }
   };
 

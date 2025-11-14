@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Star, Heart, MessageCircle, Store, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShopCardProps } from "@/types/shop";
+import { getShopLogoUrl } from "@/utils/imageUrl";
+import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import eventsService from "@/services/eventsService";
 
 const ShopCard: React.FC<ShopCardProps> = ({
   shop,
@@ -14,6 +18,7 @@ const ShopCard: React.FC<ShopCardProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const { user } = useAuth();
 
   const handleAddToFavorites = () => {
     setIsFavorited(!isFavorited);
@@ -22,6 +27,8 @@ const ShopCard: React.FC<ShopCardProps> = ({
 
   const handleViewShop = () => {
     onViewShop?.(shop.id);
+    // Tracking click vào shop
+    eventsService.trackClick("shop", shop.id);
   };
 
   const handleChat = () => {
@@ -62,6 +69,10 @@ const ShopCard: React.FC<ShopCardProps> = ({
     return stars;
   };
 
+  useEffect(() => {
+    eventsService.trackImpression("shop", shop.id);
+  }, [shop.id]);
+
   return (
     <Card 
       className="group relative h-full min-h-[320px] flex flex-col overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-rose-500/20 border-0 bg-white"
@@ -74,9 +85,9 @@ const ShopCard: React.FC<ShopCardProps> = ({
           {/* Shop Logo */}
           <div className="relative">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center overflow-hidden border-2 border-rose-200">
-              {shop.logo ? (
+              {getShopLogoUrl(shop) ? (
                 <img 
-                  src={shop.logo} 
+                  src={getShopLogoUrl(shop)} 
                   alt={`Logo của ${shop.name}`}
                   className="w-full h-full object-cover"
                 />
@@ -143,7 +154,11 @@ const ShopCard: React.FC<ShopCardProps> = ({
         {/* Additional info */}
         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
           <span>{shop.totalProducts || 0} sản phẩm</span>
-          {shop.location && <span>{shop.location}</span>}
+          {(shop.location || (shop.street && shop.city)) && (
+            <span className="truncate ml-2">
+              {shop.location || `${shop.street}, ${shop.city}`}
+            </span>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -155,17 +170,27 @@ const ShopCard: React.FC<ShopCardProps> = ({
           >
             Xem shop
           </Button>
-          
+
           <Button 
             variant="outline" 
             onClick={handleChat}
             className="flex items-center gap-2 border-rose-200 text-rose-600 hover:bg-rose-50"
             aria-label={`Chat với ${shop.name}`}
+            disabled={user?.role === 'Seller' || user?.role === 'Admin'}
           >
             <MessageCircle className="w-4 h-4" />
             Chat
           </Button>
         </div>
+
+        {(user?.role === 'Seller' || user?.role === 'Admin') && (
+          <Alert variant="destructive" className="mt-3">
+            <AlertTitle>{user?.role === 'Admin' ? 'Admin không thể mua hàng hoặc chat' : 'Seller không thể mua hàng'}</AlertTitle>
+            <AlertDescription>
+              Vui lòng dùng tài khoản Khách hàng để mua hoặc nhắn tin.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Favorite button - appears on hover */}
         {isHovered && (

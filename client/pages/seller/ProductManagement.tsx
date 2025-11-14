@@ -48,6 +48,7 @@ import api, {
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { getProductImageUrl } from "@/utils/imageUrl";
 
 export default function ProductManagement() {
   const { user, initialized } = useAuth();
@@ -68,6 +69,7 @@ export default function ProductManagement() {
       return await fetchShopBySeller(sellerId);
     },
     enabled: !!sellerId,
+    staleTime: 5 * 60 * 1000, // Cache 5 phút - shop data không thay đổi thường xuyên
   });
 
   const shopId = useMemo(() => {
@@ -117,6 +119,33 @@ export default function ProductManagement() {
     enabled: !!shopId,
   });
 
+  // Flatten nested shop categories to support filtering by any depth
+  const flatShopCategories = useMemo(() => {
+    const result: Array<{ id: string; name: string; fullPath: string }> = [];
+
+    const normalizeId = (node: any): string => String(node?.id ?? node?._id ?? node?.categoryId ?? node?.value ?? "");
+    const normalizeName = (node: any): string => String(node?.name ?? node?.label ?? node?.title ?? "");
+
+    const getChildren = (node: any): any[] =>
+      (node?.children ?? node?.subCategories ?? node?.subs ?? node?.items ?? []) as any[];
+
+    const walk = (node: any, parentPath: string) => {
+      const id = normalizeId(node);
+      const name = normalizeName(node);
+      if (!id || !name) return;
+      const fullPath = parentPath ? `${parentPath} / ${name}` : name;
+      result.push({ id, name, fullPath });
+      const kids = getChildren(node);
+      if (Array.isArray(kids) && kids.length) {
+        for (const child of kids) walk(child, fullPath);
+      }
+    };
+
+    const list = Array.isArray(shopCategories) ? shopCategories : [];
+    for (const node of list) walk(node, "");
+    return result;
+  }, [shopCategories]);
+
   const filtered = useMemo(() => {
     let result = (products || []).filter((p: any) =>
       (p.name || "").toLowerCase().includes(query.toLowerCase()),
@@ -133,67 +162,9 @@ export default function ProductManagement() {
     return result;
   }, [products, query, categoryFilter]);
 
-  // Helper function để lấy ảnh sản phẩm
+  // Helper function để lấy ảnh sản phẩm (dùng tiện ích chung)
   const getProductImage = (product: any): string => {
-    if (!product) return "/placeholder.svg";
-    
-    // Debug: Log product keys
-    if (process.env.NODE_ENV === 'development') {
-      const keys = Object.keys(product);
-      const hasImages = keys.some(k => k.toLowerCase().includes('image'));
-      if (!hasImages) {
-        console.warn("Product has no image-related fields:", keys);
-      }
-    }
-    
-    // imageUrls từ form tạo sản phẩm (array of strings) - có thể là base64
-    if (product.imageUrls && Array.isArray(product.imageUrls)) {
-      const firstUrl = product.imageUrls[0];
-      if (firstUrl && typeof firstUrl === 'string') {
-        const trimmed = firstUrl.trim();
-        // Check if it's a valid URL or base64
-        if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('/'))) {
-          return trimmed;
-        }
-      }
-    }
-    
-    // productImages với object có url
-    if (product.productImages && Array.isArray(product.productImages)) {
-      const firstImg = product.productImages[0];
-      if (firstImg) {
-        if (typeof firstImg === 'string') {
-          return firstImg;
-        }
-        if (firstImg.url && typeof firstImg.url === 'string') {
-          return firstImg.url;
-        }
-      }
-    }
-    
-    // images array
-    if (product.images && Array.isArray(product.images)) {
-      const firstImg = product.images[0];
-      if (firstImg) {
-        if (typeof firstImg === 'string') {
-          return firstImg;
-        }
-        if (firstImg.url && typeof firstImg.url === 'string') {
-          return firstImg.url;
-        }
-      }
-    }
-    
-    // imageUrl hoặc image (single strings)
-    if (product.imageUrl && typeof product.imageUrl === 'string') {
-      return product.imageUrl;
-    }
-    if (product.image && typeof product.image === 'string') {
-      return product.image;
-    }
-    
-    // Default placeholder
-    return "/placeholder.svg";
+    return getProductImageUrl(product);
   };
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -280,9 +251,9 @@ export default function ProductManagement() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả danh mục</SelectItem>
-              {shopCategories.map((cat: any) => (
-                <SelectItem key={cat.id || cat._id} value={cat.id || cat._id}>
-                  {cat.name}
+              {flatShopCategories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.fullPath}
                 </SelectItem>
               ))}
             </SelectContent>

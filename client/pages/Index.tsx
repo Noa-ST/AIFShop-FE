@@ -2,6 +2,9 @@ import { motion } from "framer-motion";
 import ProductCard, { Product } from "@/components/ProductCard";
 import ShopCard from "@/components/ShopCard";
 import { Shop } from "@/types/shop";
+import { useEffect } from "react";
+import eventsService from "@/services/eventsService";
+import { useNavigate } from "react-router-dom";
 
 const heroImg =
   "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?q=80&w=1600&auto=format&fit=crop";
@@ -67,6 +70,9 @@ const shops: Shop[] = [
     averageRating: 4.8,
     reviewCount: 1250,
     sellerId: "seller-1",
+    street: "12 Phố Huế",
+    city: "Hà Nội",
+    country: "Việt Nam",
     isActive: true,
     createdAt: "2022-01-15T00:00:00Z",
     updatedAt: "2024-12-01T00:00:00Z",
@@ -83,6 +89,9 @@ const shops: Shop[] = [
     averageRating: 4.7,
     reviewCount: 890,
     sellerId: "seller-2",
+    street: "88 Nguyễn Huệ",
+    city: "TP. Hồ Chí Minh",
+    country: "Việt Nam",
     isActive: true,
     createdAt: "2021-06-20T00:00:00Z",
     updatedAt: "2024-11-28T00:00:00Z",
@@ -94,6 +103,13 @@ const shops: Shop[] = [
 ];
 
 export default function Index() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    for (const c of featuredCategories) {
+      eventsService.trackImpression("category", c.key);
+    }
+  }, []);
   return (
     <div>
       {/* Hero */}
@@ -148,6 +164,7 @@ export default function Index() {
               <div
                 key={c.key}
                 className="group relative overflow-hidden rounded-2xl"
+                onClick={() => eventsService.trackClick("category", c.key)}
               >
                 <img
                   src={c.image}
@@ -175,7 +192,11 @@ export default function Index() {
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             {shops.map((s) => (
-              <ShopCard key={s.id} shop={s} />
+              <ShopCard
+                key={s.id}
+                shop={s}
+                onViewShop={(id) => navigate(`/shops/${id}`)}
+              />
             ))}
           </div>
         </div>

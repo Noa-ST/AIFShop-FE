@@ -1,138 +1,232 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
-import { Trash2, Minus, Plus } from "lucide-react";
+import { useMemo, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { cartService, type GetCartItemDto } from '@/services/cartService';
+import CartItem from '@/components/cart/CartItem';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  fetchCart,
-  updateCartItem,
-  deleteCartItem,
-} from "@/lib/api";
-import { toast } from "@/components/ui/use-toast";
-
-// Types are defensive because BE DTO shape may vary
-export type CartItem = {
-  productId: string;
-  productName?: string;
-  name?: string;
-  shopName?: string;
-  shop?: { name?: string } | null;
-  imageUrl?: string;
-  productImage?: string;
-  image?: string;
-  unitPrice?: number;
-  price?: number;
-  quantity: number;
-};
-
-function formatCurrency(n: number | undefined | null) {
-  const value = Number(n || 0);
-  return new Intl.NumberFormat("vi-VN").format(value) + "₫";
-}
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Package } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function CartPage() {
-  const { isAuthenticated, initialized } = useAuth();
+  const { isAuthenticated, initialized, user } = useAuth();
+  const { cart, loading, error, updateItem, removeItem, clearCart, getTotalItems } = useCart();
   const navigate = useNavigate();
+  
+  // State for selected items
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-  // Guard: wait init, then block unauthenticated
-  if (!initialized) return <div className="p-6">Đang khôi phục phiên người dùng...</div>;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // ✅ DI CHUYỂN TẤT CẢ HOOKS LÊN TRƯỚC EARLY RETURNS
+  // Group cart items by shop
+  const itemsByShop = useMemo(() => {
+    if (!cart?.items || cart.items.length === 0) {
+      return new Map<string, GetCartItemDto[]>();
+    }
+    const grouped = new Map<string, GetCartItemDto[]>();
+    const itemsWithoutShop: GetCartItemDto[] = [];
+    
+    cart.items.forEach((item) => {
+      // Validate shopId: must be a non-empty string (not null, undefined, or empty string)
+      const shopId = item.shopId?.trim();
+      if (!shopId || shopId === '') {
+        // Collect items without valid shopId for potential error handling
+        itemsWithoutShop.push(item);
+        console.warn('Cart item missing shopId:', item);
+        return; // Skip items without valid shopId
+      }
+      
+      if (!grouped.has(shopId)) {
+        grouped.set(shopId, []);
+      }
+      grouped.get(shopId)!.push(item);
+    });
+    
+    // Show warning if there are items without shopId (shouldn't happen with valid data)
+    if (itemsWithoutShop.length > 0) {
+      console.warn(`${itemsWithoutShop.length} cart items are missing shopId`);
+    }
+    
+    return grouped;
+  }, [cart?.items]);
 
-  const queryClient = useQueryClient();
+  // Calculate subtotal for each shop (only selected items)
+  const shopSubtotals = useMemo(() => {
+    const subtotals = new Map<string, number>();
+    itemsByShop.forEach((items, shopId) => {
+      const subtotal = items
+        .filter(item => selectedItems.has(item.productId))
+        .reduce((sum, item) => sum + item.itemTotal, 0);
+      subtotals.set(shopId, subtotal);
+    });
+    return subtotals;
+  }, [itemsByShop, selectedItems]);
 
-  const { data: cartData, isLoading, isFetching } = useQuery({
-    queryKey: ["cart"],
-    queryFn: fetchCart,
-  });
+  // Calculate total for selected items only
+  const selectedTotal = useMemo(() => {
+    return Array.from(itemsByShop.values())
+      .flat()
+      .filter(item => selectedItems.has(item.productId))
+      .reduce((sum, item) => sum + item.itemTotal, 0);
+  }, [itemsByShop, selectedItems]);
 
-  // Normalize items
-  const items: CartItem[] = useMemo(() => {
-    const rawItems = (cartData?.items || cartData?.cartItems || cartData) ?? [];
-    if (!Array.isArray(rawItems)) return [];
-    return rawItems.map((it: any) => ({
-      productId: String(
-        it.productId || it.productID || it.id || it._id || it.product?.id || ""
-      ),
-      productName: it.productName || it.name || it.product?.name,
-      name: it.name || it.productName || it.product?.name,
-      shopName: it.shopName || it.shop?.name,
-      shop: it.shop || null,
-      imageUrl:
-        it.imageUrl || it.productImage || it.image || it.product?.imageUrl,
-      productImage: it.productImage,
-      image: it.image,
-      unitPrice: Number(it.unitPrice ?? it.price ?? it.product?.price ?? 0),
-      price: Number(it.price ?? it.unitPrice ?? it.product?.price ?? 0),
-      quantity: Number(it.quantity ?? 0),
-    }));
-  }, [cartData]);
+  // Check if all items in a shop are selected
+  const isShopAllSelected = (shopId: string): boolean => {
+    const items = itemsByShop.get(shopId) || [];
+    if (items.length === 0) return false;
+    return items.every(item => selectedItems.has(item.productId));
+  };
 
-  const totalQuantity = useMemo(
-    () => items.reduce((sum, it) => sum + (it.quantity || 0), 0),
-    [items],
-  );
-  const subTotal = useMemo(
-    () => items.reduce((sum, it) => sum + (it.quantity || 0) * (it.unitPrice || it.price || 0), 0),
-    [items],
-  );
+  // Check if some items in a shop are selected (for indeterminate state)
+  const isShopSomeSelected = (shopId: string): boolean => {
+    const items = itemsByShop.get(shopId) || [];
+    if (items.length === 0) return false;
+    const selectedCount = items.filter(item => selectedItems.has(item.productId)).length;
+    return selectedCount > 0 && selectedCount < items.length;
+  };
 
-  // Local edit state for numeric input
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  useEffect(() => {
-    const next: Record<string, number> = {};
-    for (const it of items) next[it.productId] = it.quantity;
-    setQuantities(next);
-  }, [items.length]);
+  // Select all items in a shop
+  const toggleShopSelection = (shopId: string, checked: boolean) => {
+    const items = itemsByShop.get(shopId) || [];
+    const newSelected = new Set(selectedItems);
+    
+    if (checked) {
+      items.forEach(item => newSelected.add(item.productId));
+    } else {
+      items.forEach(item => newSelected.delete(item.productId));
+    }
+    
+    setSelectedItems(newSelected);
+  };
 
-  const { mutateAsync: mutateUpdate, isPending: updating } = useMutation({
-    mutationFn: updateCartItem,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cart"] });
-    },
-    onError: () => {
-      toast({ title: "Cập nhật thất bại", description: "Vui lòng thử lại." });
-    },
-  });
+  // Select all items
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allProductIds = new Set(
+        Array.from(itemsByShop.values())
+          .flat()
+          .map(item => item.productId)
+      );
+      setSelectedItems(allProductIds);
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
 
-  const { mutateAsync: mutateDelete, isPending: deleting } = useMutation({
-    mutationFn: (productId: string) => deleteCartItem(productId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cart"] });
-      toast({ title: "Đã xóa sản phẩm khỏi giỏ" });
-    },
-    onError: () => {
-      toast({ title: "Xóa thất bại", description: "Vui lòng thử lại." });
-    },
-  });
+  // Check if all items are selected
+  const isAllSelected = useMemo(() => {
+    if (!cart?.items || cart.items.length === 0) return false;
+    const allProductIds = cart.items.map(item => item.productId);
+    return allProductIds.every(id => selectedItems.has(id));
+  }, [cart?.items, selectedItems]);
 
-  const handleSetQuantity = async (productId: string, nextQty: number) => {
-    if (nextQty < 0) nextQty = 0;
-    setQuantities((prev) => ({ ...prev, [productId]: nextQty }));
-    if (nextQty === 0) {
-      // prefer delete API when quantity becomes 0
-      await mutateDelete(productId);
+  // Check if some items are selected
+  const isSomeSelected = useMemo(() => {
+    if (!cart?.items || cart.items.length === 0) return false;
+    return selectedItems.size > 0 && selectedItems.size < cart.items.length;
+  }, [cart?.items, selectedItems]);
+
+  const totalItems = getTotalItems();
+  const selectedItemsCount = selectedItems.size;
+
+  const handleQuantityChange = async (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      if (confirm('Bạn có muốn xóa sản phẩm này khỏi giỏ hàng?')) {
+        await removeItem(productId);
+        // Remove from selection if deleted
+        setSelectedItems(prev => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
+      }
+    } else {
+      await updateItem(productId, newQuantity);
+    }
+  };
+
+  const handleItemSelect = (productId: string, selected: boolean) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(productId);
+      } else {
+        next.delete(productId);
+      }
+      return next;
+    });
+  };
+
+  const handleCheckout = () => {
+    if (selectedItems.size === 0) {
+      alert('Vui lòng chọn ít nhất một sản phẩm để đặt hàng');
       return;
     }
-    await mutateUpdate({ productId, quantity: nextQty });
+    // Navigate to checkout with selected items
+    navigate('/checkout', { 
+      state: { selectedItems: Array.from(selectedItems) } 
+    });
   };
 
-  const handleDecrease = async (productId: string) => {
-    const current = quantities[productId] ?? 0;
-    await handleSetQuantity(productId, current - 1);
-  };
+  // ✅ SAU ĐÓ MỚI ĐẶT EARLY RETURNS
+  // Guard: wait init, then block unauthenticated
+  if (!initialized) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="p-6">Đang khôi phục phiên người dùng...</div>
+      </div>
+    );
+  }
 
-  const handleIncrease = async (productId: string) => {
-    const current = quantities[productId] ?? 0;
-    await handleSetQuantity(productId, current + 1);
-  };
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-  const confirmAndDelete = async (productId: string) => {
-    const ok = window.confirm("Bạn có chắc muốn xóa sản phẩm này?");
-    if (!ok) return;
-    await mutateDelete(productId);
-  };
+  // Only Customers should access cart
+  if (user?.role !== 'Customer') {
+    return <Navigate to="/" replace />;
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="p-6 rounded-xl border bg-background text-center">
+          Đang tải giỏ hàng...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="p-6 rounded-xl border bg-background text-destructive">
+          <p className="font-semibold">Lỗi</p>
+          <p className="text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cart || cart.items.length === 0) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px] p-6 rounded-xl border bg-background">
+          <h2 className="text-2xl font-semibold mb-4">Giỏ hàng của bạn đang trống</h2>
+          <p className="text-muted-foreground mb-6">Hãy thêm sản phẩm vào giỏ hàng để tiếp tục mua sắm</p>
+          <Button onClick={() => navigate('/products')}>
+            Tiếp tục mua sắm
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -141,126 +235,134 @@ export default function CartPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-semibold">Giỏ hàng của bạn</h1>
           <p className="text-muted-foreground mt-1">
-            {isLoading || isFetching ? "Đang tải..." : `${totalQuantity} sản phẩm`}
+            {totalItems} sản phẩm
+            {selectedItemsCount > 0 && (
+              <span className="ml-2 text-primary">
+                • {selectedItemsCount} đã chọn
+              </span>
+            )}
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Select All checkbox */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={isAllSelected}
+              onCheckedChange={(checked) => toggleSelectAll(checked === true)}
+              aria-label="Chọn tất cả"
+            />
+            <span className="text-sm text-muted-foreground">Chọn tất cả</span>
+          </div>
+          {cart.items.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={clearCart}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              Xóa tất cả
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Content */}
       <div className="grid lg:grid-cols-3 gap-6 items-start">
-        {/* Items list */}
-        <div className="lg:col-span-2 space-y-4">
-          {isLoading ? (
-            <div className="p-6 rounded-xl border bg-background">Đang tải giỏ hàng...</div>
-          ) : items.length === 0 ? (
-            <div className="p-6 rounded-xl border bg-background">
-              Giỏ hàng trống. <Link to="/products" className="text-primary underline">Tiếp tục mua sắm</Link>
-            </div>
-          ) : (
-            items.map((it) => {
-              const qty = quantities[it.productId] ?? it.quantity;
-              const price = it.unitPrice ?? it.price ?? 0;
-              const itemTotal = price * (qty || 0);
-              return (
-                <div key={it.productId} className="flex gap-4 p-4 rounded-xl border bg-background">
-                  <img
-                    src={it.imageUrl || it.productImage || it.image || "/placeholder.svg"}
-                    alt={it.productName || it.name || "Sản phẩm"}
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
-                    }}
-                    className="w-24 h-24 rounded-md object-cover flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">
-                          {it.productName || it.name || "Sản phẩm"}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1 truncate">
-                          {it.shopName || it.shop?.name || "Cửa hàng"}
-                        </div>
-                      </div>
-                      <div className="text-right font-medium">
-                        {formatCurrency(price)}
-                      </div>
+        {/* Items list grouped by shop */}
+        <div className="lg:col-span-2 space-y-6">
+          {Array.from(itemsByShop.entries()).map(([shopId, items]) => {
+            const shopName = items[0]?.shopName || 'Unknown Shop';
+            const shopSubtotal = shopSubtotals.get(shopId) || 0;
+            const shopAllSelected = isShopAllSelected(shopId);
+
+            return (
+              <Card key={shopId}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={shopAllSelected}
+                      onCheckedChange={(checked) => toggleShopSelection(shopId, checked === true)}
+                      aria-label={`Chọn tất cả sản phẩm từ ${shopName}`}
+                    />
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      {shopName}
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {items.map((item) => (
+                    <div key={item.productId}>
+                      <CartItem
+                        item={item}
+                        selected={selectedItems.has(item.productId)}
+                        onSelect={(selected) => handleItemSelect(item.productId, selected)}
+                        onQuantityChange={(quantity) =>
+                          handleQuantityChange(item.productId, quantity)
+                        }
+                        onRemove={() => {
+                          removeItem(item.productId);
+                          setSelectedItems(prev => {
+                            const next = new Set(prev);
+                            next.delete(item.productId);
+                            return next;
+                          });
+                        }}
+                      />
+                      {items.indexOf(item) < items.length - 1 && (
+                        <Separator className="mt-3" />
+                      )}
                     </div>
-
-                    <div className="mt-4 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleDecrease(it.productId)}
-                          disabled={updating || deleting}
-                          aria-label="Giảm số lượng"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <Input
-                          type="number"
-                          className="w-20 text-center"
-                          min={0}
-                          value={qty}
-                          onChange={(e) =>
-                            setQuantities((prev) => ({
-                              ...prev,
-                              [it.productId]: Number(e.target.value || 0),
-                            }))
-                          }
-                          onBlur={() => handleSetQuantity(it.productId, Number(qty || 0))}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleIncrease(it.productId)}
-                          disabled={updating || deleting}
-                          aria-label="Tăng số lượng"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="font-semibold whitespace-nowrap">
-                          {formatCurrency(itemTotal)}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => confirmAndDelete(it.productId)}
-                          disabled={updating || deleting}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                  ))}
+                  <div className="pt-3 border-t">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Tạm tính ({shopName}):</span>
+                      <span className="font-semibold">
+                        {cartService.formatPrice(shopSubtotal)}
+                      </span>
                     </div>
                   </div>
-                </div>
-              );
-            })
-          )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Summary */}
         <aside className="lg:sticky lg:top-6">
-          <div className="rounded-xl border bg-background p-6">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">Tạm tính</div>
-              <div className="text-lg font-semibold">{formatCurrency(subTotal)}</div>
+          <div className="rounded-xl border bg-background p-6 space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Tạm tính:</span>
+                <span className="text-lg font-semibold">
+                  {cartService.formatPrice(selectedTotal)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Phí vận chuyển:</span>
+                <span className="text-sm text-muted-foreground">---</span>
+              </div>
+              <div className="border-t pt-2 flex items-center justify-between">
+                <span className="font-semibold">Tổng cộng:</span>
+                <span className="text-xl font-bold text-primary">
+                  {cartService.formatPrice(selectedTotal)}
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Chưa bao gồm phí vận chuyển</p>
+            <p className="text-xs text-muted-foreground">
+              Chưa bao gồm phí vận chuyển, thuế và khuyến mãi
+            </p>
+            {selectedItemsCount === 0 && (
+              <p className="text-xs text-amber-600">
+                Vui lòng chọn ít nhất một sản phẩm để đặt hàng
+              </p>
+            )}
             <Button
               className="w-full mt-4"
-              onClick={() => {
-                // You can add a dedicated /checkout route later
-                navigate("/checkout");
-              }}
-              disabled={items.length === 0}
+              size="lg"
+              onClick={handleCheckout}
+              disabled={selectedItems.size === 0}
             >
-              Tiến hành Đặt hàng
+              Tiến hành Đặt hàng ({selectedItemsCount})
             </Button>
           </div>
         </aside>
