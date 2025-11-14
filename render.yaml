@@ -1,0 +1,26 @@
+specVersion: "1"
+services:
+  - name: aifshop-web
+    type: web
+    env: node
+    plan: free
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /api/ping
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_BASE_URL
+        value: "https://aifshop-backend.onrender.com"
+      - key: PING_MESSAGE
+        value: "ping"
+
+    buildCommand: |
+      corepack enable
+      pnpm install --frozen-lockfile
+      pnpm run build
+      mkdir -p dist/spa
+      cp -r dist/* dist/spa/
+
+    startCommand: pnpm start

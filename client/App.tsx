@@ -45,9 +45,10 @@ import AdminUserManagement from "@/pages/Admin/UserManagement";
 import AdminAnalytics from "@/pages/Admin/Analytics";
 import AdminSettings from "@/pages/Admin/Settings";
 import AdminReviews from "@/pages/Admin/Reviews";
-import { AuthProvider } from "./contexts/AuthContext";
-import { ChatProvider, useChat } from "./contexts/ChatContext";
-import { CartProvider } from "./contexts/CartContext";
+// Đổi các import relative dưới đây sang alias "@"
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ChatProvider, useChat } from "@/contexts/ChatContext";
+import { CartProvider } from "@/contexts/CartContext";
 import ProfilePage from "@/pages/Profile/Index";
 import MyOrdersPage from "@/pages/Orders/MyOrdersPage";
 import ShopOrdersPage from "@/pages/Orders/ShopOrdersPage";
@@ -56,7 +57,8 @@ import OrderDetailPage from "@/pages/Orders/OrderDetailPage";
 import AddressManagementPage from "@/pages/Address/Index";
 import PaymentReturnPage from "@/pages/Payment/Return";
 import PaymentCancelPage from "@/pages/Payment/Cancel";
-import CreateShopPage from "./pages/Seller/CreateShop";
+// Đổi import CreateShopPage sang alias "@"
+import CreateShopPage from "@/pages/Seller/CreateShop";
 
 const queryClient = new QueryClient();
 
