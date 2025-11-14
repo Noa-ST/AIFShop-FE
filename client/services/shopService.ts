@@ -175,20 +175,18 @@ class ShopService {
 
   // Get statistics (Admin only)
   async getStatistics(): Promise<ServiceResponse<any>> {
-    const response = await axiosClient.get("/api/Shops/admin/statistics");
+    const response = await axiosClient.get('/api/Shops/admin/statistics');
     return response.data;
   }
 
   async getFeatured(limit: number = 6, city?: string): Promise<GetShop[]> {
     try {
       const params = new URLSearchParams();
-      params.append("limit", String(limit));
-      if (city) params.append("city", city);
-      const resp = await axiosClient.get(
-        `/api/Shops/featured?${params.toString()}`,
-      );
+      params.append('limit', String(limit));
+      if (city) params.append('city', city);
+      const resp = await axiosClient.get(`/api/Shops/featured?${params.toString()}`);
       return (resp.data?.data ?? resp.data) as GetShop[];
-    } catch {
+    } catch (e) {
       const all = await this.getAllActive();
       return (Array.isArray(all) ? all : []).slice(0, limit);
     }
