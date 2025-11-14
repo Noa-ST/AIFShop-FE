@@ -19,7 +19,5 @@ services:
       corepack enable
       pnpm install --frozen-lockfile
       pnpm run build
-      mkdir -p dist/spa
-      cp -r dist/* dist/spa/
 
     startCommand: pnpm start

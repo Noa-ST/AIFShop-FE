@@ -23,13 +23,13 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./client"), // nếu src nằm trong /client
+      "@": path.resolve(__dirname, "./client"),
       "@shared": path.resolve(__dirname, "./shared"),
     },
   },
   plugins: [react()],
   build: {
-    outDir: "dist",
+    outDir: "dist/spa",
   },
   test: {
     environment: "jsdom",
