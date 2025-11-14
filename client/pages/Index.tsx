@@ -91,6 +91,13 @@ export default function Index() {
                 <img
                   src={c?.image ?? "/placeholder.svg"}
                   alt={c?.name ?? "Danh mục"}
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    img.src = "/placeholder.svg";
+                    img.onerror = null;
+                  }}
                   className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
