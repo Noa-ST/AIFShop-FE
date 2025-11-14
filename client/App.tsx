@@ -19,7 +19,6 @@ import ForgotPassword from "@/pages/Auth/ForgotPassword";
 import ResetPassword from "@/pages/Auth/ResetPassword";
 import ProductList from "@/pages/Products/List";
 import ProductDetail from "@/pages/Products/Detail";
-import CreateShopPage from "@/pages/Seller/CreateShop.tsx";
 import ProductManagement from "@/pages/Seller/ProductManagement";
 import ShopInfo from "@/pages/Seller/ShopInfo";
 import ShopManagement, {
@@ -57,6 +56,7 @@ import OrderDetailPage from "@/pages/Orders/OrderDetailPage";
 import AddressManagementPage from "@/pages/Address/Index";
 import PaymentReturnPage from "@/pages/Payment/Return";
 import PaymentCancelPage from "@/pages/Payment/Cancel";
+import CreateShopPage from "./pages/Seller/CreateShop";
 
 const queryClient = new QueryClient();
 
@@ -197,7 +197,7 @@ function InnerApp() {
       </CartProvider>
     </AuthProvider>
   );
-};
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
