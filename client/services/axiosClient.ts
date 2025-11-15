@@ -1,9 +1,41 @@
 import axios from "axios";
 
-const DEFAULT_BASE_URL = "https://aifshop-backend.onrender.com";
+//const DEFAULT_BASE_URL = "https://aifshop-backend.onrender.com"
+const DEFAULT_BASE_URL = "https://localhost:7109";
 
 export const ACCESS_TOKEN_STORAGE_KEY = "aifshop_token";
 export const REFRESH_TOKEN_STORAGE_KEY = "aifshop_refresh";
+export const API_MODE_STORAGE_KEY = "aifshop_api_mode";
+
+type ApiMode = "remote" | "local" | "hybrid";
+
+const getApiMode = (): ApiMode => {
+  const env = (import.meta as any)?.env ?? {};
+  const raw = (env?.VITE_API_MODE ||
+    (typeof window !== "undefined"
+      ? window.localStorage.getItem(API_MODE_STORAGE_KEY)
+      : null) ||
+    "remote") as string;
+  const v = String(raw).toLowerCase();
+  if (v === "local" || v === "hybrid") return v as ApiMode;
+  return "remote";
+};
+
+const rewritePathForMode = (url: string, mode: ApiMode): string => {
+  if (typeof url !== "string") return url as any;
+  if (mode === "local" || mode === "hybrid") {
+    if (url.startsWith("/api/")) return "/api-local" + url.slice(4);
+    if (url.startsWith("/hubs")) return "/hubs-local" + url.slice(5);
+  }
+  return url;
+};
+
+export const setApiMode = (mode: ApiMode) => {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(API_MODE_STORAGE_KEY, mode);
+    console.info("[AIFShop] API mode set to:", mode);
+  }
+};
 
 const resolveBaseURL = () => {
   const env = (import.meta as any)?.env ?? {};
@@ -22,8 +54,8 @@ const resolveBaseURL = () => {
     if (typeof envBaseUrl === "string" && envBaseUrl.trim().length > 0) {
       return envBaseUrl.trim();
     }
-    // Empty baseURL makes axios use relative paths and Vite proxy will forward /api
-    return "";
+    // Dùng trực tiếp BE local mặc định
+    return DEFAULT_BASE_URL;
   }
 
   // In production: prefer env, fallback to default
@@ -61,6 +93,14 @@ if (typeof window !== "undefined") {
 axiosClient.interceptors.request.use((config) => {
   if (typeof window === "undefined") return config;
 
+  // Rewrite path for local or hybrid mode so dev proxy can route correctly
+  try {
+    const mode = getApiMode();
+    if (typeof config.url === "string") {
+      config.url = rewritePathForMode(config.url, mode);
+    }
+  } catch {}
+
   const token = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
   if (token) {
     if (config.headers && typeof (config.headers as any).set === "function") {
@@ -95,7 +135,36 @@ const processQueue = (error: unknown, token: string | null = null) => {
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
+
+    // Hybrid mode: if local endpoint fails (network error or 5xx), fall back to remote once
+    try {
+      const mode = getApiMode();
+      const isNetworkError = !error.response;
+      const status = error.response?.status ?? 0;
+      const isServerError = status >= 500;
+      const url = String(originalRequest.url || "");
+      const isLocalPath =
+        url.startsWith("/api-local") || url.startsWith("/hubs-local");
+      const hasTriedRemote = Boolean((originalRequest as any)._triedRemote);
+
+      if (
+        mode === "hybrid" &&
+        isLocalPath &&
+        !hasTriedRemote &&
+        (isNetworkError || isServerError)
+      ) {
+        (originalRequest as any)._triedRemote = true;
+        if (url.startsWith("/api-local")) {
+          originalRequest.url = url.replace("/api-local", "/api");
+        } else if (url.startsWith("/hubs-local")) {
+          originalRequest.url = url.replace("/hubs-local", "/hubs");
+        }
+        try {
+          return axiosClient(originalRequest);
+        } catch {}
+      }
+    } catch {}
 
     if (
       error.response &&
@@ -148,9 +217,8 @@ axiosClient.interceptors.response.use(
               }
             }
 
-            axiosClient.defaults.headers.common[
-              "Authorization"
-            ] = `Bearer ${accessToken}`;
+            axiosClient.defaults.headers.common["Authorization"] =
+              `Bearer ${accessToken}`;
             processQueue(null, accessToken);
             return axiosClient(originalRequest);
           }
@@ -193,4 +261,3 @@ axiosClient.interceptors.response.use(
 );
 
 export default axiosClient;
-

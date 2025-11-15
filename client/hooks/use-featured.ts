@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import globalCategoryService, { GetGlobalCategory } from "@/services/globalCategoryService";
 import shopService, { GetShop } from "@/services/shopService";
 import productService, { GetProduct } from "@/services/productService";
+import { getProductImageUrl } from "@/utils/imageUrl";
 
 const CATEGORY_FALLBACK: Array<{ id: string; name: string; image?: string }> = [
   { id: "dress", name: "Váy", image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1200&auto=format&fit=crop" },
@@ -15,8 +16,21 @@ export function useFeaturedCategories(limit = 3, region?: string) {
     queryFn: async (): Promise<(GetGlobalCategory & { image?: string })[]> => {
       try {
         const cats = await globalCategoryService.getFeatured(limit, region);
-        // backend có thể không có image, map thêm nếu cần
-        return cats.map((c, i) => ({ ...c, image: CATEGORY_FALLBACK[i]?.image }));
+        // Nếu BE không có ảnh cho Global Category, suy luận ảnh từ sản phẩm nổi bật của từng category
+        const enhanced = await Promise.all(
+          cats.map(async (c, i) => {
+            let image: string | undefined = CATEGORY_FALLBACK[i]?.image;
+            try {
+              const products = await productService.getFeatured(1, { categoryId: c.id });
+              const first = Array.isArray(products) && products.length > 0 ? products[0] : null;
+              if (first) image = getProductImageUrl(first);
+            } catch {
+              // bỏ qua, dùng fallback nếu có
+            }
+            return { ...c, image };
+          })
+        );
+        return enhanced;
       } catch {
         return CATEGORY_FALLBACK.slice(0, limit).map(c => ({ ...c } as any));
       }

@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, ChevronRight, Folder, FolderOpen } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { uploadBase64Images, isBase64Image } from "@/services/imageUploadService";
+import { isBase64Image, uploadBase64Images } from "@/services/imageUploadService";
 
 export default function CreateProduct() {
   const { user, initialized } = useAuth();
@@ -113,12 +113,17 @@ export default function CreateProduct() {
 
     setIsSubmitting(true);
     try {
-      // Upload base64 -> nhận về URLs từ backend (Cloudinary/S3)
+      // Tiền upload ảnh base64 để lấy URL từ backend
       let uploadedUrls: string[] = [];
       if (base64Images.length > 0) {
-        uploadedUrls = await uploadBase64Images(base64Images);
+        try {
+          uploadedUrls = await uploadBase64Images(base64Images);
+        } catch (uploadErr: any) {
+          const msg = uploadErr?.response?.data?.message || uploadErr?.message || "Upload ảnh thất bại";
+          toast({ title: "Lỗi upload ảnh", description: msg, variant: "destructive" });
+          return;
+        }
       }
-
       const allImageUrls = [...existingUrls, ...uploadedUrls];
 
       const payload: CreateProductInput = {

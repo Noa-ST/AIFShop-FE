@@ -194,12 +194,17 @@ export default function UpdateProduct() {
 
     setIsSubmitting(true);
     try {
-      // Upload base64 -> nhận về URLs từ backend (Cloudinary/S3)
+      // Tiền upload ảnh base64 để lấy URL từ backend
       let uploadedUrls: string[] = [];
       if (newBase64Images.length > 0) {
-        uploadedUrls = await uploadBase64Images(newBase64Images);
+        try {
+          uploadedUrls = await uploadBase64Images(newBase64Images);
+        } catch (uploadErr: any) {
+          const msg = uploadErr?.response?.data?.message || uploadErr?.message || "Upload ảnh thất bại";
+          toast({ title: "Lỗi upload ảnh", description: msg, variant: "destructive" });
+          return;
+        }
       }
-
       const allImageUrls = [...existingUrls, ...uploadedUrls];
 
       const payload: UpdateProductInput = {
