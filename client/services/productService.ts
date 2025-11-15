@@ -63,6 +63,7 @@ export interface ProductFilterDto {
   keyword?: string;
   shopId?: string;
   categoryId?: string;
+  categoryIds?: string[]; // multiple category IDs (descendants)
   status?: ProductStatus;
   minPrice?: number;
   maxPrice?: number;
@@ -99,7 +100,14 @@ class ProductService {
     if (filter.pageSize) params.append('pageSize', filter.pageSize.toString());
     if (filter.keyword) params.append('keyword', filter.keyword);
     if (filter.shopId) params.append('shopId', filter.shopId);
-    if (filter.categoryId) params.append('categoryId', filter.categoryId);
+    // Prefer multiple categoryIds over single categoryId to avoid conflicts
+    if (Array.isArray(filter.categoryIds) && filter.categoryIds.length > 0) {
+      for (const id of filter.categoryIds) {
+        if (id) params.append('categoryIds', String(id));
+      }
+    } else if (filter.categoryId) {
+      params.append('categoryId', filter.categoryId);
+    }
     if (filter.status !== undefined) params.append('status', filter.status.toString());
     if (filter.minPrice) params.append('minPrice', filter.minPrice.toString());
     if (filter.maxPrice) params.append('maxPrice', filter.maxPrice.toString());

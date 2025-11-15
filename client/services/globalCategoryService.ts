@@ -78,6 +78,24 @@ class GlobalCategoryService {
     return response.data;
   }
 
+  // Get descendant category IDs (optionally include self)
+  async getDescendants(id: string, includeSelf: boolean = false): Promise<string[]> {
+    try {
+      const params = new URLSearchParams();
+      params.append("includeSelf", String(includeSelf));
+      const resp = await apiClient.get(
+        `/api/GlobalCategory/${id}/descendants?${params.toString()}`,
+      );
+      const list = (resp.data?.data ?? resp.data) as any;
+      if (Array.isArray(list)) return list as string[];
+      // Some APIs may return { ids: [] }
+      if (Array.isArray(list?.ids)) return list.ids as string[];
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
   // Helper: Build tree structure from flat array
   buildTree(categories: GetGlobalCategory[]): GetGlobalCategory[] {
     const categoryMap = new Map<string, GetGlobalCategory>();
