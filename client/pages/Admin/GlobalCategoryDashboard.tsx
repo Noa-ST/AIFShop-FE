@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchGlobalCategories, deleteGlobalCategory } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
@@ -40,7 +42,8 @@ const CategoryItem: React.FC<{
   level: number;
   onEdit: (cat: GlobalCategory) => void;
   onDelete: (cat: GlobalCategory) => void;
-}> = ({ category, level, onEdit, onDelete }) => {
+  expandAll: boolean;
+}> = ({ category, level, onEdit, onDelete, expandAll }) => {
   const [isOpen, setIsOpen] = useState(false);
   const hasChildren = category.children && category.children.length > 0;
 
@@ -48,6 +51,11 @@ const CategoryItem: React.FC<{
     if (!parent) return "Cấp cao nhất";
     return parent.name;
   };
+
+  // Đồng bộ trạng thái mở/đóng theo nút Mở rộng/Thu gọn tất cả
+  useEffect(() => {
+    setIsOpen(expandAll);
+  }, [expandAll]);
 
   return (
     <div className="border rounded-lg mb-2">
@@ -78,10 +86,19 @@ const CategoryItem: React.FC<{
                   <div className="w-5 h-5" />
                 )}
                 <div>
-                  <h3 className="font-semibold text-lg">{category.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">{category.name}</h3>
+                    {typeof category.productCount === "number" && (
+                      <Badge variant="secondary" className="text-xs">SP: {category.productCount}</Badge>
+                    )}
+                    {typeof category.totalProductCount === "number" && (
+                      <Badge className="text-xs">Tổng: {category.totalProductCount}</Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600">
                     {category.description || "Không có mô tả"}
                   </p>
+                  <p className="text-xs text-muted-foreground">Cha: {getParentName(category.parent)}</p>
                 </div>
               </div>
             </div>
@@ -128,6 +145,7 @@ const CategoryItem: React.FC<{
                     level={level + 1}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    expandAll={expandAll}
                   />
                 ))}
               </div>
@@ -145,6 +163,8 @@ export default function GlobalCategoryDashboard() {
   const [editingCategory, setEditingCategory] = useState<
     GlobalCategory | undefined
   >(undefined);
+  const [search, setSearch] = useState("");
+  const [expandAll, setExpandAll] = useState(false);
 
   // ✅ QUERY: Lấy danh sách Global Categories (dạng cây)
   const { data: categories = [], isLoading } = useQuery({
@@ -192,11 +212,44 @@ export default function GlobalCategoryDashboard() {
     }
   };
 
+  // Lọc cây danh mục theo từ khóa tìm kiếm (theo name/description)
+  const filterTree = (nodes: GlobalCategory[], term: string): GlobalCategory[] => {
+    if (!term.trim()) return nodes;
+    const t = term.toLowerCase();
+    const walk = (list: GlobalCategory[]): GlobalCategory[] => {
+      const results: GlobalCategory[] = [];
+      for (const n of list) {
+        const selfMatch =
+          (n.name && n.name.toLowerCase().includes(t)) ||
+          (n.description && n.description.toLowerCase().includes(t));
+        const children = n.children ? walk(n.children) : [];
+        if (selfMatch || children.length) {
+          results.push({ ...n, children });
+        }
+      }
+      return results;
+    };
+    return walk(nodes);
+  };
+
+  const filteredCategories = useMemo(
+    () => filterTree(categories as GlobalCategory[], search),
+    [categories, search],
+  );
+
   return (
     <div className="container py-8">
       <h1 className="text-3xl font-bold mb-6">Quản lý Global Category</h1>
 
-      <div className="flex justify-end mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <div className="flex items-center gap-2 w-full max-w-md">
+          <Input
+            placeholder="Tìm kiếm danh mục theo tên hoặc mô tả..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button variant="outline" onClick={() => setSearch("")}>Xóa</Button>
+        </div>
         {/* ✅ Dialog cho chức năng Tạo/Sửa */}
         <Dialog open={isFormOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
@@ -216,9 +269,16 @@ export default function GlobalCategoryDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 justify-between">
             <Folder className="w-5 h-5" />
-            Danh sách Global Categories
+            <span>Danh sách Global Categories</span>
+            <div className="ml-auto flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                Tổng: {Array.isArray(categories) ? categories.length : 0}
+              </Badge>
+              <Button variant="outline" size="sm" onClick={() => setExpandAll(true)}>Mở rộng tất cả</Button>
+              <Button variant="ghost" size="sm" onClick={() => setExpandAll(false)}>Thu gọn tất cả</Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -229,23 +289,32 @@ export default function GlobalCategoryDashboard() {
                 <p>Đang tải danh mục...</p>
               </div>
             </div>
-          ) : categories.length === 0 ? (
+          ) : filteredCategories.length === 0 ? (
             <div className="h-24 flex items-center justify-center">
               <div className="text-center text-gray-500">
                 <Folder className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>Chưa có Global Category nào.</p>
-                <p className="text-sm">Nhấn "Tạo Danh mục mới" để bắt đầu.</p>
+                <p>
+                  {search.trim()
+                    ? "Không tìm thấy danh mục phù hợp."
+                    : "Chưa có Global Category nào."}
+                </p>
+                <p className="text-sm">
+                  {search.trim()
+                    ? "Thử từ khóa khác hoặc xóa tìm kiếm."
+                    : "Nhấn \"Tạo Danh mục mới\" để bắt đầu."}
+                </p>
               </div>
             </div>
           ) : (
             <div className="space-y-2">
-              {categories.map((category: GlobalCategory) => (
+              {filteredCategories.map((category: GlobalCategory) => (
                 <CategoryItem
                   key={category.id}
                   category={category}
                   level={0}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  expandAll={expandAll}
                 />
               ))}
             </div>

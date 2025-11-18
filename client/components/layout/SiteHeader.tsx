@@ -7,13 +7,16 @@ import { useCart } from "@/contexts/CartContext";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-full text-sm font-medium transition-colors ${
-    isActive ? "bg-rose-100 text-rose-700" : "text-slate-700 hover:bg-slate-100"
+    isActive
+      ? "bg-rose-50 text-rose-700 border border-rose-200"
+      : "text-slate-700 hover:bg-rose-50 hover:text-rose-700"
   }`;
 
 export default function SiteHeader() {
   const { isAuthenticated, user, logoutUser, initialized } = useAuth();
   const { getTotalItems } = useCart();
   const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
   const cartCount = useMemo(() => {
@@ -68,6 +71,16 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Mobile burger */}
+          <button
+            className="md:hidden inline-flex items-center gap-2 px-3 py-2 rounded-full border border-slate-200 bg-white/80"
+            aria-expanded={mobileOpen}
+            aria-controls="siteheader-mobile-menu"
+            onClick={() => setMobileOpen((s) => !s)}
+          >
+            <span className="sr-only">Mở menu</span>
+            <Boxes size={16} />
+          </button>
           {initialized && !isAuthenticated && (
             <Link
               to="/login"
@@ -85,9 +98,11 @@ export default function SiteHeader() {
             >
               <ShoppingCart size={18} />
               <span>Giỏ hàng</span>
-              <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 bg-black text-white rounded-full">
-                {cartCount || 0}
-              </span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-[11px] min-w-[18px] h-[18px] leading-[18px] px-1 bg-rose-700 text-white rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
             </Link>
           )}
 
@@ -95,7 +110,12 @@ export default function SiteHeader() {
             <div className="relative" ref={ref}>
               <button
                 onClick={() => setOpen((s) => !s)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setOpen(false);
+                }}
                 className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-full border border-slate-200 bg-white/80"
+                aria-expanded={open}
+                aria-controls="siteheader-user-menu"
               >
                 <User size={16} />
                 <span className="hidden sm:inline-block">
@@ -104,7 +124,7 @@ export default function SiteHeader() {
               </button>
 
               {open && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md py-2 z-50">
+                <div id="siteheader-user-menu" className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md py-2 z-50">
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm hover:bg-slate-50"
@@ -150,6 +170,31 @@ export default function SiteHeader() {
           )}
         </div>
       </div>
+      {/* Mobile menu panel */}
+      {mobileOpen && (
+        <div id="siteheader-mobile-menu" className="md:hidden border-t border-slate-200 bg-white">
+          <div className="container mx-auto py-2 flex flex-col gap-1">
+            <NavLink to="/home" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <div className="flex items-center gap-2">
+                <Home size={16} />
+                Trang chủ
+              </div>
+            </NavLink>
+            <NavLink to="/shops" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <div className="flex items-center gap-2">
+                <Store size={16} />
+                Shops
+              </div>
+            </NavLink>
+            <NavLink to="/products" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <div className="flex items-center gap-2">
+                <Boxes size={16} />
+                Sản phẩm
+              </div>
+            </NavLink>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

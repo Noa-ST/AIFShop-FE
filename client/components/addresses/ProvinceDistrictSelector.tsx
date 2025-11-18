@@ -39,14 +39,12 @@ export default function ProvinceDistrictSelector({
     setProvinceCode(value.provinceCode || "");
     setDistrictCode(value.districtCode || "");
     setWardCode(value.wardCode || "");
-    
-    if (value.labels.province && value.labels.district && value.labels.ward) {
-      onChange(
-        value.labels.province,
-        value.labels.district,
-        value.labels.ward
-      );
-    }
+    // Đồng bộ liên tục về form: nếu thiếu cấp dưới, gửi chuỗi rỗng để reset
+    onChange(
+      value.labels.province || "",
+      value.labels.district || "",
+      value.labels.ward || ""
+    );
   };
 
   return (

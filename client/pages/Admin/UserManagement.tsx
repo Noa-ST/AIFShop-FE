@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -50,6 +50,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  FileDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -124,10 +125,12 @@ export default function AdminUserManagement() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUserForRoleChange, setSelectedUserForRoleChange] =
     useState<User | null>(null);
   const [newRole, setNewRole] = useState<string>("Customer");
+  const [isExporting, setIsExporting] = useState(false);
 
   const pageSize = 20;
 
@@ -137,13 +140,17 @@ export default function AdminUserManagement() {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["adminUsers", currentPage, searchTerm, roleFilter],
+    queryKey: ["adminUsers", currentPage, searchTerm, roleFilter, statusFilter],
     queryFn: () =>
       userApi.getUsers(
         currentPage,
         pageSize,
         roleFilter !== "all" ? roleFilter : undefined,
-        undefined,
+        statusFilter === "all"
+          ? undefined
+          : statusFilter === "active"
+          ? true
+          : false,
         searchTerm || undefined,
       ),
     staleTime: 30000,
@@ -314,6 +321,113 @@ export default function AdminUserManagement() {
 
   const stats = getStats();
 
+  const computeIsActiveFilter = () =>
+    statusFilter === "all"
+      ? undefined
+      : statusFilter === "active"
+      ? true
+      : false;
+
+  const createCSV = (rows: User[]) => {
+    const headers = [
+      "id",
+      "fullName",
+      "email",
+      "userName",
+      "roles",
+      "isActive",
+      "createdAt",
+      "lastLoginAt",
+    ];
+    const escape = (val: unknown) => {
+      const s = val === null || val === undefined ? "" : String(val);
+      // Escape double quotes and wrap in quotes if needed
+      const needsQuotes = /[",\n]/.test(s);
+      const escaped = s.replace(/"/g, '""');
+      return needsQuotes ? `"${escaped}"` : escaped;
+    };
+    const toISO = (d?: string) => {
+      if (!d) return "";
+      const nd = new Date(d);
+      return isNaN(nd.getTime()) ? "" : nd.toISOString();
+    };
+    const lines = [headers.join(",")];
+    for (const r of rows) {
+      lines.push(
+        [
+          escape(r.id),
+          escape(r.fullName),
+          escape(r.email),
+          escape(r.userName),
+          escape((r.roles || []).join(";")),
+          escape(r.isActive ? "active" : "inactive"),
+          escape(toISO(r.createdAt)),
+          escape(toISO(r.lastLoginAt)),
+        ].join(","),
+      );
+    }
+    return lines.join("\n");
+  };
+
+  const downloadCSV = (csv: string, filename: string) => {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      setIsExporting(true);
+      // Lấy toàn bộ dữ liệu theo bộ lọc hiện tại qua phân trang
+      const exportPageSize = 200;
+      const first = await userApi.getUsers(
+        1,
+        exportPageSize,
+        roleFilter !== "all" ? roleFilter : undefined,
+        computeIsActiveFilter(),
+        searchTerm || undefined,
+      );
+      let allRows = first.data || [];
+      const total = first.totalCount || allRows.length;
+      const pages = Math.ceil(total / exportPageSize);
+      for (let p = 2; p <= pages; p++) {
+        const next = await userApi.getUsers(
+          p,
+          exportPageSize,
+          roleFilter !== "all" ? roleFilter : undefined,
+          computeIsActiveFilter(),
+          searchTerm || undefined,
+        );
+        allRows = allRows.concat(next.data || []);
+      }
+      if (!allRows.length) {
+        toast({
+          title: "Không có dữ liệu",
+          description: "Không có người dùng theo bộ lọc hiện tại.",
+        });
+        return;
+      }
+      const csv = createCSV(allRows);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      downloadCSV(csv, `users-${stamp}.csv`);
+      toast({ title: "Đã xuất CSV", description: `Tổng ${allRows.length} người dùng.` });
+    } catch (e: any) {
+      toast({
+        title: "Lỗi xuất CSV",
+        description: e?.message || "Không thể xuất dữ liệu.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -376,7 +490,7 @@ export default function AdminUserManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -400,6 +514,31 @@ export default function AdminUserManagement() {
                 <SelectItem value="Customer">Customer</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="active">Hoạt động</SelectItem>
+                <SelectItem value="inactive">Không hoạt động</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button onClick={handleExportCSV} disabled={isExporting} className="sm:ml-auto">
+              {isExporting ? (
+                <span className="flex items-center gap-2">
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900" />
+                  Đang xuất...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <FileDown className="h-4 w-4" />
+                  Xuất CSV
+                </span>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -434,7 +573,9 @@ export default function AdminUserManagement() {
                 <TableRow>
                   <TableHead>Người dùng</TableHead>
                   <TableHead>Vai trò</TableHead>
+                  <TableHead>Trạng thái</TableHead>
                   <TableHead>Ngày tạo</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -460,11 +601,40 @@ export default function AdminUserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{getRoleBadge(user.roles)}</TableCell>
+                    <TableCell>{getStatusBadge(user.isActive)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-gray-500">
                         <Calendar className="w-3 h-3" />
                         {formatDate(user.createdAt)}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleRoleChange(user)}>
+                            <Shield className="mr-2 h-4 w-4" /> Đổi vai trò
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusToggle(user.id, user.isActive)}>
+                            {user.isActive ? (
+                              <XCircle className="mr-2 h-4 w-4" />
+                            ) : (
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                            )}
+                            {user.isActive ? "Khoá tài khoản" : "Mở khoá tài khoản"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Xoá
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

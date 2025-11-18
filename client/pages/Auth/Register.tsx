@@ -48,6 +48,8 @@ export default function Register() {
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const { registerUser } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const DISABLE_EMAIL_CONFIRMATION =
     String(import.meta.env.VITE_DISABLE_EMAIL_CONFIRMATION).toLowerCase() ===
     "true";
@@ -154,6 +156,7 @@ export default function Register() {
               <Input
                 id="fullname"
                 placeholder="Nguyễn Văn A"
+                autoComplete="name"
                 {...r("fullname", {
                   required: "Vui lòng nhập họ tên",
                   minLength: {
@@ -162,9 +165,11 @@ export default function Register() {
                   },
                 })}
                 disabled={!canSubmit}
+                aria-invalid={!!errors.fullname || undefined}
+                aria-describedby={errors.fullname ? "register-fullname-error" : undefined}
               />
               {errors.fullname && (
-                <p className="text-sm text-red-500">{errors.fullname.message}</p>
+                <p id="register-fullname-error" className="text-sm text-red-500">{errors.fullname.message}</p>
               )}
             </div>
 
@@ -174,6 +179,9 @@ export default function Register() {
                 id="email"
                 type="email"
                 placeholder="your@email.com"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
                 {...r("email", {
                   required: "Vui lòng nhập email",
                   pattern: {
@@ -182,9 +190,11 @@ export default function Register() {
                   },
                 })}
                 disabled={!canSubmit}
+                aria-invalid={!!errors.email || undefined}
+                aria-describedby={errors.email ? "register-email-error" : undefined}
               />
               {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
+                <p id="register-email-error" className="text-sm text-red-500">{errors.email.message}</p>
               )}
             </div>
 
@@ -207,25 +217,37 @@ export default function Register() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Mật khẩu</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                {...r("password", {
-                  required: "Vui lòng nhập mật khẩu",
-                  minLength: {
-                    value: 8,
-                    message: "Mật khẩu phải có ít nhất 8 ký tự",
-                  },
-                  pattern: {
-                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-                    message: "Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt",
-                  },
-                })}
-                disabled={!canSubmit}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  {...r("password", {
+                    required: "Vui lòng nhập mật khẩu",
+                    minLength: {
+                      value: 8,
+                      message: "Mật khẩu phải có ít nhất 8 ký tự",
+                    },
+                    pattern: {
+                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+                      message: "Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt",
+                    },
+                  })}
+                  disabled={!canSubmit}
+                  aria-invalid={!!errors.password || undefined}
+                  aria-describedby={errors.password ? "register-password-error" : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  {showPassword ? "Ẩn" : "Hiện"}
+                </button>
+              </div>
               {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
+                <p id="register-password-error" className="text-sm text-red-500">{errors.password.message}</p>
               )}
               {password && (
                 <div className="mt-2">
@@ -252,26 +274,38 @@ export default function Register() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                {...r("confirmPassword", {
-                  required: "Vui lòng xác nhận mật khẩu",
-                  validate: (value) =>
-                    value === password || "Mật khẩu không khớp",
-                })}
-                disabled={!canSubmit}
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  {...r("confirmPassword", {
+                    required: "Vui lòng xác nhận mật khẩu",
+                    validate: (value) =>
+                      value === password || "Mật khẩu không khớp",
+                  })}
+                  disabled={!canSubmit}
+                  aria-invalid={!!errors.confirmPassword || undefined}
+                  aria-describedby={errors.confirmPassword ? "register-confirm-error" : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  {showConfirmPassword ? "Ẩn" : "Hiện"}
+                </button>
+              </div>
               {errors.confirmPassword && (
-                <p className="text-sm text-red-500">
+                <p id="register-confirm-error" className="text-sm text-red-500">
                   {errors.confirmPassword.message}
                 </p>
               )}
             </div>
 
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" role="status" aria-live="polite">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -302,7 +336,7 @@ export default function Register() {
             <div className="text-center">
               <span className="text-sm text-gray-600">Đã có tài khoản? </span>
               <Link
-                to="/login"
+                to={`/login?email=${encodeURIComponent(registeredEmail || "")}`}
                 className="text-sm text-blue-600 hover:underline"
               >
                 Đăng nhập

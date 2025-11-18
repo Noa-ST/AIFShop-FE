@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchShopBySeller, fetchGlobalCategories } from "@/lib/api";
 import productService, { type CreateProduct as CreateProductInput } from "@/services/productService";
-import { ProductValidator } from "@/utils/productValidator";
+import { ProductValidator, type ProductValidationErrors } from "@/utils/productValidator";
 import { ProductErrorHandler } from "@/utils/productErrorHandler";
 import ProductImageUploader from "@/components/products/ProductImageUploader";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,7 @@ export default function CreateProduct() {
     categoryId: "",
     imageUrls: [] as string[],
   });
+  const [errors, setErrors] = useState<ProductValidationErrors>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -135,9 +136,8 @@ export default function CreateProduct() {
         categoryId: form.categoryId || "",
         imageUrls: allImageUrls.length > 0 ? allImageUrls : undefined,
       };
-
-      // Validate using ProductValidator
       const validationErrors = ProductValidator.validateCreateProduct(payload);
+      setErrors(validationErrors);
       if (ProductValidator.hasErrors(validationErrors)) {
         const firstError = Object.values(validationErrors)[0];
         toast({
@@ -206,8 +206,8 @@ export default function CreateProduct() {
                     className="mt-1"
                     required
                   />
+                  {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name}</p>}
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="price" className="text-sm font-medium">
@@ -225,6 +225,7 @@ export default function CreateProduct() {
                       className="mt-1"
                       required
                     />
+                    {errors.price && <p className="text-sm text-red-600 mt-1">{errors.price}</p>}
                   </div>
                   <div>
                     <Label htmlFor="stockQuantity" className="text-sm font-medium">
@@ -241,9 +242,11 @@ export default function CreateProduct() {
                       className="mt-1"
                       required
                     />
+                    {errors.stockQuantity && (
+                      <p className="text-sm text-red-600 mt-1">{errors.stockQuantity}</p>
+                    )}
                   </div>
                 </div>
-
                 <div>
                   <Label htmlFor="description" className="text-sm font-medium">
                     Mô tả sản phẩm *
@@ -258,47 +261,33 @@ export default function CreateProduct() {
                     className="mt-1"
                     required
                   />
+                  {/* Không bắt lỗi description trong validator, có thể bổ sung nếu cần */}
                 </div>
-
                 <div>
                   <Label htmlFor="categoryId" className="text-sm font-medium">
-                    Danh mục (tùy chọn)
+                    Danh mục *
                   </Label>
                   <Select
-                    value={form.categoryId || 'none'}
-                    onValueChange={(value) =>
-                      setForm(prev => ({ ...prev, categoryId: value === 'none' ? '' : value }))
-                    }
+                    value={form.categoryId}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, categoryId: value }))}
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      <SelectItem value="none">Không có danh mục</SelectItem>
-                      {categoriesLoading ? (
-                        <SelectItem value="loading" disabled>
-                          Đang tải danh mục...
-                        </SelectItem>
-                      ) : categoriesError ? (
-                        <SelectItem value="error" disabled>
-                          Lỗi tải danh mục
-                        </SelectItem>
-                      ) : flatCategories.length === 0 ? (
+                      {/* Bỏ tùy chọn 'Không có danh mục' để phù hợp validator */}
+                      {flatCategories.length === 0 ? (
                         <SelectItem value="empty" disabled>
                           Chưa có danh mục nào
                         </SelectItem>
                       ) : (
                         flatCategories.map((category) => {
-                          const indentPadding = category.level * 16; // 16px per level
+                          const indentPadding = category.level * 16;
                           const Icon = category.level === 0 ? FolderOpen : ChevronRight;
-                          
                           return (
-                            <SelectItem 
-                              key={category.id} 
-                              value={category.id}
-                            >
-                              <div 
-                                className="flex items-center gap-2" 
+                            <SelectItem key={category.id} value={category.id}>
+                              <div
+                                className="flex items-center gap-2"
                                 style={{ paddingLeft: `${indentPadding}px` }}
                               >
                                 <Icon className="w-3 h-3 text-gray-400 flex-shrink-0" />
@@ -310,12 +299,15 @@ export default function CreateProduct() {
                       )}
                     </SelectContent>
                   </Select>
-                  {form.categoryId && form.categoryId !== 'none' && flatCategories.length > 0 && (() => {
-                    const selected = flatCategories.find(c => c.id === form.categoryId);
-                    return selected && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Đường dẫn: {selected.fullPath}
-                      </p>
+                  {errors.categoryId && (
+                    <p className="text-sm text-red-600 mt-1">{errors.categoryId}</p>
+                  )}
+                  {form.categoryId && flatCategories.length > 0 && (() => {
+                    const selected = flatCategories.find((c) => c.id === form.categoryId);
+                    return (
+                      selected && (
+                        <p className="text-xs text-gray-500 mt-1">Đường dẫn: {selected.fullPath}</p>
+                      )
                     );
                   })()}
                 </div>

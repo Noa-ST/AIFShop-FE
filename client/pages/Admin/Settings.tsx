@@ -231,10 +231,10 @@ export default function AdminSettings() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 ${
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                       activeTab === tab.id
-                        ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                        : "text-gray-700"
+                        ? "bg-rose-50 text-rose-700 border-r-2 border-rose-200"
+                        : "text-gray-700 hover:bg-rose-50 hover:text-rose-700"
                     }`}
                   >
                     <Icon className="w-4 h-4" />

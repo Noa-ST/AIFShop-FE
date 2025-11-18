@@ -12,27 +12,32 @@ type StatusMeta<TValue> = {
   badgeVariant: BadgeVariant;
   description?: string;
   value: TValue;
+  className?: string;
 };
 
 export const ORDER_STATUS_META: Record<OrderStatus, StatusMeta<OrderStatus>> = {
   Pending: {
     label: "Chờ xác nhận",
     badgeVariant: "secondary",
+    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
     value: "Pending",
   },
   Confirmed: {
     label: "Đã xác nhận",
     badgeVariant: "default",
+    className: "bg-blue-100 text-blue-800 border-blue-200",
     value: "Confirmed",
   },
   Shipped: {
     label: "Đang giao",
     badgeVariant: "default",
+    className: "bg-green-100 text-green-800 border-green-200",
     value: "Shipped",
   },
   Delivered: {
     label: "Đã giao",
     badgeVariant: "default",
+    className: "bg-emerald-600 text-white border-emerald-600",
     value: "Delivered",
   },
   Canceled: {
@@ -49,6 +54,7 @@ export const PAYMENT_STATUS_META: Record<
   Pending: {
     label: "Chờ thanh toán",
     badgeVariant: "secondary",
+    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
     value: "Pending",
   },
   Paid: {

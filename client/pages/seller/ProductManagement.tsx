@@ -29,6 +29,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Package,
   Edit,
   Trash2,
@@ -49,6 +57,7 @@ import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { getProductImageUrl } from "@/utils/imageUrl";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function ProductManagement() {
   const { user, initialized } = useAuth();
@@ -61,6 +70,11 @@ export default function ProductManagement() {
   const sellerId = user?.id;
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"name" | "price" | "stock">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const { data: shop } = useQuery({
     queryKey: ["shopBySeller", sellerId],
@@ -159,8 +173,51 @@ export default function ProductManagement() {
       });
     }
 
+    // Helper: normalize status to 0/1/2 for filter/sort
+    const normStatus = (p: any): number => {
+      const s = p.status;
+      if (typeof s === "number") return s; // 0=pending,1=approved,2=rejected
+      if (typeof s === "string") {
+        const v = s.toLowerCase().trim();
+        if (v === "approved" || v === "1") return 1;
+        if (v === "pending" || v === "0") return 0;
+        if (v === "rejected" || v === "2") return 2;
+      }
+      if (p.isApproved === true) return 1;
+      if (p.isRejected === true || p.rejected === true) return 2;
+      return 0;
+    };
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      const target =
+        statusFilter === "approved" ? 1 :
+        statusFilter === "pending" ? 0 :
+        statusFilter === "rejected" ? 2 : -1;
+      if (target !== -1) {
+        result = result.filter((p: any) => normStatus(p) === target);
+      }
+    }
+
+    // Sort
+    result = [...result].sort((a: any, b: any) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortBy === "name") {
+        return dir * String(a.name || "").localeCompare(String(b.name || ""));
+      }
+      if (sortBy === "price") {
+        return dir * ((a.price ?? 0) - (b.price ?? 0));
+      }
+      if (sortBy === "stock") {
+        const sa = a.stockQuantity ?? a.stock ?? 0;
+        const sb = b.stockQuantity ?? b.stock ?? 0;
+        return dir * (sa - sb);
+      }
+      return 0;
+    });
+
     return result;
-  }, [products, query, categoryFilter]);
+  }, [products, query, categoryFilter, statusFilter, sortBy, sortDir]);
 
   // Helper function để lấy ảnh sản phẩm (dùng tiện ích chung)
   const getProductImage = (product: any): string => {
@@ -231,12 +288,28 @@ export default function ProductManagement() {
                 Tạo Sản phẩm
               </Button>
             </Link>
+            <div className="ml-2 flex gap-2">
+              <Button
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                onClick={() => setViewMode("cards")}
+                className="rounded-xl"
+              >
+                Thẻ
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "default" : "ghost"}
+                onClick={() => setViewMode("table")}
+                className="rounded-xl"
+              >
+                Bảng
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Search and Filter */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[240px] max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               placeholder="Tìm kiếm theo tên sản phẩm..."
@@ -245,8 +318,9 @@ export default function ProductManagement() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-11 w-48 border-2 rounded-xl">
+            <SelectTrigger className="h-11 w-52 border-2 rounded-xl">
               <SelectValue placeholder="Danh mục" />
             </SelectTrigger>
             <SelectContent>
@@ -258,11 +332,66 @@ export default function ProductManagement() {
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-11 w-44 border-2 rounded-xl">
+              <SelectValue placeholder="Trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả trạng thái</SelectItem>
+              <SelectItem value="pending">Chờ duyệt</SelectItem>
+              <SelectItem value="approved">Đã duyệt</SelectItem>
+              <SelectItem value="rejected">Từ chối</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+            <SelectTrigger className="h-11 w-40 border-2 rounded-xl">
+              <SelectValue placeholder="Sắp xếp" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Tên</SelectItem>
+              <SelectItem value="price">Giá</SelectItem>
+              <SelectItem value="stock">Tồn kho</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortDir} onValueChange={(v) => setSortDir(v as any)}>
+            <SelectTrigger className="h-11 w-32 border-2 rounded-xl">
+              <SelectValue placeholder="Thứ tự" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="asc">Tăng dần</SelectItem>
+              <SelectItem value="desc">Giảm dần</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button variant="outline" className="h-11 px-4 border-2 rounded-xl">
             <Filter className="w-4 h-4 mr-2" />
             Lọc
           </Button>
         </div>
+
+        {selectedIds.size > 0 && (
+          <div className="mt-3 flex items-center justify-between p-3 rounded-lg bg-orange-50 border border-orange-200">
+            <span className="text-sm text-gray-700">
+              Đã chọn <strong>{selectedIds.size}</strong> sản phẩm
+            </span>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                const ids = Array.from(selectedIds);
+                for (const id of ids) {
+                  await deleteMutation.mutateAsync(id);
+                }
+                setSelectedIds(new Set());
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Xóa mềm đã chọn
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Products Grid/List */}
@@ -286,6 +415,158 @@ export default function ProductManagement() {
             </Link>
           </CardContent>
         </Card>
+      ) : viewMode === "table" ? (
+        <div className="overflow-x-auto rounded-xl border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10"></TableHead>
+                <TableHead>Ảnh</TableHead>
+                <TableHead>Tên</TableHead>
+                <TableHead>Danh mục</TableHead>
+                <TableHead>Giá</TableHead>
+                <TableHead>Tồn kho</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className="text-right">Hành động</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((product: any) => (
+                <TableRow key={product.id || product._id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(String(product.id || product._id))}
+                      onCheckedChange={(checked) => {
+                        const id = String(product.id || product._id);
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(id);
+                          else next.delete(id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <img
+                      src={getProductImage(product)}
+                      alt={product.name}
+                      className="w-12 h-12 object-cover rounded-lg border"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/placeholder.svg";
+                        (e.target as HTMLImageElement).onerror = null;
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell className="max-w-[280px]">
+                    <div className="font-medium truncate">{product.name}</div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {product.description}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {product.categoryName ? (
+                      <Badge variant="outline">{product.categoryName}</Badge>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold text-[#e91e63]">
+                      {(product.price || 0).toLocaleString("vi-VN")}₫
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        (product.stockQuantity ?? product.stock ?? 0) > 0
+                          ? "default"
+                          : "destructive"
+                      }
+                    >
+                      {product.stockQuantity ?? product.stock ?? 0}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={(() => {
+                        const status = product.status;
+                        if (status !== undefined && status !== null) {
+                          if (status === 1 || status === "Approved" || status === "approved") return "default";
+                          if (status === 0 || status === "Pending" || status === "pending") return "secondary";
+                          if (status === 2 || status === "Rejected" || status === "rejected") return "destructive";
+                        }
+                        if (product.isApproved === true) return "default";
+                        if (product.isRejected === true || product.rejected === true) return "destructive";
+                        return "secondary";
+                      })() as any}
+                      className="whitespace-nowrap"
+                    >
+                      {(() => {
+                        const status = product.status;
+                        if (status !== undefined && status !== null) {
+                          if (typeof status === "number") {
+                            if (status === 1) return "Approved";
+                            if (status === 0) return "Pending";
+                            if (status === 2) return "Rejected";
+                          }
+                          if (typeof status === "string") {
+                            const s = status.toLowerCase().trim();
+                            if (s === "approved" || s === "1") return "Approved";
+                            if (s === "pending" || s === "0") return "Pending";
+                            if (s === "rejected" || s === "2") return "Rejected";
+                          }
+                        }
+                        if (product.isApproved === true) return "Approved";
+                        if (product.isRejected === true || product.rejected === true) return "Rejected";
+                        return "Pending";
+                      })()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">Hành động</Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to={`/products/${product.id || product._id}`}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Xem chi tiết
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to={`/seller/products/edit/${product.id || product._id}`}
+                            className="cursor-pointer"
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Chỉnh sửa
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600 cursor-pointer"
+                          onClick={() => {
+                            const id = product.id || product._id;
+                            if (!id) return;
+                            setProductToDelete(id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Xóa mềm
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <div className="grid gap-4">
           {filtered.map((product: any, index: number) => (
@@ -298,15 +579,27 @@ export default function ProductManagement() {
               <Card className="hover:shadow-lg transition-shadow border-2">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-6">
-                    {/* Product Image */}
-                    <div className="flex-shrink-0">
+                    {/* Checkbox + Image */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                      <Checkbox
+                        checked={selectedIds.has(String(product.id || product._id))}
+                        onCheckedChange={(checked) => {
+                          const id = String(product.id || product._id);
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(id);
+                            else next.delete(id);
+                            return next;
+                          });
+                        }}
+                      />
                       <img
                         src={getProductImage(product)}
                         alt={product.name}
                         className="w-24 h-24 object-cover rounded-xl border-2 border-gray-200"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = "/placeholder.svg";
-                          (e.target as HTMLImageElement).onerror = null; // Prevent infinite loop
+                          (e.target as HTMLImageElement).onerror = null;
                         }}
                       />
                     </div>
@@ -318,6 +611,7 @@ export default function ProductManagement() {
                           <h3 className="text-lg font-semibold text-gray-800 mb-2 truncate">
                             {product.name}
                           </h3>
+
                           <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
                               <span className="text-sm text-gray-500">
@@ -333,9 +627,7 @@ export default function ProductManagement() {
                               </span>
                               <Badge
                                 variant={
-                                  (product.stockQuantity ??
-                                    product.stock ??
-                                    0) > 0
+                                  (product.stockQuantity ?? product.stock ?? 0) > 0
                                     ? "default"
                                     : "destructive"
                                 }

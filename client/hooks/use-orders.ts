@@ -7,6 +7,7 @@ import {
   getShopOrders,
   updateOrderStatus,
   cancelOrder,
+  confirmDelivery,
   type OrderCreateDTO,
 } from "@/services/orders";
 import type { OrderResponseDTO, OrderStatus } from "@/services/types";
@@ -22,19 +23,36 @@ type UseOrderListParams = {
   filter?: any;
 };
 
+// At function useOrderList()
 export const useOrderList = ({
   scope,
   id,
   status,
   filter,
-}: UseOrderListParams) => {
+  refetchIntervalMs,
+}: UseOrderListParams & { refetchIntervalMs?: number }) => {
   const enabled = scope === "all" ? true : Boolean(id);
 
+  // ✅ Include filter in query key to refetch on change
+  const filterKey = [
+    filter?.keyword ?? "*",
+    filter?.startDate ?? "*",
+    filter?.endDate ?? "*",
+    filter?.minAmount ?? "*",
+    filter?.maxAmount ?? "*",
+    filter?.sortBy ?? "*",
+    filter?.sortOrder ?? "*",
+    filter?.page ?? "*",
+    filter?.pageSize ?? "*",
+  ] as const;
+
   return useQuery<OrderResponseDTO[], Error>({
-    queryKey: [...baseKey, scope, id ?? "*", status ?? "*"] as const,
+    queryKey: [...baseKey, scope, id ?? "*", status ?? "*", ...filterKey] as const,
     enabled,
     retry: 1,
     refetchOnWindowFocus: false,
+    // ✅ Optional auto refresh
+    refetchInterval: typeof refetchIntervalMs === "number" ? refetchIntervalMs : false,
     queryFn: async () => {
       let result: any;
 
@@ -65,7 +83,6 @@ export const useOrderList = ({
         const filtered = orders.filter(
           (order: OrderResponseDTO) => order.status === status,
         );
-        console.log(`📦 Filtered by status "${status}":`, filtered.length);
         return filtered;
       }
 
@@ -114,9 +131,16 @@ export const useOrderMutation = () => {
     onSuccess: (_data, orderId) => invalidateOrderQueries(orderId),
   });
 
+  const confirmDeliveryMutation = useMutation({
+    mutationKey: [...baseKey, "confirm-delivery"],
+    mutationFn: (orderId: string) => confirmDelivery(orderId),
+    onSuccess: (_data, orderId) => invalidateOrderQueries(orderId),
+  });
+
   return {
     createOrderMutation,
     updateStatusMutation,
     cancelOrderMutation,
+    confirmDeliveryMutation,
   };
 };

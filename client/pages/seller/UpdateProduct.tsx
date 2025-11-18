@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchGlobalCategories } from "@/lib/api";
 import productService, { type UpdateProduct as UpdateProductInput } from "@/services/productService";
-import { ProductValidator } from "@/utils/productValidator";
+import { ProductValidator, type ProductValidationErrors } from "@/utils/productValidator";
 import { ProductErrorHandler } from "@/utils/productErrorHandler";
 import ProductImageUploader from "@/components/products/ProductImageUploader";
 import { Input } from "@/components/ui/input";
@@ -96,6 +96,7 @@ export default function UpdateProduct() {
     categoryId: "",
     imageUrls: [] as string[],
   });
+  const [errors, setErrors] = useState<ProductValidationErrors>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -223,6 +224,7 @@ export default function UpdateProduct() {
 
     // Validate using ProductValidator
     const validationErrors = ProductValidator.validateUpdateProduct(payload);
+    setErrors(validationErrors);
     if (ProductValidator.hasErrors(validationErrors)) {
       const firstError = Object.values(validationErrors)[0];
       toast({
@@ -406,19 +408,16 @@ export default function UpdateProduct() {
                     Danh mục *
                   </Label>
                   <Select
-                    value={form.categoryId || "none"}
+                    value={form.categoryId}
                     onValueChange={(value) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        categoryId: value === "none" ? "" : value,
-                      }))
+                      setForm((prev) => ({ ...prev, categoryId: value }))
                     }
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      <SelectItem value="none">Không có danh mục</SelectItem>
+                      {/* Bỏ tùy chọn 'Không có danh mục' để khớp với validator */}
                       {categoriesLoading ? (
                         <SelectItem value="loading" disabled>
                           Đang tải danh mục...
@@ -434,8 +433,7 @@ export default function UpdateProduct() {
                       ) : (
                         flatCategories.map((category) => {
                           const indentPadding = category.level * 16;
-                          const Icon =
-                            category.level === 0 ? FolderOpen : ChevronRight;
+                          const Icon = category.level === 0 ? FolderOpen : ChevronRight;
 
                           return (
                             <SelectItem key={category.id} value={category.id}>
@@ -452,21 +450,23 @@ export default function UpdateProduct() {
                       )}
                     </SelectContent>
                   </Select>
-                  {form.categoryId &&
-                    form.categoryId !== "none" &&
-                    flatCategories.length > 0 &&
-                    (() => {
-                      const selected = flatCategories.find(
-                        (c) => c.id === form.categoryId
-                      );
-                      return (
-                        selected && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Đường dẫn: {selected.fullPath}
-                          </p>
-                        )
-                      );
-                    })()}
+                  {errors.categoryId && (
+                    <p className="text-sm text-red-600 mt-1">{errors.categoryId}</p>
+                  )}
+
+                  {/* Hiển thị đường dẫn danh mục đã chọn, hoặc tên danh mục hiện có nếu không khớp danh sách */}
+                  {(() => {
+                    const selected = flatCategories.find((c) => c.id === form.categoryId);
+                    return selected ? (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Đang chọn: {selected.fullPath}
+                      </p>
+                    ) : product?.categoryName ? (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Danh mục hiện tại: {product.categoryName} (không có trong danh sách hiển thị)
+                      </p>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 

@@ -229,7 +229,8 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <>
+    <div className="container mx-auto pt-8 pb-28 lg:py-8">
       {/* Header */}
       <div className="mb-6 flex items-end justify-between">
         <div>
@@ -299,8 +300,8 @@ export default function CartPage() {
                         onQuantityChange={(quantity) =>
                           handleQuantityChange(item.productId, quantity)
                         }
-                        onRemove={() => {
-                          removeItem(item.productId);
+                        onRemove={async () => {
+                          await removeItem(item.productId);
                           setSelectedItems(prev => {
                             const next = new Set(prev);
                             next.delete(item.productId);
@@ -327,8 +328,8 @@ export default function CartPage() {
           })}
         </div>
 
-        {/* Summary */}
-        <aside className="lg:sticky lg:top-6">
+        {/* Summary: hidden on mobile to avoid duplication */}
+        <aside className="hidden lg:block lg:sticky lg:top-6">
           <div className="rounded-xl border bg-background p-6 space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -368,5 +369,25 @@ export default function CartPage() {
         </aside>
       </div>
     </div>
+    {/* Sticky checkout bar for mobile with updated background */}
+    <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t bg-rose-50/95 backdrop-blur supports-[backdrop-filter]:bg-rose-50/80">
+      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Tổng cộng</div>
+          <div className="text-lg font-bold text-primary truncate">
+            {cartService.formatPrice(selectedTotal)}
+          </div>
+        </div>
+        <Button
+          size="lg"
+          onClick={handleCheckout}
+          disabled={selectedItems.size === 0}
+          className="flex-shrink-0"
+        >
+          Đặt hàng ({selectedItemsCount})
+        </Button>
+      </div>
+    </div>
+    </>
   );
 }

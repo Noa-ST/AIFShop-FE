@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { shopCategoryService, GetShopCategory } from "@/services/shopCategoryService";
-import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,9 @@ interface ShopCategoryTreeProps {
   showActions?: boolean;
   onEdit?: (category: GetShopCategory) => void;
   onDelete?: (category: GetShopCategory) => void;
+  expandAllTrigger?: number; // increment to expand all
+  collapseAllTrigger?: number; // increment to collapse all
+  onAddChild?: (parent: GetShopCategory) => void; // quick create child
 }
 
 export default function ShopCategoryTree({
@@ -22,6 +25,9 @@ export default function ShopCategoryTree({
   showActions = false,
   onEdit,
   onDelete,
+  expandAllTrigger,
+  collapseAllTrigger,
+  onAddChild,
 }: ShopCategoryTreeProps) {
   // ✅ Auto-expand root categories mặc định để thấy subcategories
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -40,6 +46,36 @@ export default function ShopCategoryTree({
       setHasAutoExpanded(true);
     }
   }, [categories, hasAutoExpanded]);
+
+  // Collect all ids that have children
+  const collectExpandableIds = (nodes: GetShopCategory[]): Set<string> => {
+    const ids = new Set<string>();
+    const walk = (arr: GetShopCategory[]) => {
+      arr.forEach(node => {
+        if (node.children && node.children.length > 0) {
+          ids.add(node.id);
+          walk(node.children);
+        }
+      });
+    };
+    walk(nodes);
+    return ids;
+  };
+
+  // External controls: expand/collapse all
+  useEffect(() => {
+    if (typeof expandAllTrigger === 'number') {
+      const all = collectExpandableIds(categories);
+      setExpandedIds(all);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandAllTrigger]);
+
+  useEffect(() => {
+    if (typeof collapseAllTrigger === 'number') {
+      setExpandedIds(new Set());
+    }
+  }, [collapseAllTrigger]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -134,6 +170,19 @@ export default function ShopCategoryTree({
 
           {showActions && (
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onAddChild && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddChild(category);
+                  }}
+                >
+                  <PlusCircle className="w-4 h-4" />
+                </Button>
+              )}
               {onEdit && (
                 <Button
                   variant="ghost"

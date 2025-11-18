@@ -16,6 +16,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { fetchShopBySeller } from "@/lib/api";
+import { shopService } from "@/services/shopService";
+import { getShopOrders } from "@/services/orders";
 
 interface NavItem {
   icon: React.ElementType;
@@ -57,6 +64,8 @@ interface NavItemProps {
   isActive: boolean;
   hasActiveChild?: boolean;
   onClose?: () => void;
+  compact?: boolean;
+  rightBadge?: React.ReactNode;
 }
 
 const NavItemComponent = ({
@@ -64,9 +73,22 @@ const NavItemComponent = ({
   isActive,
   hasActiveChild,
   onClose,
+  compact,
+  rightBadge,
 }: NavItemProps) => {
   const Icon = item.icon;
-  const [isExpanded, setIsExpanded] = useState(hasActiveChild || isActive);
+  // Persist trạng thái mở rộng của nhóm trong localStorage để giữ nguyên khi điều hướng
+  const storageKey = `sellerSidebarExpanded:${item.href}`;
+  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved === "true") return true;
+      if (saved === "false") return false;
+      return Boolean(hasActiveChild || isActive);
+    } catch {
+      return Boolean(hasActiveChild || isActive);
+    }
+  });
   const location = useLocation();
 
   const hasChildren = item.children && item.children.length > 0;
@@ -79,30 +101,57 @@ const NavItemComponent = ({
       <div className="flex items-center">
         {hasChildren ? (
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-controls={`submenu-${item.href}`}
+            onClick={() => {
+              const next = !isExpanded;
+              setIsExpanded(next);
+              try {
+                localStorage.setItem(storageKey, String(next));
+              } catch {}
+            }}
             className={cn(
-              "flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+              "flex-1 flex items-center transition-all duration-200 group",
+              compact ? "gap-0 px-2 py-2 justify-center" : "gap-3 pl-3 pr-4 py-3",
               isActive || hasActiveChild
-                ? "bg-gradient-to-r from-[#e91e63] to-[#f43f5e] text-white shadow-lg shadow-pink-500/30"
-                : "text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-[#d81b60]",
+                ? "bg-rose-50 text-rose-700 border-l-2 border-rose-500"
+                : "text-gray-700 hover:bg-rose-50 hover:text-rose-700 hover:border-l-2 hover:border-rose-200",
             )}
           >
-            <Icon
-              className={cn(
-                "w-5 h-5 transition-all duration-200",
-                isActive || hasActiveChild
-                  ? "text-white"
-                  : "text-gray-500 group-hover:text-[#d81b60] group-hover:scale-110",
-              )}
-            />
-            <span
-              className={cn(
-                "font-medium flex-1 text-left",
-                (isActive || hasActiveChild) && "font-semibold",
-              )}
-            >
-              {item.label}
-            </span>
+            {compact ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Icon
+                    className={cn(
+                      "w-5 h-5 transition-all duration-200",
+                      isActive || hasActiveChild
+                        ? "text-rose-700"
+                        : "text-gray-500 group-hover:text-rose-700 group-hover:scale-110",
+                    )}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <>
+                <Icon
+                  className={cn(
+                    "w-5 h-5 transition-all duration-200",
+                    isActive || hasActiveChild
+                      ? "text-rose-700"
+                      : "text-gray-500 group-hover:text-rose-700 group-hover:scale-110",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-medium flex-1 text-left",
+                    (isActive || hasActiveChild) && "font-semibold",
+                  )}
+                >
+                  {item.label}
+                </span>
+              </>
+            )}
             {hasChildren && (
               <motion.div
                 animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -111,35 +160,55 @@ const NavItemComponent = ({
                 <ChevronDown
                   className={cn(
                     "w-4 h-4 transition-colors",
-                    isActive || hasActiveChild ? "text-white" : "text-gray-400",
+                    isActive || hasActiveChild ? "text-rose-700" : "text-gray-400",
                   )}
                 />
               </motion.div>
             )}
           </button>
         ) : (
-          <Link to={item.href} onClick={onClose} className="flex-1">
+          <Link to={item.href} onClick={onClose} className="flex-1" aria-current={isActive ? "page" : undefined} aria-label={item.label}>
             <motion.div
               whileHover={{ x: 4 }}
               transition={{ duration: 0.2 }}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                "flex items-center transition-all duration-200 group",
+                compact ? "gap-0 px-2 py-2 justify-center" : "gap-3 pl-3 pr-4 py-3",
                 isActive
-                  ? "bg-gradient-to-r from-[#e91e63] to-[#f43f5e] text-white shadow-lg shadow-pink-500/30"
-                  : "text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-rose-50 hover:text-[#d81b60]",
+                  ? "bg-rose-50 text-rose-700 border-l-2 border-rose-500"
+                  : "text-gray-700 hover:bg-rose-50 hover:text-rose-700 hover:border-l-2 hover:border-rose-200",
               )}
             >
-              <Icon
-                className={cn(
-                  "w-5 h-5 transition-all duration-200",
-                  isActive
-                    ? "text-white"
-                    : "text-gray-500 group-hover:text-[#d81b60] group-hover:scale-110",
-                )}
-              />
-              <span className={cn("font-medium", isActive && "font-semibold")}>
-                {item.label}
-              </span>
+              {compact ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Icon
+                      className={cn(
+                        "w-5 h-5 transition-all duration-200",
+                        isActive
+                          ? "text-rose-700"
+                          : "text-gray-500 group-hover:text-rose-700 group-hover:scale-110",
+                      )}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  <Icon
+                    className={cn(
+                      "w-5 h-5 transition-all duration-200",
+                      isActive
+                        ? "text-rose-700"
+                        : "text-gray-500 group-hover:text-rose-700 group-hover:scale-110",
+                    )}
+                  />
+                  <span className={cn("font-medium", isActive && "font-semibold")}>
+                    {item.label}
+                  </span>
+                  {rightBadge && <span className="ml-auto">{rightBadge}</span>}
+                </>
+              )}
             </motion.div>
           </Link>
         )}
@@ -155,8 +224,9 @@ const NavItemComponent = ({
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
+              id={`submenu-${item.href}`}
             >
-              <div className="ml-4 mt-2 space-y-1 border-l-2 border-pink-200 pl-4">
+              <div className="ml-4 mt-2 space-y-1 border-l-2 border-rose-200 pl-4">
                 {item.children?.map((child) => {
                   const ChildIcon = child.icon;
                   const isChildActive = location.pathname === child.href;
@@ -166,26 +236,47 @@ const NavItemComponent = ({
                       to={child.href}
                       onClick={onClose}
                       className="block"
+                      aria-current={isChildActive ? "page" : undefined}
+                      aria-label={child.label}
                     >
                       <motion.div
                         whileHover={{ x: 4 }}
                         transition={{ duration: 0.2 }}
                         className={cn(
-                          "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm",
+                          "flex items-center transition-all duration-200 text-sm",
+                          compact ? "gap-0 px-2 py-2 justify-center" : "gap-3 px-4 py-2.5",
                           isChildActive
-                            ? "bg-pink-100 text-[#d81b60] font-semibold border-l-4 border-[#e91e63]"
-                            : "text-gray-600 hover:bg-pink-50 hover:text-[#d81b60]",
+                            ? "bg-rose-100 text-rose-700 font-semibold border-l-4 border-rose-300"
+                            : "text-gray-600 hover:bg-rose-50 hover:text-rose-700 hover:border-l-2 hover:border-rose-200",
                         )}
                       >
-                        <ChildIcon
-                          className={cn(
-                            "w-4 h-4 transition-all duration-200",
-                            isChildActive
-                              ? "text-[#d81b60]"
-                              : "text-gray-400 group-hover:text-[#d81b60]",
-                          )}
-                        />
-                        <span>{child.label}</span>
+                        {compact ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <ChildIcon
+                                className={cn(
+                                  "w-4 h-4 transition-all duration-200",
+                                  isChildActive
+                                    ? "text-rose-700"
+                                    : "text-gray-400 group-hover:text-rose-700",
+                                )}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">{child.label}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <>
+                            <ChildIcon
+                              className={cn(
+                                "w-4 h-4 transition-all duration-200",
+                                isChildActive
+                                  ? "text-rose-700"
+                                  : "text-gray-400 group-hover:text-rose-700",
+                              )}
+                            />
+                            <span>{child.label}</span>
+                          </>
+                        )}
                       </motion.div>
                     </Link>
                   );
@@ -203,6 +294,93 @@ export default function SellerSidebar() {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [compact, setCompact] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem("sellerSidebarCompact");
+      return v === "true" ? true : false;
+    } catch {
+      return false;
+    }
+  });
+  const { user } = useAuth();
+  const sellerId = user?.id;
+  const { data: shop } = useQuery({
+    queryKey: ["sidebarShopBySeller", sellerId],
+    queryFn: async () => {
+      if (!sellerId) return null;
+      return await fetchShopBySeller(sellerId);
+    },
+    enabled: !!sellerId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const shopId = (() => {
+    if (!shop) return null as string | null;
+    if (Array.isArray(shop)) return (shop[0] as any)?.id || (shop[0] as any)?._id || null;
+    return (shop as any).id || (shop as any)._id || (shop as any).shopId || null;
+  })();
+  const { data: pendingOrders, isFetching: isFetchingPending } = useQuery({
+    queryKey: ["sidebarPendingOrders", shopId],
+    queryFn: async () => {
+      if (!shopId) return null as any;
+      const result = await getShopOrders(shopId, { status: "Pending", page: 1, pageSize: 1 } as any);
+      return result;
+    },
+    enabled: !!shopId,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
+  });
+  const pendingCount = (pendingOrders as any)?.totalCount ?? 0;
+
+  // Thêm đếm cho Confirmed và Shipped để phản ánh tổng đơn đang mở
+  const { data: confirmedOrders, isFetching: isFetchingConfirmed } = useQuery({
+    queryKey: ["sidebarConfirmedOrders", shopId],
+    queryFn: async () => {
+      if (!shopId) return null as any;
+      const result = await getShopOrders(shopId, { status: "Confirmed", page: 1, pageSize: 1 } as any);
+      return result;
+    },
+    enabled: !!shopId,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
+  });
+  const confirmedCount = (confirmedOrders as any)?.totalCount ?? 0;
+
+  const { data: shippedOrders, isFetching: isFetchingShipped } = useQuery({
+    queryKey: ["sidebarShippedOrders", shopId],
+    queryFn: async () => {
+      if (!shopId) return null as any;
+      const result = await getShopOrders(shopId, { status: "Shipped", page: 1, pageSize: 1 } as any);
+      return result;
+    },
+    enabled: !!shopId,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
+  });
+  const shippedCount = (shippedOrders as any)?.totalCount ?? 0;
+  const openOrdersCount = (pendingCount || 0) + (confirmedCount || 0) + (shippedCount || 0);
+  const isOrdersLoading = isFetchingPending || isFetchingConfirmed || isFetchingShipped;
+  function todayIso() {
+    return new Date().toISOString().slice(0, 10);
+  }
+  const { data: revenueResp, isFetching: isFetchingRevenue } = useQuery({
+    queryKey: ["sidebarRevenueToday", shopId, todayIso()],
+    queryFn: async () => {
+      if (!shopId) return null as any;
+      const d = todayIso();
+      const res = await shopService.getRevenueSummary(shopId as string, {
+        from: d,
+        to: d,
+        groupBy: "day",
+        onlyPaid: true,
+      });
+      return res;
+    },
+    enabled: !!shopId,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
+  });
+  const todayRevenue: number = (revenueResp as any)?.data?.totalRevenue ?? 0;
+  const compactCurrency = (n: number) => new Intl.NumberFormat("vi-VN", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -212,6 +390,34 @@ export default function SellerSidebar() {
     window.addEventListener("resize", checkDesktop);
     return () => window.removeEventListener("resize", checkDesktop);
   }, []);
+
+  // Lắng nghe sự kiện từ SellerNavbar để toggle trạng thái compact/mobile
+  useEffect(() => {
+    const onCompactToggle = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { compact?: boolean } | undefined;
+      const next = typeof detail?.compact === "boolean" ? detail!.compact : !compact;
+      setCompact(next);
+      try {
+        localStorage.setItem("sellerSidebarCompact", String(next));
+      } catch {}
+    };
+
+    const onMobileToggle = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { open?: boolean } | undefined;
+      if (typeof detail?.open === "boolean") {
+        setIsMobileOpen(detail.open);
+      } else {
+        setIsMobileOpen((s) => !s);
+      }
+    };
+
+    document.addEventListener("sellerSidebarCompactToggle", onCompactToggle);
+    document.addEventListener("sellerSidebarMobileToggle", onMobileToggle);
+    return () => {
+      document.removeEventListener("sellerSidebarCompactToggle", onCompactToggle);
+      document.removeEventListener("sellerSidebarMobileToggle", onMobileToggle);
+    };
+  }, [compact]);
 
   const isActive = (href: string) => {
     if (href === "/seller/shop-management") {
@@ -237,6 +443,9 @@ export default function SellerSidebar() {
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-md hover:shadow-lg transition-shadow"
+        aria-expanded={isMobileOpen}
+        aria-controls="seller-sidebar"
+        aria-label="Mở/đóng sidebar"
       >
         {isMobileOpen ? (
           <X className="w-6 h-6 text-gray-700" />
@@ -254,7 +463,7 @@ export default function SellerSidebar() {
       )}
 
       {/* Sidebar */}
-      <motion.aside
+      <motion.aside id="seller-sidebar" aria-label="Thanh điều hướng Seller"
         initial={false}
         animate={{
           x: isDesktop ? 0 : isMobileOpen ? 0 : "-100%",
@@ -262,34 +471,76 @@ export default function SellerSidebar() {
         transition={{ duration: 0.3 }}
         className={cn(
           // On desktop, position the sidebar below the fixed seller navbar (height 4rem)
-          "fixed lg:sticky top-0 lg:top-16 left-0 h-screen lg:h-[calc(100vh-4rem)] w-64 bg-[#fdfdfd] border-r border-gray-200 p-6 flex flex-col justify-between z-40 lg:z-0",
+          compact
+            ? "fixed lg:sticky top-0 lg:top-16 left-0 h-screen lg:h-[calc(100vh-4rem)] w-16 bg-[#fdfdfd] border-r border-gray-200 p-2 flex flex-col justify-between z-40 lg:z-0"
+            : "fixed lg:sticky top-0 lg:top-16 left-0 h-screen lg:h-[calc(100vh-4rem)] w-64 bg-[#fdfdfd] border-r border-gray-200 p-6 flex flex-col justify-between z-40 lg:z-0",
         )}
       >
+        <TooltipProvider>
         <div className="flex-1 overflow-y-auto">
           {/* Navigation */}
-          <nav className="space-y-2">
-            {navItems.map((item) => (
-              <NavItemComponent
-                key={item.href}
-                item={item}
-                isActive={isActive(item.href)}
-                hasActiveChild={hasActiveChild(item)}
-                onClose={() => setIsMobileOpen(false)}
-              />
-            ))}
+          <nav className="space-y-2" role="navigation" aria-label="Điều hướng Seller">
+            {navItems.map((item) => {
+              const rightBadge = !compact && !item.children
+                ? item.href === "/seller/orders"
+                  ? isOrdersLoading
+                    ? (<Badge variant="secondary" className="ml-auto">—</Badge>)
+                    : openOrdersCount > 0
+                      ? (<Badge variant="destructive" className="ml-auto">{openOrdersCount}</Badge>)
+                      : null
+                  : item.href === "/seller/balance"
+                    ? isFetchingRevenue
+                      ? (<Badge variant="secondary" className="ml-auto">—</Badge>)
+                      : todayRevenue > 0
+                        ? (<Badge variant="secondary" className="ml-auto">{compactCurrency(todayRevenue)}</Badge>)
+                        : null
+                    : null
+                : null;
+              return (
+                <NavItemComponent
+                  key={item.href}
+                  item={item}
+                  isActive={isActive(item.href)}
+                  hasActiveChild={hasActiveChild(item)}
+                  onClose={() => setIsMobileOpen(false)}
+                  compact={compact}
+                  rightBadge={rightBadge}
+                />
+              );
+            })}
           </nav>
         </div>
-
+        </TooltipProvider>
+        
         {/* Footer */}
-        <div className="pt-6 border-t border-gray-200">
+        <div className={cn("pt-6 border-t border-gray-200", compact && "px-1")}
+        >
           <Link
             to="/"
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#d81b60] transition-colors"
+            className={cn(
+              "flex items-center gap-2 text-sm text-gray-500 hover:text-rose-700 transition-colors",
+              compact && "justify-center",
+            )}
           >
             <Home className="w-4 h-4" />
-            <span>Về trang chủ</span>
+            {!compact && <span>Về trang chủ</span>}
           </Link>
-          <p className="text-xs text-gray-400 mt-4">© 2025 AIFShop</p>
+          <div className={cn("mt-4 flex items-center justify-between", compact && "justify-center")}
+          >
+            {!compact && <p className="text-xs text-gray-400">© 2025 AIFShop</p>}
+            <button
+              onClick={() => {
+                const next = !compact;
+                setCompact(next);
+                try { localStorage.setItem("sellerSidebarCompact", String(next)); } catch {}
+              }}
+              className={cn(
+                "text-xs rounded-md border px-2 py-1 hover:bg-rose-50 hover:text-rose-700",
+              )}
+            >
+              {compact ? "Mở rộng" : "Thu gọn"}
+            </button>
+          </div>
         </div>
       </motion.aside>
     </>

@@ -1,6 +1,7 @@
 import { GetCartItemDto } from '@/services/cartService';
 import { cartService } from '@/services/cartService';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -79,12 +80,18 @@ export default function CartItem({
         </div>
       )}
 
-      <div className="w-24 h-24 flex-shrink-0">
+      <Link
+        to={`/products/${item.productId}`}
+        className="w-24 h-24 flex-shrink-0 block"
+        aria-label={`Xem chi tiết sản phẩm ${item.productName}`}
+      >
         {item.imageUrl ? (
           <img
             src={item.imageUrl}
             alt={item.productName}
-            className="w-full h-full rounded-md object-cover"
+            className="w-full h-full rounded-md object-cover hover:opacity-90 transition"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
             }}
@@ -94,13 +101,20 @@ export default function CartItem({
             No Image
           </div>
         )}
-      </div>
+      </Link>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h3 className="font-medium truncate">{item.productName}</h3>
-            <p className="text-sm text-muted-foreground mt-1 truncate">
+            <Link
+              to={`/products/${item.productId}`}
+              className="font-medium hover:text-primary text-slate-900 leading-snug line-clamp-2 break-words whitespace-normal hyphens-auto"
+              aria-label={`Xem chi tiết sản phẩm ${item.productName}`}
+              title={item.productName}
+            >
+              {item.productName}
+            </Link>
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-1 break-words whitespace-normal">
               Shop: {item.shopName}
             </p>
             <p className="text-sm font-medium mt-2">

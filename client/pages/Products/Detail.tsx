@@ -1,10 +1,17 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchProductById } from "@/lib/api";
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send } from "lucide-react";
+import {
+  MessageCircle,
+  Send,
+  Star,
+  Truck,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import AddToCartButton from "@/components/products/AddToCartButton";
 import ProductCard from "@/components/ProductCard";
 import productService from "@/services/productService";
@@ -19,6 +26,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useChat } from "@/contexts/ChatContext";
 import { useChatHubClient } from "@/hooks/useChatHubClient";
 import chatService from "@/services/chatService";
@@ -38,6 +49,7 @@ import { toast } from "@/hooks/use-toast";
 import reviewsService, { ReviewDto, ReviewStatus } from "@/services/reviews";
 
 export default function ProductDetail() {
+  const location = useLocation();
   // ----------------------------------------------
   // Hooks MUST be called unconditionally at top level
   // ----------------------------------------------
@@ -45,6 +57,8 @@ export default function ProductDetail() {
   const [mainImage, setMainImage] = useState<string>("/placeholder.svg");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [modalImage, setModalImage] = useState<string>("/placeholder.svg");
   const { user } = useAuth();
   // Chat (real) integration states
   const {
@@ -158,7 +172,13 @@ export default function ProductDetail() {
     const fromBE = paged?.stats;
     const list: ReviewDto[] = (paged?.data as ReviewDto[]) || [];
 
-    const distributionPage: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const distributionPage: Record<number, number> = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    };
     let sum = 0;
     for (const r of list) {
       const rate = Math.round(Number(r?.rating) || 0);
@@ -172,9 +192,12 @@ export default function ProductDetail() {
     const totalApproved = Number(paged?.totalCount || 0);
 
     const average =
-      typeof fromBE?.averageRating === "number" ? fromBE.averageRating : avgPage;
+      typeof fromBE?.averageRating === "number"
+        ? fromBE.averageRating
+        : avgPage;
     const distribution =
-      (fromBE?.ratingDistribution as Record<number, number>) || distributionPage;
+      (fromBE?.ratingDistribution as Record<number, number>) ||
+      distributionPage;
     const totalApprovedCount =
       typeof fromBE?.totalApprovedCount === "number"
         ? Number(fromBE.totalApprovedCount)
@@ -515,8 +538,8 @@ export default function ProductDetail() {
     const DEFAULT_BASE = "https://aifshop-backend.onrender.com";
     const apiBase = axiosClient?.defaults?.baseURL || DEFAULT_BASE;
     const base = String(apiBase).replace(/\/+$/g, "");
-    const absoluteRelativeImages = relativeImages.map((p) =>
-      `${base}/${String(p).replace(/^\/+/, "")}`,
+    const absoluteRelativeImages = relativeImages.map(
+      (p) => `${base}/${String(p).replace(/^\/+/, "")}`,
     );
 
     // Prioritize: base64 first (always work), then absolute relative paths, then HTTP URLs
@@ -533,7 +556,9 @@ export default function ProductDetail() {
     if (images && images.length) {
       // Prioritize base64 images for main image (they're always available)
       const base64Image = images.find((img) => img.startsWith("data:image"));
-      setMainImage(base64Image || images[0]);
+      const first = base64Image || images[0];
+      setMainImage(first);
+      setModalImage(first);
     }
   }, [images]);
 
@@ -561,10 +586,94 @@ export default function ProductDetail() {
     };
   }, [client, conversationId, state.status]);
 
+  // Mở chat tự động theo query (?chat=1) — đặt trước mọi early return
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const shouldOpen = params.get("chat") === "1";
+    if (product && shouldOpen) {
+      // Delay nhẹ để context chat sẵn sàng
+      setTimeout(() => {
+        openChat();
+      }, 0);
+    }
+  }, [product, location.search]);
+
   // Early returns AFTER all hooks are declared
-  if (isLoading) return <div className="p-8">Đang tải...</div>;
+  if (isLoading)
+    return (
+      <section className="py-12">
+        <div className="container mx-auto grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="overflow-hidden">
+                <CardContent className="p-4">
+                  <Skeleton className="w-full h-[520px]" />
+                  <div className="mt-4 flex gap-2">
+                    {[...Array(4)].map((_, i) => (
+                      <Skeleton key={i} className="w-20 h-20 rounded-md" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <Skeleton className="h-7 w-3/4" />
+                  <div className="mt-3 flex items-end gap-3">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Separator className="my-6" />
+                  <Skeleton className="h-10 w-full" />
+                  <div className="mt-4 flex gap-2">
+                    <Skeleton className="h-10 w-32" />
+                    <Skeleton className="h-10 w-40" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            <Card className="mt-10">
+              <CardContent className="p-6">
+                <Skeleton className="h-10 w-40" />
+                <div className="mt-4 space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-4 w-full" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <aside className="hidden lg:block">
+            <Card>
+              <CardContent className="p-6">
+                <Skeleton className="h-5 w-28" />
+                <div className="mt-3 space-y-2">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-4 w-full" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
+      </section>
+    );
   if (error)
-    return <div className="p-8 text-red-500">Lỗi khi tải sản phẩm</div>;
+    return (
+      <section className="py-12">
+        <div className="container mx-auto">
+          <Card>
+            <CardContent className="p-6">
+              <Alert variant="destructive">
+                <AlertTitle>Không thể tải sản phẩm</AlertTitle>
+                <AlertDescription>
+                  Vui lòng kiểm tra kết nối đến máy chủ hoặc thử lại sau.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+    );
 
   // Non-hook derived values (safe to compute after early returns)
   const shop = product?.shop || product?.shopInfo || product?.seller;
@@ -684,6 +793,8 @@ export default function ProductDetail() {
     }
   };
 
+  
+
   const displayedMessages = conversationId
     ? chatMessages[conversationId] || []
     : [];
@@ -698,10 +809,24 @@ export default function ProductDetail() {
   };
 
   return (
-    <section className="py-12">
+    <section className="py-8 md:py-12">
       <div className="container mx-auto grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Breadcrumb đơn giản */}
+          <div className="mb-4 text-sm text-slate-600">
+            <Link to="/" className="hover:underline">
+              Trang chủ
+            </Link>
+            <span className="mx-2">/</span>
+            <Link to="/products" className="hover:underline">
+              Sản phẩm
+            </Link>
+            <span className="mx-2">/</span>
+            <span className="text-slate-900 font-medium truncate inline-block max-w-[50ch] align-bottom">
+              {product?.name || "Chi tiết"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -711,6 +836,7 @@ export default function ProductDetail() {
                 <img
                   src={mainImage}
                   alt={product?.name}
+                  onClick={() => setImageModalOpen(true)}
                   onError={(e) => {
                     const target = e.currentTarget as HTMLImageElement;
                     // Use attempt counter to try a couple of fallbacks before final placeholder
@@ -776,7 +902,7 @@ export default function ProductDetail() {
                     target.src = "/placeholder.svg";
                     target.onerror = null;
                   }}
-                  className="w-full h-[520px] object-contain bg-white transition-transform duration-300 ease-out group-hover:scale-105 cursor-zoom-in"
+                  className="w-full h-[420px] md:h-[520px] object-contain bg-white transition-transform duration-300 ease-out group-hover:scale-105 cursor-zoom-in"
                 />
               </motion.div>
 
@@ -790,11 +916,13 @@ export default function ProductDetail() {
                         if (img) setMainImage(img);
                       }}
                       aria-label={`Chọn ảnh ${idx + 1}`}
+                      aria-selected={mainImage === img}
+                      tabIndex={0}
                       className={`relative z-50 w-20 h-20 rounded-md overflow-hidden ${
                         mainImage === img
                           ? "border-2 border-rose-600"
                           : "border border-slate-200 hover:border-slate-300"
-                      }`}
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500`}
                       style={{ WebkitTapHighlightColor: "transparent" }}
                     >
                       <img
@@ -874,10 +1002,82 @@ export default function ProductDetail() {
                   ))}
                 </div>
               )}
+              {/* Modal phóng to ảnh */}
+              <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+                <DialogContent className="max-w-4xl">
+                  <div className="flex flex-col gap-3">
+                    <div className="w-full h-[60vh] bg-white border rounded-xl overflow-hidden flex items-center justify-center">
+                      <img
+                        src={modalImage}
+                        alt="preview"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src =
+                            "/placeholder.svg";
+                        }}
+                      />
+                    </div>
+                    {images && images.length > 1 ? (
+                      <div className="mt-1 flex gap-2 overflow-x-auto">
+                        {images.map((img, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setModalImage(img)}
+                            className={`w-16 h-16 rounded-md overflow-hidden ${modalImage === img ? "border-2 border-rose-600" : "border border-slate-200"}`}
+                          >
+                            <img
+                              src={img}
+                              alt={`modal-thumb-${idx}`}
+                              className="w-full h-full object-contain bg-white"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src =
+                                  "/placeholder.svg";
+                              }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-md">
-              <h1 className="text-3xl font-semibold">{product?.name}</h1>
+            <div className="bg-white rounded-2xl p-4 md:p-6 shadow-md md:sticky md:top-20">
+              <div className="flex items-start gap-3">
+                <h1
+                    className="text-xl sm:text-2xl md:text-3xl font-semibold flex-1 whitespace-normal break-words leading-snug md:leading-tight line-clamp-3"
+                >
+                    {product?.name}
+                </h1>
+                {stockQuantity > 0 ? (
+                    <Badge className="whitespace-nowrap">Còn hàng</Badge>
+                ) : (
+                    <Badge variant="destructive" className="whitespace-nowrap">
+                        Hết hàng
+                    </Badge>
+                )}
+              </div>
+              {(rating > 0 || ratingCount > 0) && (
+                <div className="mt-1 md:mt-2 flex items-center gap-2 text-sm text-slate-600">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      size={16}
+                      className={
+                        i < Math.round(rating)
+                          ? "text-yellow-500 fill-yellow-500"
+                          : "text-slate-300"
+                      }
+                    />
+                  ))}
+                  <span className="ml-1">{rating.toFixed(1)} / 5</span>
+                  {ratingCount ? (
+                    <span className="ml-1">({ratingCount})</span>
+                  ) : null}
+                </div>
+              )}
               <div className="mt-2 flex items-end gap-3">
                 <div className="text-rose-600 font-bold text-2xl">
                   {currentPrice.toLocaleString("vi-VN")}₫
@@ -888,17 +1088,15 @@ export default function ProductDetail() {
                   </div>
                 )}
                 {discountPercent > 0 && (
-                  <div className="px-2 py-0.5 text-xs rounded bg-rose-100 text-rose-700 font-semibold">
+                  <Badge
+                    variant="secondary"
+                    className="text-rose-700 bg-rose-100"
+                  >
                     -{discountPercent}%
-                  </div>
+                  </Badge>
                 )}
               </div>
-              {(rating > 0 || ratingCount > 0) && (
-                <div className="mt-2 text-sm text-slate-600">
-                  ⭐ {rating.toFixed(1)} / 5{" "}
-                  {ratingCount ? `(${ratingCount})` : ""}
-                </div>
-              )}
+              <Separator className="my-6" />
               <div className="mt-6">
                 {(user?.role === "Seller" || user?.role === "Admin") && (
                   <Alert variant="destructive" className="mb-4">
@@ -920,75 +1118,12 @@ export default function ProductDetail() {
                     disabled={user?.role === "Seller" || user?.role === "Admin"}
                   />
                 )}
-                <Dialog open={chatOpen} onOpenChange={setChatOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="inline-flex items-center gap-2"
-                      onClick={openChat}
-                      disabled={
-                        user?.role === "Seller" || user?.role === "Admin"
-                      }
-                    >
-                      <MessageCircle size={18} /> Chat với shop
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Chat với shop</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex flex-col gap-3">
-                      <div className="h-64 border rounded-md p-3 overflow-y-auto bg-slate-50">
-                        {displayedMessages.length === 0 ? (
-                          <div className="text-sm text-slate-500">
-                            Chưa có tin nhắn
-                          </div>
-                        ) : (
-                          displayedMessages.map((m, idx) => (
-                            <div
-                              key={m.messageId ?? idx}
-                              className={`mb-2 flex ${m.senderId === (product?.currentUserId || "") ? "justify-end" : "justify-start"}`}
-                            >
-                              <div
-                                className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
-                                  m.senderId === (product?.currentUserId || "")
-                                    ? "bg-rose-600 text-white"
-                                    : "bg-white border"
-                                }`}
-                              >
-                                {m.content}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Nhập tin nhắn..."
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleSendMessage();
-                            }
-                          }}
-                        />
-                        <Button
-                          onClick={handleSendMessage}
-                          disabled={!conversationId || !chatInput.trim()}
-                          className="inline-flex items-center gap-2"
-                        >
-                          <Send size={16} /> Gửi
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                {/* Floating chat button (bottom-right) */}
+                {/* Removed inline chat button here; use global floating button below */}
               </div>
               <div className="mt-6 border-t pt-4">
                 {shop && (
-                  <div className="flex items-center justify-between">
+                  <div className="group flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <img
                         src={shop.logoUrl || shop.logo || "/placeholder.svg"}
@@ -1012,7 +1147,8 @@ export default function ProductDetail() {
                     </div>
                     <Link
                       to={`/shops/${shop.id || shop.shopId || shop._id}`}
-                      className="text-rose-600 hover:underline"
+                      aria-label="Xem shop"
+                      className="text-rose-600 hover:underline opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                     >
                       Xem shop
                     </Link>
@@ -1030,7 +1166,7 @@ export default function ProductDetail() {
                   <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
                 </TabsList>
                 <TabsContent value="desc" className="mt-4">
-                  <div className="prose max-w-none text-slate-700">
+                  <div className="prose max-w-none text-slate-700 whitespace-pre-line">
                     {product?.description || "Chưa có mô tả."}
                   </div>
                 </TabsContent>
@@ -1046,12 +1182,14 @@ export default function ProductDetail() {
                         <div className="flex items-center justify-between">
                           <div className="font-semibold">Thống kê sao</div>
                           <div className="text-xs text-slate-500">
-                            {reviewsStats.hasGlobalStats ? "Theo BE" : "Tạm tính từ trang hiện tại"}
+                            {reviewsStats.hasGlobalStats
+                              ? "Theo BE"
+                              : "Tạm tính từ trang hiện tại"}
                           </div>
                         </div>
                         <div className="mt-2 flex items-center gap-4">
                           <div className="text-2xl font-bold">
-                            {(reviewsStats.average?.toFixed?.(1) ?? "0.0")} / 5
+                            {reviewsStats.average?.toFixed?.(1) ?? "0.0"} / 5
                           </div>
                           <div className="text-sm text-slate-600">
                             Tổng {reviewsStats.totalApprovedCount} đánh giá
@@ -1059,11 +1197,21 @@ export default function ProductDetail() {
                         </div>
                         <div className="mt-3 space-y-2">
                           {[5, 4, 3, 2, 1].map((star) => {
-                            const count = Number(reviewsStats.distribution?.[star] || 0);
-                            const total = Number(reviewsStats.totalApprovedCount || 0);
-                            const pct = total > 0 ? Math.min(100, (count / total) * 100) : 0;
+                            const count = Number(
+                              reviewsStats.distribution?.[star] || 0,
+                            );
+                            const total = Number(
+                              reviewsStats.totalApprovedCount || 0,
+                            );
+                            const pct =
+                              total > 0
+                                ? Math.min(100, (count / total) * 100)
+                                : 0;
                             return (
-                              <div key={star} className="flex items-center gap-2">
+                              <div
+                                key={star}
+                                className="flex items-center gap-2"
+                              >
                                 <div className="w-16 text-sm">{star} sao</div>
                                 <div className="flex-1 h-2 rounded bg-slate-200">
                                   <div
@@ -1074,7 +1222,9 @@ export default function ProductDetail() {
                                     aria-valuemax={100}
                                   />
                                 </div>
-                                <div className="w-12 text-right text-sm">{count}</div>
+                                <div className="w-12 text-right text-sm">
+                                  {count}
+                                </div>
                               </div>
                             );
                           })}
@@ -1144,7 +1294,7 @@ export default function ProductDetail() {
         </div>
 
         <aside className="hidden lg:block">
-          <div className="bg-white rounded-2xl p-6 shadow-md h-[200px] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 shadow-md overflow-y-auto mt-4">
             <h4 className="font-semibold mb-2">Thông tin nhanh</h4>
             <p className="text-sm text-slate-600">
               Tồn kho:{" "}
@@ -1158,6 +1308,39 @@ export default function ProductDetail() {
                 {product?.categoryName || product?.category || "-"}
               </span>
             </p>
+          </div>
+          {/* Chính sách & vận chuyển */}
+          <div className="bg-white rounded-2xl p-6 shadow-md mt-6">
+            <h4 className="font-semibold mb-3">Chính sách & vận chuyển</h4>
+            <div className="space-y-3 text-sm text-slate-700">
+              <div className="flex items-start gap-3">
+                <Truck className="h-4 w-4 text-emerald-600 mt-0.5" />
+                <div>
+                  <div className="font-medium">Miễn phí vận chuyển</div>
+                  <div className="text-xs text-slate-500">
+                    Áp dụng cho khu vực hỗ trợ.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <RefreshCw className="h-4 w-4 text-sky-600 mt-0.5" />
+                <div>
+                  <div className="font-medium">Đổi trả trong 7 ngày</div>
+                  <div className="text-xs text-slate-500">
+                    Hỗ trợ đổi size/màu nếu còn hàng.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="h-4 w-4 text-rose-600 mt-0.5" />
+                <div>
+                  <div className="font-medium">Bảo hành chính hãng</div>
+                  <div className="text-xs text-slate-500">
+                    Tư vấn và hỗ trợ sau bán.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-md mt-6 h-[390px] overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
@@ -1196,6 +1379,7 @@ export default function ProductDetail() {
                         <img
                           src={imgSrc}
                           alt={p?.name || "product"}
+                          loading="lazy"
                           className="w-full h-full object-contain"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src =
@@ -1222,6 +1406,97 @@ export default function ProductDetail() {
             )}
           </div>
         </aside>
+        {/* Sticky action bar for mobile (chat button removed as per request) */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
+            <div className="min-w-0">
+              <div className="text-xs text-slate-500">Giá</div>
+              <div className="text-base font-semibold text-rose-600 truncate">
+                {currentPrice.toLocaleString("vi-VN")}₫
+              </div>
+            </div>
+            <div className="flex-1" />
+            {id && (
+              <AddToCartButton
+                productId={id}
+                stockQuantity={stockQuantity}
+                className="flex-1"
+                disabled={user?.role === "Seller" || user?.role === "Admin"}
+              />
+            )}
+          </div>
+        </div>
+        {/* Global floating chat button & panel */}
+        {!(user?.role === "Seller" || user?.role === "Admin") && (
+          <>
+            <Button
+              onClick={openChat}
+              className="fixed bottom-4 right-4 z-50 rounded-full shadow-md px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-2"
+            >
+              <MessageCircle className="h-4 w-4" /> Chat với shop
+            </Button>
+            {chatOpen && (
+              <div className="fixed bottom-20 right-4 z-50 w-[92vw] max-w-[380px] rounded-xl border shadow-lg bg-white overflow-hidden">
+                <div className="px-3 py-2 border-b font-medium">
+                  Chat với shop
+                </div>
+                <div className="flex flex-col gap-3 p-3">
+                  <div className="h-64 border rounded-md p-3 overflow-y-auto bg-slate-50">
+                    {displayedMessages.length === 0 ? (
+                      <div className="text-sm text-slate-500">
+                        Chưa có tin nhắn
+                      </div>
+                    ) : (
+                      displayedMessages.map((m, idx) => (
+                        <div
+                          key={m.messageId ?? idx}
+                          className={`mb-2 flex ${m.senderId === (product?.currentUserId || "") ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
+                              m.senderId === (product?.currentUserId || "")
+                                ? "bg-rose-600 text-white"
+                                : "bg-white border"
+                            }`}
+                          >
+                            {m.content}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Nhập tin nhắn..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSendMessage();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!conversationId || !chatInput.trim()}
+                      className="inline-flex items-center gap-2"
+                    >
+                      <Send size={16} /> Gửi
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setChatOpen(false)}
+                      className="ml-1"
+                    >
+                      Đóng
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

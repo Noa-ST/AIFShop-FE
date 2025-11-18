@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { MapPin } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -86,6 +87,7 @@ export default function AddressForm({
       country: "Việt Nam",
       isDefault: false,
     },
+    mode: "onChange",
   });
 
   useEffect(() => {
@@ -119,7 +121,6 @@ export default function AddressForm({
     setGeneralError(null);
 
     try {
-      // Clean phone number
       const cleanPhone = AddressValidator.formatPhoneNumber(data.phoneNumber);
 
       let response;
@@ -151,7 +152,30 @@ export default function AddressForm({
           isDefault: data.isDefault || false,
         };
 
-        console.log("📤 Sending create address request:", createData); // Debug
+        // Kiểm tra trùng lặp địa chỉ phía client
+        const listResp = await addressService.getList();
+        const list = listResp.Succeeded ? (listResp.Data || []) : [];
+        const isDup = list.some((a) =>
+          a.fullStreet.trim().toLowerCase() === createData.fullStreet.toLowerCase() &&
+          a.ward.trim().toLowerCase() === createData.ward.toLowerCase() &&
+          a.district.trim().toLowerCase() === createData.district.toLowerCase() &&
+          a.province.trim().toLowerCase() === createData.province.toLowerCase()
+        );
+        if (isDup) {
+          form.setError("fullStreet", {
+            type: "manual",
+            message: "Địa chỉ này đã tồn tại",
+          });
+          setGeneralError("Địa chỉ này đã tồn tại. Vui lòng kiểm tra lại.");
+          toast({
+            title: "Trùng địa chỉ",
+            description: "Địa chỉ đã có trong danh sách của bạn.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         response = await addressService.create(createData);
       }
 
@@ -256,11 +280,38 @@ export default function AddressForm({
     }
   };
 
+  // ---- Early duplicate check (debounced on fullStreet blur) ----
+  const [existingAddresses, setExistingAddresses] = useState<GetAddressDto[]>([]);
+  const duplicateTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await addressService.getList();
+        const data = assertServiceSuccess<GetAddressDto[]>(res, "Không thể tải danh sách địa chỉ");
+        if (mounted) setExistingAddresses(data || []);
+      } catch (_) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+      if (duplicateTimer.current) {
+        clearTimeout(duplicateTimer.current);
+      }
+    };
+  }, []);
+
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const composeKey = (fullStreet: string, ward: string, district: string, province: string) =>
+    normalize(`${fullStreet}, ${ward}, ${district}, ${province}`);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         {generalError && (
-          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md" aria-live="polite">
             {generalError}
           </div>
         )}
@@ -275,7 +326,10 @@ export default function AddressForm({
                 <Input
                   placeholder="Nguyễn Văn A"
                   maxLength={100}
+                  autoFocus={!address}
+                  autoComplete="name"
                   {...field}
+                  onBlur={() => field.onChange((field.value || "").trim())}
                 />
               </FormControl>
               <FormMessage />
@@ -293,9 +347,11 @@ export default function AddressForm({
                 <Input
                   type="tel"
                   placeholder="0912345678 hoặc +84912345678"
+                  maxLength={13}
+                  autoComplete="tel"
                   {...field}
                   onChange={(e) => {
-                    let value = e.target.value.replace(/\s/g, "");
+                    const value = e.target.value.replace(/\s/g, "");
                     field.onChange(value);
                   }}
                 />
@@ -318,7 +374,33 @@ export default function AddressForm({
                 <Input
                   placeholder="358/14/15 Nguyễn Thái Học"
                   maxLength={200}
+                  autoComplete="address-line1"
                   {...field}
+                  onBlur={() => {
+                    const trimmed = (field.value || "").replace(/\s+/g, " ").trim();
+                    field.onChange(trimmed);
+                    // Debounce cảnh báo trùng lặp sớm chỉ khi đang tạo mới
+                    if (!address) {
+                      if (duplicateTimer.current) clearTimeout(duplicateTimer.current);
+                      duplicateTimer.current = window.setTimeout(() => {
+                        const ward = (form.getValues("ward") || "").trim();
+                        const district = (form.getValues("district") || "").trim();
+                        const province = (form.getValues("province") || "").trim();
+                        if (trimmed && ward && district && province && existingAddresses.length > 0) {
+                          const key = composeKey(trimmed, ward, district, province);
+                          const isDup = existingAddresses.some((a) =>
+                            composeKey(a.fullStreet, a.ward, a.district, a.province) === key
+                          );
+                          if (isDup) {
+                            form.setError("fullStreet", {
+                              type: "manual",
+                              message: "Địa chỉ này đã tồn tại trong danh sách của bạn.",
+                            });
+                          }
+                        }
+                      }, 600);
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -349,6 +431,30 @@ export default function AddressForm({
               {form.formState.errors.ward.message}
             </p>
           )}
+          {/* Xem bản đồ */}
+          {(() => {
+            const fullStreet = (form.watch("fullStreet") || "").trim();
+            const ward = (form.watch("ward") || "").trim();
+            const district = (form.watch("district") || "").trim();
+            const province = (form.watch("province") || "").trim();
+            const hasAll = fullStreet && ward && district && province;
+            if (!hasAll) return null;
+            const query = encodeURIComponent(
+              `${fullStreet}, ${ward}, ${district}, ${province}, Việt Nam`
+            );
+            const href = `https://www.google.com/maps/search/?api=1&query=${query}`;
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <MapPin className="w-3 h-3" aria-hidden="true" />
+                Xem bản đồ
+              </a>
+            );
+          })()}
         </div>
 
         <FormField
@@ -361,6 +467,8 @@ export default function AddressForm({
                 <Input
                   placeholder="Việt Nam"
                   maxLength={50}
+                  autoComplete="country-name"
+                  readOnly
                   {...field}
                   value={field.value || "Việt Nam"}
                 />
@@ -401,7 +509,7 @@ export default function AddressForm({
               Hủy
             </Button>
           )}
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || !form.formState.isValid}>
             {loading ? "Đang lưu..." : address ? "Cập nhật" : "Thêm địa chỉ"}
           </Button>
         </div>

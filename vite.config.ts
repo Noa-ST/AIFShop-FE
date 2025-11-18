@@ -15,12 +15,13 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: "https://localhost:7109",
           changeOrigin: true,
-          secure: true,
+          // Accept self-signed cert in local dev to prevent proxy TLS errors
+          secure: false,
         },
         "/hubs": {
           target: "https://localhost:7109",
           changeOrigin: true,
-          secure: true,
+          secure: false,
           ws: true,
         },
         // Local backend proxy (opt-in via env VITE_LOCAL_API_URL)

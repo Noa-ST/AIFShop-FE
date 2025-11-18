@@ -4,9 +4,11 @@ import { Link } from "react-router-dom";
 import { formatCurrencyVND } from "@/lib/utils";
 import { ProductStatus } from "@/services/productService";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getProductImageUrl } from "@/utils/imageUrl";
 import { useEffect } from "react";
 import eventsService from "@/services/eventsService";
+import { useCart } from "@/contexts/CartContext";
 
 export type ProductImageDto = {
   id: string;
@@ -36,6 +38,7 @@ export type Product = {
 export default function ProductCard({ product }: { product: Product }) {
   // Chọn ảnh hiển thị từ nhiều nguồn và chuẩn hóa URL
   const imageSrc = getProductImageUrl(product);
+  const { addItem } = useCart();
 
   const oldPrice = (product as any).oldPrice ?? (product as any).listPrice ?? null;
   const price = (product as any).price ?? product.price ?? 0;
@@ -85,15 +88,16 @@ export default function ProductCard({ product }: { product: Product }) {
     <Link
       to={`/products/${product.id}`}
       className="group"
+      aria-label={`Xem chi tiết sản phẩm ${product.name}`}
       onClick={() => eventsService.trackClick("product", product.id)}
     >
       <motion.div
         whileHover={{ y: -6 }}
-        className="relative bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-lg hover:border-rose-200 transition-all h-full flex flex-col"
+        className="relative bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-lg hover:border-rose-300 transition-all h-full flex flex-col"
       >
-        <div className={`relative overflow-hidden rounded-xl bg-gray-50 p-6 flex items-center justify-center mb-4 ${isOutOfStock ? 'opacity-60' : ''}`} style={{aspectRatio: '1/1'}}>
+        <div className={`relative overflow-hidden rounded-xl bg-gray-50 p-6 flex items-center justify-center mb-4 ${isOutOfStock ? 'opacity-60' : ''} group-hover:bg-rose-50/50 aspect-[4/3]`}>
           {discount ? (
-            <div className="absolute left-2 top-2 z-[1] rounded-full bg-rose-600 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
+            <div className="absolute left-2 top-2 z-[1] rounded-full bg-rose-600 px-2 py-1 text-[10px] font-semibold text-white shadow-sm ring-1 ring-white/70">
               -{discount}%
             </div>
           ) : null}
@@ -127,7 +131,7 @@ export default function ProductCard({ product }: { product: Product }) {
               (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
               (e.currentTarget as HTMLImageElement).onerror = null;
             }}
-            className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>
 
@@ -138,7 +142,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
           {rating > 0 && (
             <div className="flex items-center gap-3 mb-2">
-              <div className="flex items-center text-yellow-400 text-sm">
+              <div className="flex items-center text-amber-500 text-sm" aria-label={`Đánh giá ${rating.toFixed(1)} trên 5`}>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={i < Math.round(rating) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1" className="mr-0.5">
                     <path d="M12 .587l3.668 7.431L23.4 9.752l-5.7 5.556L18.835 24 12 19.897 5.165 24l1.135-8.692L.6 9.752l7.732-1.734z" />
@@ -154,11 +158,25 @@ export default function ProductCard({ product }: { product: Product }) {
             {oldPrice ? (
               <div className="text-sm text-slate-400 line-through">{formatCurrencyVND(oldPrice)}</div>
             ) : null}
-            <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
-                <ShoppingCart className="h-3.5 w-3.5" />
-                Xem chi tiết
-              </div>
+            <div className="ml-auto opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+                aria-label="Thêm vào giỏ"
+                disabled={isOutOfStock}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isOutOfStock) {
+                    addItem(product.id, 1);
+                    eventsService.trackAddToCart?.(product.id, 1);
+                  }
+                }}
+              >
+                <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+                Thêm vào giỏ
+              </Button>
             </div>
           </div>
 

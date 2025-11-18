@@ -1,7 +1,7 @@
 import ProductCard from "@/components/ProductCard";
 import FiltersSidebar, { type FiltersChanged } from "@/components/FiltersSidebar";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -10,23 +10,67 @@ import { Button } from "@/components/ui/button";
 import productService, { ProductStatus, ProductFilterDto } from "@/services/productService";
 import globalCategoryService from "@/services/globalCategoryService";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import { formatCurrencyVND } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 export default function ProductList() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(12);
   const [filters, setFilters] = useState<FiltersChanged>({});
+  const [loadMoreMode, setLoadMoreMode] = useState(false);
+  const [accumulatedProducts, setAccumulatedProducts] = useState<any[]>([]);
+  const [lastLoadMs, setLastLoadMs] = useState<number | null>(null);
+  const loadStartRef = useRef<number | null>(null);
 
   // Initialize filters from URL query params (e.g., ?categoryId=xxx&q=keyword)
   useEffect(() => {
     const cid = searchParams.get("categoryId");
     const q = searchParams.get("q");
+    const p = Number(searchParams.get("page") || "1");
+    const ps = Number(searchParams.get("pageSize") || "");
+    const sort = searchParams.get("sort");
+    const savedPsStr = typeof window !== "undefined" ? window.localStorage.getItem("products.pageSize") : null;
+    const savedPs = Number(savedPsStr || "");
+    const minPriceStr = searchParams.get("minPrice");
+    const maxPriceStr = searchParams.get("maxPrice");
+    const minFromUrl = minPriceStr != null && minPriceStr !== "" && !Number.isNaN(Number(minPriceStr))
+      ? Number(minPriceStr)
+      : null;
+    const maxFromUrl = maxPriceStr != null && maxPriceStr !== "" && !Number.isNaN(Number(maxPriceStr))
+      ? Number(maxPriceStr)
+      : null;
     setFilters((f) => ({
       ...f,
       categoryId: cid ?? f.categoryId ?? null,
       search: q ?? f.search ?? "",
+      minPrice: minFromUrl ?? f.minPrice ?? null,
+      maxPrice: maxFromUrl ?? f.maxPrice ?? null,
+      sort: sort as FiltersChanged["sort"] ?? f.sort ?? undefined,
     }));
+    if (!Number.isNaN(p) && p > 0) setPage(p);
+    if (!Number.isNaN(ps) && ps > 0) {
+      setPageSize(ps);
+    } else if (!Number.isNaN(savedPs) && savedPs > 0) {
+      setPageSize(savedPs);
+    }
   }, []);
+
+  // Persist pageSize to localStorage
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("products.pageSize", String(pageSize));
+    } catch {}
+  }, [pageSize]);
 
   // Fetch descendants when a category is selected
   const { data: descendantIds = [], isFetching: fetchingDesc } = useQuery({
@@ -46,12 +90,10 @@ export default function ProductList() {
     const filter: ProductFilterDto = {
       page,
       pageSize,
-      status: ProductStatus.Approved, // Only show approved products
+      status: ProductStatus.Approved,
     };
 
-    if (filters.search) {
-      filter.keyword = filters.search;
-    }
+    if (filters.search) filter.keyword = filters.search;
 
     if (filters.categoryId) {
       if (descendantIds && descendantIds.length > 0) {
@@ -85,6 +127,10 @@ export default function ProductList() {
           break;
       }
     }
+
+    // Áp dụng khoảng giá nếu có
+    if (filters.minPrice != null) filter.minPrice = filters.minPrice!;
+    if (filters.maxPrice != null) filter.maxPrice = filters.maxPrice!;
 
     return filter;
   }, [filters, page, pageSize, descendantIds]);
@@ -163,6 +209,22 @@ export default function ProductList() {
         );
       }
 
+      // Price filter (client)
+      const min = productFilter.minPrice;
+      const max = productFilter.maxPrice;
+      if (min != null) {
+        result = result.filter((p: any) => {
+          const price = Number((p as any)?.price ?? 0);
+          return price >= Number(min);
+        });
+      }
+      if (max != null) {
+        result = result.filter((p: any) => {
+          const price = Number((p as any)?.price ?? 0);
+          return price <= Number(max);
+        });
+      }
+
       // Sort (client)
       if (productFilter.sortBy) {
         const { sortBy, sortOrder } = productFilter;
@@ -208,6 +270,19 @@ export default function ProductList() {
   const error = shouldClientMerge ? mergedError : serverError;
   const refetch = shouldClientMerge ? mergedRefetch : serverRefetch;
 
+  // Track load time
+  useEffect(() => {
+    if (isLoading) {
+      loadStartRef.current = Date.now();
+    } else if (!isLoading && data) {
+      const start = loadStartRef.current;
+      if (start) {
+        setLastLoadMs(Date.now() - start);
+        loadStartRef.current = null;
+      }
+    }
+  }, [isLoading, data]);
+
   // Debug: log current filter and results (dev only)
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -241,12 +316,50 @@ export default function ProductList() {
         returned: Array.isArray(data?.data) ? data?.data.length : 0,
       });
     }
-  }, [productFilter, data, descendantIds, filters.categoryId, shouldClientMerge]);
+  }, [productFilter, data, descendantIds, filters.categoryId]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [filters.search, filters.categoryId, filters.sort]);
+  }, [filters.search, filters.categoryId, filters.sort, filters.minPrice, filters.maxPrice]);
+
+  // Sync filters (search, categoryId, price range, sort) to URL so the link captures state
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    // q (search keyword)
+    if (filters.search && filters.search.trim().length > 0) {
+      next.set("q", filters.search.trim());
+    } else {
+      next.delete("q");
+    }
+    // categoryId
+    if (filters.categoryId) {
+      next.set("categoryId", String(filters.categoryId));
+    } else {
+      next.delete("categoryId");
+    }
+    // minPrice/maxPrice
+    if (filters.minPrice != null && !Number.isNaN(Number(filters.minPrice))) {
+      next.set("minPrice", String(filters.minPrice));
+    } else {
+      next.delete("minPrice");
+    }
+    if (filters.maxPrice != null && !Number.isNaN(Number(filters.maxPrice))) {
+      next.set("maxPrice", String(filters.maxPrice));
+    } else {
+      next.delete("maxPrice");
+    }
+    // sort
+    if (filters.sort) {
+      next.set("sort", String(filters.sort));
+    } else {
+      next.delete("sort");
+    }
+    // keep page reset and pageSize
+    next.set("page", "1");
+    next.set("pageSize", String(pageSize));
+    setSearchParams(next);
+  }, [filters.search, filters.categoryId, filters.minPrice, filters.maxPrice, filters.sort]);
 
   const products = data?.data || [];
   const pagination = data
@@ -258,11 +371,51 @@ export default function ProductList() {
       }
     : null;
 
-  const clearCategory = () => setFilters((f) => ({ ...f, categoryId: null }));
-  const clearSearch = () => setFilters((f) => ({ ...f, search: "" }));
+  // Load More mode: accumulate products across pages
+  useEffect(() => {
+    if (!loadMoreMode) {
+      setAccumulatedProducts([]);
+      return;
+    }
+    if (!isLoading) {
+      setAccumulatedProducts((prev) => (page === 1 ? products : [...prev, ...products]));
+    }
+  }, [products, isLoading, loadMoreMode, page]);
+
+  const renderProducts = loadMoreMode ? accumulatedProducts : products;
+
+  const clearCategory = () => {
+    setFilters((f) => ({ ...f, categoryId: null }));
+    const next = new URLSearchParams(searchParams);
+    next.delete("categoryId");
+    next.set("page", "1");
+    next.set("pageSize", String(pageSize));
+    setSearchParams(next);
+  };
+  const clearSearch = () => {
+    setFilters((f) => ({ ...f, search: "" }));
+    const next = new URLSearchParams(searchParams);
+    next.delete("q");
+    next.set("page", "1");
+    next.set("pageSize", String(pageSize));
+    setSearchParams(next);
+  };
+  const clearPrice = () => {
+    setFilters((f) => ({ ...f, minPrice: null, maxPrice: null }));
+    const next = new URLSearchParams(searchParams);
+    next.delete("minPrice");
+    next.delete("maxPrice");
+    next.set("page", "1");
+    next.set("pageSize", String(pageSize));
+    setSearchParams(next);
+  };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
+    const next = new URLSearchParams(searchParams);
+    next.set("page", String(newPage));
+    next.set("pageSize", String(pageSize));
+    setSearchParams(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -280,11 +433,7 @@ export default function ProductList() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h1 className="text-3xl font-semibold tracking-tight">Sản phẩm</h1>
           <div className="text-sm text-slate-500">
-            {isLoading
-              ? "Đang tải..."
-              : pagination
-                ? `${pagination.totalCount} sản phẩm`
-                : "0 sản phẩm"}
+            {isLoading ? "Đang tải..." : pagination ? `Tìm thấy ${pagination.totalCount} sản phẩm${lastLoadMs != null ? ` • tải ${lastLoadMs}ms` : ""}` : "0 sản phẩm"}
           </div>
         </div>
 
@@ -311,20 +460,57 @@ export default function ProductList() {
                 Đã chọn danh mục
               </Badge>
             ) : null}
-            {!filters.search && !filters.categoryId ? (
+            {(filters.minPrice != null || filters.maxPrice != null) ? (
+              <Badge
+                variant="secondary"
+                className="cursor-pointer"
+                title="Xóa lọc giá"
+                onClick={clearPrice}
+              >
+                Giá: {filters.minPrice != null ? formatCurrencyVND(filters.minPrice) : "0₫"}
+                {" – "}
+                {filters.maxPrice != null ? formatCurrencyVND(filters.maxPrice) : "∞"}
+              </Badge>
+            ) : null}
+            {!filters.search && !filters.categoryId && filters.minPrice == null && filters.maxPrice == null ? (
               <span className="text-sm text-slate-500">
                 Không có bộ lọc nào đang áp dụng
               </span>
             ) : null}
+            {filters.search || filters.categoryId || filters.minPrice != null || filters.maxPrice != null ? (
+              <Button
+                variant="ghost"
+                className="ml-1"
+                onClick={() => {
+                  setFilters({ search: "", categoryId: null, minPrice: null, maxPrice: null });
+                  setPage(1);
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("q");
+                  next.delete("categoryId");
+                  next.delete("minPrice");
+                  next.delete("maxPrice");
+                  next.set("page", "1");
+                  next.set("pageSize", String(pageSize));
+                  setSearchParams(next);
+                }}
+              >
+                Xóa tất cả lọc
+              </Button>
+            ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">Sắp xếp</span>
             <Select
               value={filters.sort ?? undefined}
-              onValueChange={(v) =>
-                setFilters((f) => ({ ...f, sort: v as FiltersChanged["sort"] }))
-              }
+              onValueChange={(v) => {
+                setFilters((f) => ({ ...f, sort: v as FiltersChanged["sort"] }));
+                const next = new URLSearchParams(searchParams);
+                if (v) next.set("sort", String(v)); else next.delete("sort");
+                next.set("page", "1");
+                next.set("pageSize", String(pageSize));
+                setSearchParams(next);
+              }}
             >
               <SelectTrigger className="w-56">
                 <SelectValue placeholder="Mặc định" />
@@ -336,6 +522,41 @@ export default function ProductList() {
                 <SelectItem value="best_selling">Bán chạy</SelectItem>
               </SelectContent>
             </Select>
+
+            <span className="text-sm text-slate-600">Hiển thị</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => {
+                const ns = Number(v);
+                setPageSize(ns);
+                setPage(1);
+                const next = new URLSearchParams(searchParams);
+                next.set("page", "1");
+                next.set("pageSize", String(ns));
+                setSearchParams(next);
+              }}
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue placeholder="12" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="12">12</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="36">36</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-2 ml-2">
+              <span className="text-sm text-slate-600">Xem thêm</span>
+              <Switch
+                checked={loadMoreMode}
+                onCheckedChange={(checked) => {
+                  setLoadMoreMode(checked);
+                  setPage(1);
+                }}
+                aria-label="Bật/tắt chế độ xem thêm"
+              />
+            </div>
           </div>
         </div>
 
@@ -357,12 +578,12 @@ export default function ProductList() {
             {/* Loading state */}
             {isLoading ? (
               <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
-                {Array.from({ length: 9 }).map((_, i) => (
+                {Array.from({ length: pageSize }).map((_, i) => (
                   <div
                     key={i}
                     className="rounded-2xl border border-slate-200 bg-white p-3"
                   >
-                    <Skeleton className="h-40 w-full rounded-xl" />
+                    <Skeleton className="w-full rounded-xl aspect-[4/3]" />
                     <div className="mt-3 space-y-2">
                       <Skeleton className="h-4 w-3/4" />
                       <Skeleton className="h-4 w-1/2" />
@@ -380,32 +601,76 @@ export default function ProductList() {
                 <p className="mt-2 text-slate-500">
                   Thử điều chỉnh bộ lọc hoặc từ khóa để tìm sản phẩm phù hợp.
                 </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                  <Button variant="outline" onClick={() => {
+                    // Xóa tất cả lọc và reset URL
+                    setFilters({ search: "", categoryId: null, minPrice: null, maxPrice: null });
+                    setPage(1);
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("q");
+                    next.delete("categoryId");
+                    next.delete("minPrice");
+                    next.delete("maxPrice");
+                    next.set("page", "1");
+                    next.set("pageSize", String(pageSize));
+                    setSearchParams(next);
+                  }}>Xóa tất cả lọc</Button>
+                  <Button asChild>
+                    <a href="/products">Về trang sản phẩm</a>
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">Gợi ý: giảm khoảng giá, xóa từ khóa hoặc chọn danh mục khác.</p>
               </div>
             ) : (
               <>
                 <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
-                  {products.map((p: any) => (
+                  {renderProducts.map((p: any) => (
                     <ProductCard key={p.id} product={p} />
                   ))}
                 </div>
 
-                {/* Pagination */}
-                {pagination && pagination.totalPages > 1 && (
-                  <div className="mt-8 flex items-center justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(page - 1)}
-                      disabled={!pagination.hasPreviousPage || isLoading}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Trước
-                    </Button>
+                {/* Pagination or Load More */}
+                {loadMoreMode ? (
+                  pagination && pagination.hasNextPage ? (
+                    <div className="mt-8 flex justify-center">
+                      <Button
+                        onClick={() => {
+                          if (!isLoading && pagination?.hasNextPage) {
+                            setPage(page + 1);
+                            const next = new URLSearchParams(searchParams);
+                            next.set("page", String(page + 1));
+                            next.set("pageSize", String(pageSize));
+                            setSearchParams(next);
+                          }
+                        }}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Đang tải..." : "Xem thêm"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-8 text-center text-sm text-slate-600">Đã hiển thị toàn bộ sản phẩm</div>
+                  )
+                ) : (
+                  pagination && pagination.totalPages > 1 && (
+                  <div className="mt-8">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href={"#"}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (pagination.hasPreviousPage && !isLoading) {
+                                handlePageChange(page - 1);
+                              }
+                            }}
+                            className={!pagination.hasPreviousPage || isLoading ? "pointer-events-none opacity-50" : undefined}
+                          />
+                        </PaginationItem>
 
-                    <div className="flex items-center gap-1">
-                      {Array.from(
-                        { length: Math.min(5, pagination.totalPages) },
-                        (_, i) => {
+                        {/* Page numbers with sliding window */}
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                           let pageNum: number;
                           if (pagination.totalPages <= 5) {
                             pageNum = i + 1;
@@ -416,39 +681,43 @@ export default function ProductList() {
                           } else {
                             pageNum = page - 2 + i;
                           }
-
                           return (
-                            <Button
-                              key={pageNum}
-                              variant={page === pageNum ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handlePageChange(pageNum)}
-                              disabled={isLoading}
-                              className="min-w-[40px]"
-                            >
-                              {pageNum}
-                            </Button>
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                href={`?page=${pageNum}`}
+                                isActive={page === pageNum}
+                                size="default"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (!isLoading) handlePageChange(pageNum);
+                                }}
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
                           );
-                        }
-                      )}
+                        })}
+
+                        <PaginationItem>
+                          <PaginationNext
+                            href={"#"}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (pagination.hasNextPage && !isLoading) {
+                                handlePageChange(page + 1);
+                              }
+                            }}
+                            className={!pagination.hasNextPage || isLoading ? "pointer-events-none opacity-50" : undefined}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+
+                    <div role="status" aria-live="polite" className="mt-3 text-center text-sm text-slate-600">
+                      Trang {page} / {pagination.totalPages} • Tổng {pagination.totalCount} sản phẩm
                     </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(page + 1)}
-                      disabled={!pagination.hasNextPage || isLoading}
-                    >
-                      Sau
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-
-                    <span className="text-sm text-slate-600 ml-4">
-                      Trang {page} / {pagination.totalPages} ({pagination.totalCount}{" "}
-                      sản phẩm)
-                    </span>
                   </div>
-                )}
+                ))}
               </>
             )}
           </div>

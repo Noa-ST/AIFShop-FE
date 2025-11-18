@@ -16,11 +16,15 @@ export function CascadeAddressSelect({
   onChange,
   disabled,
   fetchUrl,
+  mode = "full",
+  className,
 }: {
   value?: AddressValue;
   onChange?: (v: AddressValue & { labels: { province?: string; district?: string; ward?: string }; fullText: string }) => void;
   disabled?: boolean;
   fetchUrl?: string;
+  mode?: "full" | "provinceOnly";
+  className?: string;
 }) {
   const [data, setData] = useState<Province[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -193,10 +197,36 @@ export function CascadeAddressSelect({
     onChange?.({ provinceCode, districtCode, wardCode, labels, fullText });
   }, [provinceCode, districtCode, wardCode, province?.name, district?.name, ward?.name]);
 
+  if (mode === "provinceOnly") {
+    return (
+      <div className={className || "w-full"}>
+        <Select value={provinceCode ? provinceCode : ""} onValueChange={setProvinceCode} disabled={disabled || isLoading || data.length === 0}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Tỉnh/Thành phố" />
+          </SelectTrigger>
+          <SelectContent>
+            {data
+              .filter((p) => p.code && p.name)
+              .map((p) => (
+                <SelectItem key={p.code} value={p.code}>
+                  {p.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        {isLoading ? (
+          <div className="text-xs text-slate-500 mt-2">Đang tải danh sách tỉnh/thành...</div>
+        ) : usedFallback ? (
+          <div className="text-xs text-amber-600 mt-2">Đang dùng dữ liệu mặc định (HN, HCM) do không tải được dữ liệu đầy đủ.</div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       <Select value={provinceCode ? provinceCode : ""} onValueChange={setProvinceCode} disabled={disabled || isLoading || data.length === 0}>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Tỉnh/Thành phố" />
         </SelectTrigger>
         <SelectContent>
@@ -211,7 +241,7 @@ export function CascadeAddressSelect({
       </Select>
 
       <Select value={districtCode ? districtCode : ""} onValueChange={setDistrictCode} disabled={disabled || !province}>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Quận/Huyện/TP" />
         </SelectTrigger>
         <SelectContent>
@@ -226,7 +256,7 @@ export function CascadeAddressSelect({
       </Select>
 
       <Select value={wardCode ? wardCode : ""} onValueChange={setWardCode} disabled={disabled || !district}>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Phường/Xã/Thị trấn" />
         </SelectTrigger>
         <SelectContent>

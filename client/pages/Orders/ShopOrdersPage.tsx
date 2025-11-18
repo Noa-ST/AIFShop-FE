@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Filter } from "lucide-react";
+import { Building2, Filter, Download } from "lucide-react";
 
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import {
@@ -14,6 +14,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { ORDER_STATUS_OPTIONS } from "@/constants/order-status";
 import { useOrderList } from "@/hooks/use-orders";
@@ -22,19 +24,33 @@ import type { OrderStatus } from "@/services/types";
 import { fetchShopBySeller } from "@/lib/api";
 import { SellerOrderActions } from "@/components/orders/SellerOrderActions";
 
+// ===== Filter types & defaults (fix: ensure declared before usage) =====
 type FilterFormValues = {
   status: OrderStatus | "all";
+  keyword?: string;
+  startDate?: string;
+  endDate?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 };
 
 const DEFAULT_FILTER: FilterFormValues = {
   status: "all",
+  sortBy: "createdAt",
+  sortOrder: "desc",
 };
 
-const statusOptions = [{ label: "Tất cả", value: "all" as const }].concat(
-  ORDER_STATUS_OPTIONS.map((item) => ({ label: item.label, value: item.value })),
-);
+const statusOptions: { label: string; value: OrderStatus | "all" }[] = [
+  { label: "Tất cả", value: "all" },
+  ...ORDER_STATUS_OPTIONS.map((item) => ({
+    label: item.label,
+    value: item.value as OrderStatus,
+  })),
+];
 
-const ShopOrdersPage = () => {
+function ShopOrdersPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -113,11 +129,40 @@ const ShopOrdersPage = () => {
     }
   }, [isShopError, shopError, toast]);
 
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [intervalMs, setIntervalMs] = useState<number>(30000); // 30s
+
   const status = form.watch("status");
+  const values = form.watch();
   const selectedStatus = useMemo(
     () => (status && status !== "all" ? (status as OrderStatus) : undefined),
     [status],
   );
+
+  // ✅ Build filter object from form values
+  const computedFilter = useMemo(() => {
+    return {
+      keyword: values.keyword?.trim() || undefined,
+      startDate: values.startDate || undefined,
+      endDate: values.endDate || undefined,
+      minAmount:
+        typeof values.minAmount === "number"
+          ? values.minAmount
+          : values.minAmount
+          ? Number(values.minAmount)
+          : undefined,
+      maxAmount:
+        typeof values.maxAmount === "number"
+          ? values.maxAmount
+          : values.maxAmount
+          ? Number(values.maxAmount)
+          : undefined,
+      sortBy: values.sortBy || "createdAt",
+      sortOrder: values.sortOrder || "desc",
+      page: 1,
+      pageSize: 50,
+    };
+  }, [values]);
 
   const shopId = useMemo(() => {
     if (!shop) {
@@ -149,6 +194,8 @@ const ShopOrdersPage = () => {
     scope: "shop",
     id: shopId,
     status: selectedStatus,
+    filter: computedFilter,
+    refetchIntervalMs: autoRefresh ? intervalMs : undefined,
   });
 
   // ✅ Log order list state
@@ -275,6 +322,73 @@ const ShopOrdersPage = () => {
   const orders = data ?? [];
   const loadingState = isLoading || isFetching || isShopLoading;
 
+  // ✅ Quick actions: set status via chips
+  const currentStatus = form.watch("status");
+  const handleQuickStatus = (value: FilterFormValues["status"]) => {
+    form.setValue("status", value);
+    // Refetch to reflect new status immediately
+    refetch();
+  };
+
+  // ✅ Export CSV of current orders list
+  const handleExportCSV = () => {
+    if (!orders || orders.length === 0) {
+      toast({
+        title: "Không có dữ liệu",
+        description: "Danh sách đơn hiện tại trống, không thể xuất CSV.",
+      });
+      return;
+    }
+
+    const headers = [
+      "MaDon",
+      "KhachHang",
+      "TongTien",
+      "PhiVanChuyen",
+      "GiamGia",
+      "TrangThai",
+      "ThanhToan",
+      "PhuongThuc",
+      "NgayTao",
+      "NgayCapNhat",
+      "SoSanPham",
+    ];
+
+    const escape = (val: any) => {
+      const s = String(val ?? "");
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+
+    const rows = orders.map((o) => [
+      escape(o.orderId),
+      escape(o.customerName ?? ""),
+      String(o.totalAmount ?? 0),
+      String(o.shippingFee ?? 0),
+      String(o.discountAmount ?? 0),
+      escape(o.status),
+      escape(o.paymentStatus),
+      escape(o.paymentMethod),
+      escape(o.createdAt),
+      escape(o.updatedAt),
+      String(o.items?.length ?? 0),
+    ].join(","));
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob(["\ufeff" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const fileName = `orders_${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.csv`;
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Đã xuất CSV", description: `Tệp ${fileName} đã được tải xuống.` });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -284,6 +398,36 @@ const ShopOrdersPage = () => {
         <p className="text-sm text-muted-foreground">
           Quản lý trạng thái đơn hàng của cửa hàng và hỗ trợ khách hàng kịp thời.
         </p>
+      </div>
+
+      {/* ✅ Quick status chips & Export CSV */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {statusOptions.map((opt) => {
+            const selected = currentStatus === opt.value;
+            return (
+              <Button
+                key={opt.value}
+                size="sm"
+                variant={selected ? "default" : "outline"}
+                className="h-8"
+                onClick={() => handleQuickStatus(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          onClick={handleExportCSV}
+          disabled={loadingState}
+        >
+          <Download className="h-4 w-4 mr-2" /> Xuất CSV
+        </Button>
       </div>
 
       <div className="rounded-lg border bg-card p-4 shadow-sm">
@@ -296,6 +440,7 @@ const ShopOrdersPage = () => {
 
         <Form {...form}>
           <form className="grid gap-4 md:grid-cols-3">
+            {/* Trạng thái */}
             <FormField
               control={form.control}
               name="status"
@@ -320,6 +465,124 @@ const ShopOrdersPage = () => {
               )}
             />
 
+            {/* Từ khóa */}
+            <FormField
+              control={form.control}
+              name="keyword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Từ khóa</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Mã đơn, tên khách hàng..."
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Ngày bắt đầu */}
+            <FormField
+              control={form.control}
+              name="startDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Từ ngày</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Ngày kết thúc */}
+            <FormField
+              control={form.control}
+              name="endDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Đến ngày</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Khoảng tiền từ */}
+            <FormField
+              control={form.control}
+              name="minAmount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Số tiền từ</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} step={1000} {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Khoảng tiền đến */}
+            <FormField
+              control={form.control}
+              name="maxAmount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Số tiền đến</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} step={1000} {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Sắp xếp theo */}
+            <FormField
+              control={form.control}
+              name="sortBy"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sắp xếp theo</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trường" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="createdAt">Ngày tạo</SelectItem>
+                        <SelectItem value="totalAmount">Tổng tiền</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Thứ tự */}
+            <FormField
+              control={form.control}
+              name="sortOrder"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Thứ tự</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Thứ tự" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="desc">Giảm dần</SelectItem>
+                        <SelectItem value="asc">Tăng dần</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Điều khiển làm mới */}
             <div className="flex items-end gap-2">
               <Button
                 type="button"
@@ -335,10 +598,40 @@ const ShopOrdersPage = () => {
                 type="button"
                 variant="secondary"
                 onClick={() => refetch()}
-                disabled={loadingState}
+                disabled={isLoading || isFetching}
               >
                 Làm mới
               </Button>
+            </div>
+
+            {/* Tự động làm mới */}
+            <div className="md:col-span-3 flex items-center justify-between rounded-md border p-3">
+              <div className="flex items-center gap-3">
+                <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+                <div>
+                  <div className="text-sm font-medium">Tự động làm mới</div>
+                  <div className="text-xs text-muted-foreground">
+                    Tải lại danh sách đơn theo chu kỳ khi bật.
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Chu kỳ</span>
+                <Select
+                  value={String(intervalMs)}
+                  onValueChange={(v) => setIntervalMs(Number(v))}
+                  disabled={!autoRefresh}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15000">15 giây</SelectItem>
+                    <SelectItem value="30000">30 giây</SelectItem>
+                    <SelectItem value="60000">60 giây</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </form>
         </Form>

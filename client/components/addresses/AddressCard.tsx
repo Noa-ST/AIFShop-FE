@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MapPin, Phone, Edit, Trash2, Star } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface AddressCardProps {
@@ -57,15 +58,22 @@ export default function AddressCard({
 
         <div className="flex flex-wrap gap-2 pt-3 border-t">
           {!address.isDefault && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onSetDefault}
-              className="flex-1 min-w-[120px]"
-            >
-              <Star className="w-4 h-4 mr-1" />
-              Đặt mặc định
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSetDefault}
+                  className="flex-1 min-w-[120px]"
+                >
+                  <Star className="w-4 h-4 mr-1" />
+                  Đặt mặc định
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Đặt địa chỉ này làm mặc định
+              </TooltipContent>
+            </Tooltip>
           )}
           {onEdit && (
             <Button

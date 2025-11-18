@@ -25,7 +25,7 @@ type FormData = {
 };
 
 export default function Login() {
-  const { register: r, handleSubmit, formState: { errors } } = useForm<FormData>();
+  const { register: r, handleSubmit, formState: { errors }, setFocus } = useForm<FormData>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +34,7 @@ export default function Login() {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const { loginUser } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
 
   const DISABLE_EMAIL_CONFIRMATION =
     String(import.meta.env.VITE_DISABLE_EMAIL_CONFIRMATION).toLowerCase() ===
@@ -52,6 +53,15 @@ export default function Login() {
       return () => clearInterval(interval);
     }
   }, [cooldownRemaining]);
+
+  // Focus vào ô đầu tiên có lỗi
+  useEffect(() => {
+    if (errors.email) {
+      setFocus("email");
+    } else if (errors.password) {
+      setFocus("password");
+    }
+  }, [errors, setFocus]);
 
   const onSubmit = async (data: FormData) => {
     setError(null);
@@ -142,6 +152,9 @@ export default function Login() {
                 id="email"
                 type="email"
                 placeholder="your@email.com"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
                 {...r("email", {
                   required: "Vui lòng nhập email",
                   pattern: {
@@ -150,30 +163,44 @@ export default function Login() {
                   },
                 })}
                 disabled={!canSubmit}
+                aria-invalid={!!errors.email || undefined}
+                aria-describedby={errors.email ? "login-email-error" : undefined}
               />
               {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
+                <p id="login-email-error" className="text-sm text-red-500">{errors.email.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Mật khẩu</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                {...r("password", {
-                  required: "Vui lòng nhập mật khẩu",
-                })}
-                disabled={!canSubmit}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  {...r("password", {
+                    required: "Vui lòng nhập mật khẩu",
+                  })}
+                  disabled={!canSubmit}
+                  aria-invalid={!!errors.password || undefined}
+                  aria-describedby={errors.password ? "login-password-error" : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  {showPassword ? "Ẩn" : "Hiện"}
+                </button>
+              </div>
               {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
+                <p id="login-password-error" className="text-sm text-red-500">{errors.password.message}</p>
               )}
             </div>
 
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" role="status" aria-live="polite">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}

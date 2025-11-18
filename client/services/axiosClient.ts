@@ -49,13 +49,13 @@ const resolveBaseURL = () => {
         /localhost|127\.0\.0\.1/.test(window.location.hostname)),
   );
 
-  // In development: respect env override if provided; otherwise use relative for proxy
+  // In development: respect env override if provided; otherwise use relative for Vite proxy
   if (isDevEnv) {
     if (typeof envBaseUrl === "string" && envBaseUrl.trim().length > 0) {
       return envBaseUrl.trim();
     }
-    // Dùng trực tiếp BE local mặc định
-    return DEFAULT_BASE_URL;
+    // Use relative base so requests go through Vite proxy (avoids CORS/HTTPS cert issues)
+    return "";
   }
 
   // In production: prefer env, fallback to default

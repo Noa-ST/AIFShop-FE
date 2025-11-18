@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Star, Heart, MessageCircle, Store, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ShopCardProps } from "@/types/shop";
 import { getShopLogoUrl } from "@/utils/imageUrl";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,7 +34,6 @@ const ShopCard: React.FC<ShopCardProps> = ({
     onChat?.(shop.id);
   };
 
-  const isTopShop = (shop.averageRating || 0) >= 4.8;
   const isOnline = shop.status === 'online';
   
   // Calculate years active
@@ -107,14 +105,9 @@ const ShopCard: React.FC<ShopCardProps> = ({
           {/* Shop Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-lg text-gray-900 truncate">
+              <h3 className="font-bold text-lg text-gray-900 whitespace-normal break-words line-clamp-2 min-h-[48px] leading-snug">
                 {shop.name}
               </h3>
-              {isTopShop && (
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1">
-                  Top
-                </Badge>
-              )}
             </div>
 
             {/* Rating */}
@@ -144,21 +137,11 @@ const ShopCard: React.FC<ShopCardProps> = ({
           </div>
         </div>
 
-        {/* Description */}
-        {shop.description && (
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-            {shop.description}
-          </p>
-        )}
+        {/* Description removed per request */}
 
-        {/* Additional info */}
-        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-          <span>{shop.totalProducts || 0} sản phẩm</span>
-          {(shop.location || (shop.street && shop.city)) && (
-            <span className="truncate ml-2">
-              {shop.location || `${shop.street}, ${shop.city}`}
-            </span>
-          )}
+        {/* Address: show province/city only */}
+        <div className="text-sm text-gray-500 mb-4 min-h-[20px]">
+          {shop.city || getProvinceFromLocation(shop.location) || ""}
         </div>
 
         {/* Action buttons */}
@@ -214,3 +197,8 @@ const ShopCard: React.FC<ShopCardProps> = ({
 };
 
 export default ShopCard;
+  const getProvinceFromLocation = (loc?: string) => {
+    if (!loc) return "";
+    const parts = loc.split(",").map((s) => s.trim()).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : loc;
+  };

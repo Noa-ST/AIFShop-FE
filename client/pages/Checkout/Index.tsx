@@ -40,7 +40,17 @@ import {
   CreditCard,
   Loader2,
   Package,
+  Wallet,
+  Landmark,
 } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertDialog,
@@ -656,7 +666,23 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-6xl py-8">
+    <>
+    <div className="container mx-auto max-w-6xl py-8 pb-28">
+      {/* Breadcrumb */}
+      <Breadcrumb className="mb-2">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Checkout</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Back Button */}
       <Button asChild variant="ghost" className="mb-6 px-0">
         <Link to="/cart" className="flex items-center gap-2">
@@ -760,27 +786,36 @@ export default function CheckoutPage() {
                   setPaymentMethod(value as PaymentMethod)
                 }
               >
-                <div className="flex items-center space-x-2 p-4 rounded-lg border hover:bg-muted/50">
+                <div className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-muted/50">
                   <RadioGroupItem value="COD" id="cod" />
                   <Label htmlFor="cod" className="flex-1 cursor-pointer">
-                    <div>
-                      <p className="font-medium">
-                        Thanh toán khi nhận hàng (COD)
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Thanh toán bằng tiền mặt khi nhận được hàng
-                      </p>
+                    <div className="flex items-start gap-3">
+                      <Wallet className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="font-medium">Thanh toán khi nhận hàng (COD)</p>
+                        <p className="text-sm text-muted-foreground">
+                          Trả tiền mặt trực tiếp khi nhận hàng, không cần thanh toán online
+                        </p>
+                      </div>
                     </div>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 p-4 rounded-lg border hover:bg-muted/50">
+                <div className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-muted/50">
                   <RadioGroupItem value="Bank" id="bank" />
                   <Label htmlFor="bank" className="flex-1 cursor-pointer">
-                    <div>
-                      <p className="font-medium">Chuyển khoản ngân hàng</p>
-                      <p className="text-sm text-muted-foreground">
-                        Thanh toán qua chuyển khoản ngân hàng (PayOS)
-                      </p>
+                    <div className="flex items-start gap-3">
+                      <Landmark className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          Chuyển khoản ngân hàng
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                            PayOS
+                          </span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Tạo link thanh toán qua PayOS, giao dịch an toàn và tiện lợi
+                        </p>
+                      </div>
                     </div>
                   </Label>
                 </div>
@@ -851,7 +886,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Right Column - Order Summary */}
-        <div className="lg:sticky lg:top-6 h-fit">
+        <div className="hidden lg:block lg:sticky lg:top-6 h-fit">
           <Card>
             <CardHeader>
               <CardTitle>Đơn hàng của bạn</CardTitle>
@@ -941,5 +976,36 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+
+    {/* Sticky checkout bar for mobile */}
+    <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-primary/20 bg-primary/10 backdrop-blur supports-[backdrop-filter]:bg-primary/20">
+      <div className="mx-auto max-w-6xl px-4 py-4 flex items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Tổng cộng</div>
+          <div className="text-lg font-bold text-primary truncate">
+            {formatPrice(grandTotal)}
+          </div>
+        </div>
+        <Button
+          size="lg"
+          onClick={() => {
+            if (!selectedAddressId) {
+              toast({
+                title: "Lỗi",
+                description: "Vui lòng chọn địa chỉ giao hàng",
+                variant: "destructive",
+              });
+              return;
+            }
+            setShowConfirmDialog(true);
+          }}
+          disabled={isSubmitting || !selectedAddressId}
+          className="flex-shrink-0"
+        >
+          Đặt hàng
+        </Button>
+      </div>
+    </div>
+    </>
   );
 }

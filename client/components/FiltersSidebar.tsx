@@ -8,6 +8,8 @@ export type FiltersChanged = {
   categoryId?: string | null;
   sort?: "price_asc" | "price_desc" | "newest" | "best_selling" | null;
   search?: string;
+  minPrice?: number | null;
+  maxPrice?: number | null;
 };
 
 export default function FiltersSidebar({
@@ -26,10 +28,21 @@ export default function FiltersSidebar({
   const [categoryId, setCategoryId] = useState<string | null>(
     value?.categoryId ?? null,
   );
+  const [minPrice, setMinPrice] = useState<number | null>(value?.minPrice ?? null);
+  const [maxPrice, setMaxPrice] = useState<number | null>(value?.maxPrice ?? null);
 
+  // Immediate update for non-search filters
   useEffect(() => {
-    onChange?.({ categoryId, search });
-  }, [categoryId, search]);
+    onChange?.({ categoryId, search, minPrice, maxPrice });
+  }, [categoryId, minPrice, maxPrice]);
+
+  // Debounce search to reduce re-rendering
+  useEffect(() => {
+    const t = setTimeout(() => {
+      onChange?.({ categoryId, search, minPrice, maxPrice });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   // Keep a quick lookup of nodes by id and children presence for rendering
   const categoriesTree = useMemo(() => {
@@ -69,7 +82,7 @@ export default function FiltersSidebar({
                 )}
                 <button
                   onClick={() => setCategoryId(node.id)}
-                  className={`w-full text-left py-2 px-2 rounded ${
+                  className={`w-full text-left py-3 min-h-[44px] px-2 rounded ${
                     isActive ? "bg-rose-50 text-rose-700 font-medium" : "hover:bg-slate-50"
                   }`}
                   style={{ paddingLeft: depth * 12 + 8 }}
@@ -94,9 +107,11 @@ export default function FiltersSidebar({
       <div className="mt-4 space-y-6">
         <section>
           <Input
+            id="search-input"
             placeholder="Tìm kiếm sản phẩm..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm kiếm sản phẩm"
           />
         </section>
 
@@ -117,6 +132,33 @@ export default function FiltersSidebar({
           </div>
         </section>
 
+        <section>
+          <h5 className="font-medium mb-2">Khoảng giá</h5>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              type="number"
+              min={0}
+              placeholder="Từ (₫)"
+              value={minPrice ?? ""}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                setMinPrice(v === "" ? null : Math.max(0, Number(v)));
+              }}
+              aria-label="Giá tối thiểu"
+            />
+            <Input
+              type="number"
+              min={0}
+              placeholder="Đến (₫)"
+              value={maxPrice ?? ""}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                setMaxPrice(v === "" ? null : Math.max(0, Number(v)));
+              }}
+              aria-label="Giá tối đa"
+            />
+          </div>
+        </section>
         {/* Sort removed from sidebar; handled by top toolbar */}
       </div>
     </aside>

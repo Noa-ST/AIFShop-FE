@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Download, RefreshCw, Clock } from "lucide-react";
 // Tạm thời dùng native <select> để tránh lỗi runtime từ Radix Select trên trang này
 import {
   ChartContainer,
@@ -152,6 +154,38 @@ export default function SellerBalancePage() {
   const [to, setTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [groupBy, setGroupBy] = useState<"day" | "week">("day");
   const [onlyPaid, setOnlyPaid] = useState<boolean>(false);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+  const [intervalMs, setIntervalMs] = useState<number>(30000); // 30s
+
+  function setPresetRange(preset: "today" | "7d" | "30d" | "month") {
+    const now = new Date();
+    const yyyyMmDd = (d: Date) => d.toISOString().slice(0, 10);
+    if (preset === "today") {
+      const d = new Date(now);
+      setFrom(yyyyMmDd(d));
+      setTo(yyyyMmDd(d));
+      return;
+    }
+    if (preset === "7d") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 6);
+      setFrom(yyyyMmDd(start));
+      setTo(yyyyMmDd(now));
+      return;
+    }
+    if (preset === "30d") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 29);
+      setFrom(yyyyMmDd(start));
+      setTo(yyyyMmDd(now));
+      return;
+    }
+    // Tháng này
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setFrom(yyyyMmDd(start));
+    setTo(yyyyMmDd(end));
+  }
 
   const { data: revenueResp, isLoading, isError, error, refetch } = useQuery({
     queryKey: [
@@ -173,6 +207,7 @@ export default function SellerBalancePage() {
       return await shopService.getRevenueSummary(shopId, params);
     },
     enabled: !!shopId,
+    refetchInterval: autoRefresh ? intervalMs : false,
   });
 
   const summary: RevenueSummaryData | null = useMemo(() => {
@@ -191,6 +226,39 @@ export default function SellerBalancePage() {
   const successRate = orders.totalOrders
     ? Math.round((orders.paidOrders / orders.totalOrders) * 100)
     : 0;
+
+  function exportCsv() {
+    if (!summary) return;
+    const lines: string[] = [];
+    const push = (arr: (string | number | null | undefined)[]) =>
+      lines.push(arr.map((x) => (x === null || x === undefined ? "" : String(x))).join(","));
+    // Meta
+    push(["ShopId", shopId]);
+    push(["From", from]);
+    push(["To", to]);
+    push(["GroupBy", groupBy]);
+    push(["OnlyPaid", onlyPaid ? "true" : "false"]);
+    push(["TotalRevenue", summary.totalRevenue]);
+    push(["AOV", summary.aov]);
+    push(["TotalOrders", summary.orders.totalOrders]);
+    push(["PaidOrders", summary.orders.paidOrders]);
+    push(["RefundedOrders", summary.orders.refundedOrders]);
+    lines.push("");
+    // Timeseries
+    push(["date", "revenue", "orders", "paidOrders"]);
+    summary.timeseries.forEach((t) => push([t.date, t.revenue, t.orders, t.paidOrders]));
+    const bom = "\ufeff"; // BOM để Excel nhận UTF-8
+    const blob = new Blob([bom + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const fileName = `revenue_${shopId || "shop"}_${from}_${to}_${groupBy}.csv`;
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="space-y-6">
@@ -231,6 +299,37 @@ export default function SellerBalancePage() {
           <div className="flex items-center gap-2">
             <Checkbox id="onlyPaid" checked={onlyPaid} onCheckedChange={(c) => setOnlyPaid(Boolean(c))} />
             <label htmlFor="onlyPaid" className="text-sm">Chỉ đơn đã thanh toán</label>
+          </div>
+          {/* Actions */}
+          <div className="md:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-2 pt-2">
+            <span className="text-sm text-muted-foreground">Khoảng nhanh:</span>
+            <Button variant="secondary" size="sm" onClick={() => setPresetRange("today")}>Hôm nay</Button>
+            <Button variant="secondary" size="sm" onClick={() => setPresetRange("7d")}>7 ngày</Button>
+            <Button variant="secondary" size="sm" onClick={() => setPresetRange("30d")}>30 ngày</Button>
+            <Button variant="secondary" size="sm" onClick={() => setPresetRange("month")}>Tháng này</Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="mr-1 h-4 w-4" />Làm mới
+              </Button>
+              <Button size="sm" onClick={exportCsv} disabled={!summary || (summary?.timeseries?.length ?? 0) === 0}>
+                <Download className="mr-1 h-4 w-4" />Xuất CSV
+              </Button>
+            </div>
+          </div>
+          {/* Auto refresh */}
+          <div className="md:col-span-2 lg:col-span-4 flex items-center gap-3">
+            <Checkbox id="autoRefresh" checked={autoRefresh} onCheckedChange={(c) => setAutoRefresh(Boolean(c))} />
+            <label htmlFor="autoRefresh" className="text-sm">Tự động làm mới</label>
+            <select
+              className="ml-2 h-9 rounded-md border border-input bg-background px-2 text-sm"
+              value={intervalMs}
+              onChange={(e) => setIntervalMs(Number(e.target.value))}
+              disabled={!autoRefresh}
+            >
+              <option value={15000}>15s</option>
+              <option value={30000}>30s</option>
+              <option value={60000}>60s</option>
+            </select>
           </div>
         </CardContent>
       </Card>

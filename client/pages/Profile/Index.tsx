@@ -9,6 +9,7 @@ import { GetAddressDto } from "@/services/addressService";
 import authService from "@/services/authService";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
+import { AddressValidator } from "@/utils/addressValidator";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,52 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState<string>(user?.fullname || "");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const { toast } = useToast();
+
+  // Thêm: error states và regex điện thoại VN
+  const [nameError, setNameError] = useState<string>("");
+  const [phoneError, setPhoneError] = useState<string>("");
+  const PHONE_REGEX = /^(0|\+84)[1-9][0-9]{8,9}$/;
+
+  // Đổi mật khẩu: trạng thái dialog và form
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdError, setPwdError] = useState<string>("");
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      const op = currentPassword.trim();
+      const np = newPassword.trim();
+      const cp = confirmPassword.trim();
+      if (!op) throw new Error("Vui lòng nhập mật khẩu hiện tại.");
+      if (np.length < 8) throw new Error("Mật khẩu mới tối thiểu 8 ký tự.");
+      if (np !== cp) throw new Error("Xác nhận mật khẩu không khớp.");
+      return await authService.changePassword({
+        currentPassword: op,
+        newPassword: np,
+        confirmPassword: cp,
+      });
+    },
+    onSuccess: (res) => {
+      toast({
+        title: "Đổi mật khẩu thành công",
+        description:
+          (res as any)?.message ||
+          "Bạn có thể dùng mật khẩu mới để đăng nhập.",
+      });
+      setChangeOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPwdError("");
+    },
+    onError: (err: any) => {
+      const msg = err?.message || "Đổi mật khẩu thất bại. Vui lòng thử lại.";
+      setPwdError(msg);
+      toast({ title: "Thất bại", description: msg, variant: "destructive" });
+    },
+  });
 
   // Prefill from /me for phoneNumber and latest fullName
   useEffect(() => {
@@ -44,9 +91,29 @@ export default function ProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      // Chuẩn hóa phone trước khi submit
+      const normalizedPhone = phoneNumber
+        ? AddressValidator.formatPhoneNumber(phoneNumber.trim())
+        : undefined;
+
+      // Validation tối thiểu phía client
+      const nameOk = fullName.trim().length > 0;
+      const phoneOk =
+        !normalizedPhone || PHONE_REGEX.test(phoneNumber.replace(/\s/g, ""));
+
+      setNameError(nameOk ? "" : "Họ và tên là bắt buộc");
+      setPhoneError(
+        phoneOk
+          ? ""
+          : "Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (10-11 số, bắt đầu bằng 0 hoặc +84)."
+      );
+      if (!nameOk || !phoneOk) {
+        throw new Error("Vui lòng kiểm tra lại thông tin.");
+      }
+
       return await authService.updateProfile({
-        fullName: fullName || undefined,
-        phoneNumber: phoneNumber || undefined,
+        fullName: fullName.trim() || undefined,
+        phoneNumber: normalizedPhone || undefined,
       });
     },
     onSuccess: async (res) => {
@@ -89,18 +156,67 @@ export default function ProfilePage() {
               <Input
                 placeholder="Họ và tên"
                 value={fullName}
+                maxLength={100}
+                autoComplete="name"
+                autoFocus
                 onChange={(e) => setFullName(e.target.value)}
+                onBlur={() => {
+                  const v = fullName.trim();
+                  setFullName(v);
+                  setNameError(v ? "" : "Họ và tên là bắt buộc");
+                }}
               />
-              <Input placeholder="Email" value={user?.email || ""} disabled />
+              {/* Hiển thị lỗi tên nếu có */}
+              {nameError && (
+                <p className="text-sm text-destructive md:col-span-2">
+                  {nameError}
+                </p>
+              )}
+
+              <Input
+                placeholder="Email"
+                value={user?.email || ""}
+                autoComplete="email"
+                disabled
+              />
               <Input
                 placeholder="Số điện thoại"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                maxLength={13}
+                autoComplete="tel"
+                onChange={(e) =>
+                  setPhoneNumber(e.target.value.replace(/\s/g, ""))
+                }
+                onBlur={() => {
+                  const v = phoneNumber.trim();
+                  setPhoneNumber(v);
+                  if (v && !PHONE_REGEX.test(v)) {
+                    setPhoneError(
+                      "Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (10-11 số, bắt đầu bằng 0 hoặc +84)."
+                    );
+                  } else {
+                    setPhoneError("");
+                  }
+                }}
               />
+              {/* Trợ giúp và lỗi số điện thoại */}
+              <div className="md:col-span-2">
+                <p className="text-xs text-muted-foreground">
+                  Định dạng: 0xxxxxxxxx hoặc +84xxxxxxxxx
+                </p>
+                {phoneError && (
+                  <p className="text-sm text-destructive">{phoneError}</p>
+                )}
+              </div>
+
               <div className="md:col-span-2 flex justify-end">
                 <Button
                   type="submit"
-                  disabled={updateMutation.isPending}
+                  disabled={
+                    updateMutation.isPending ||
+                    !fullName.trim() ||
+                    (!!phoneNumber && !PHONE_REGEX.test(phoneNumber))
+                  }
                   className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6]"
                 >
                   {updateMutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}

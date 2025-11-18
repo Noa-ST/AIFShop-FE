@@ -14,9 +14,10 @@ interface ShopCategoryFormProps {
   categoryId?: string; // Edit mode if provided
   onSuccess?: () => void;
   onCancel?: () => void;
+  defaultParentId?: string; // preselect parent when creating
 }
 
-export default function ShopCategoryForm({ categoryId, onSuccess, onCancel }: ShopCategoryFormProps) {
+export default function ShopCategoryForm({ categoryId, onSuccess, onCancel, defaultParentId }: ShopCategoryFormProps) {
   const [formData, setFormData] = useState<CreateShopCategory>({
     name: '',
     description: '',
@@ -33,6 +34,14 @@ export default function ShopCategoryForm({ categoryId, onSuccess, onCancel }: Sh
       loadCategory();
     }
   }, [categoryId]);
+
+  // Preselect parent when creating new
+  useEffect(() => {
+    if (!categoryId && defaultParentId) {
+      setSelectedParentId(defaultParentId);
+      setFormData((prev) => ({ ...prev, parentId: defaultParentId }));
+    }
+  }, [defaultParentId, categoryId]);
 
   const loadCategories = async () => {
     try {

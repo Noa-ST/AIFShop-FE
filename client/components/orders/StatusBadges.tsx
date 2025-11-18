@@ -17,7 +17,13 @@ type BadgeProps = ComponentProps<typeof Badge>;
 const fallbackLabel = "Không xác định";
 
 const renderBadge = (
-  meta: { label: string; badgeVariant: BadgeProps["variant"] } | undefined,
+  meta:
+    | {
+        label: string;
+        badgeVariant: BadgeProps["variant"];
+        className?: string;
+      }
+    | undefined,
   fallback: string,
 ) => {
   if (!meta) {
@@ -28,7 +34,11 @@ const renderBadge = (
     );
   }
 
-  return <Badge variant={meta.badgeVariant}>{meta.label}</Badge>;
+  return (
+    <Badge variant={meta.badgeVariant} className={meta.className}>
+      {meta.label}
+    </Badge>
+  );
 };
 
 export const OrderStatusBadge = ({

@@ -3,8 +3,20 @@ import { addressService, GetAddressDto } from "@/services/addressService";
 import AddressCard from "./AddressCard";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Plus, AlertCircle } from "lucide-react";
+import { Loader2, Plus, AlertCircle, Search } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface AddressListProps {
   onAddNew?: () => void;
@@ -20,6 +32,11 @@ const AddressList = forwardRef<AddressListRef, AddressListProps>(
     const [addresses, setAddresses] = useState<GetAddressDto[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [confirm, setConfirm] = useState<{
+      type: "delete" | "setDefault";
+      id: string;
+    } | null>(null);
 
     const loadAddresses = async () => {
       setLoading(true);
@@ -78,11 +95,6 @@ const AddressList = forwardRef<AddressListRef, AddressListProps>(
 
 
   const handleDelete = async (id: string) => {
-    if (
-      !window.confirm("Bạn có chắc muốn xóa địa chỉ này?")
-    )
-      return;
-
     try {
       const response = await addressService.delete(id);
       if (response.Succeeded) {
@@ -142,8 +154,19 @@ const AddressList = forwardRef<AddressListRef, AddressListProps>(
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-9 w-40" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-9" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-40" />
+          <Skeleton className="h-40" />
+        </div>
       </div>
     );
   }
@@ -157,6 +180,16 @@ const AddressList = forwardRef<AddressListRef, AddressListProps>(
     );
   }
 
+  // Filtered addresses by recipient name or province
+  const filtered = addresses.filter((a) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      a.recipientName.toLowerCase().includes(term) ||
+      a.province.toLowerCase().includes(term)
+    );
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -169,26 +202,75 @@ const AddressList = forwardRef<AddressListRef, AddressListProps>(
         )}
       </div>
 
-      {addresses.length === 0 ? (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Bạn chưa có địa chỉ nào. Hãy thêm địa chỉ mới.
-          </AlertDescription>
-        </Alert>
+      {/* Search / Filter */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm theo tên người nhận hoặc tỉnh"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border bg-card text-card-foreground p-8 flex flex-col items-center justify-center">
+          <AlertCircle className="h-10 w-10 text-muted-foreground mb-2" />
+          <p className="text-muted-foreground mb-4">Bạn chưa có địa chỉ nào.</p>
+          {onAddNew && (
+            <Button onClick={onAddNew} className="bg-primary text-primary-foreground">
+              <Plus className="w-4 h-4 mr-2" />
+              Thêm địa chỉ
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {addresses.map((address) => (
+          {filtered.map((address) => (
             <AddressCard
               key={address.id}
               address={address}
-              onDelete={() => handleDelete(address.id)}
-              onSetDefault={() => handleSetDefault(address.id)}
+              onDelete={() => setConfirm({ type: "delete", id: address.id })}
+              onSetDefault={() => setConfirm({ type: "setDefault", id: address.id })}
               onEdit={onEdit ? () => onEdit(address) : undefined}
             />
           ))}
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirm?.type === "delete" ? "Xóa địa chỉ" : "Đặt làm mặc định"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.type === "delete"
+                ? "Bạn có chắc muốn xóa địa chỉ này? Hành động không thể hoàn tác."
+                : "Bạn muốn đặt địa chỉ này làm địa chỉ mặc định?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!confirm) return;
+                const id = confirm.id;
+                setConfirm(null);
+                if (confirm.type === "delete") {
+                  handleDelete(id);
+                } else {
+                  handleSetDefault(id);
+                }
+              }}
+            >
+              {confirm?.type === "delete" ? "Xóa" : "Đặt mặc định"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });

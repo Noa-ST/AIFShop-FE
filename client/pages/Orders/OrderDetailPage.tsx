@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -73,6 +73,8 @@ import {
 } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { OrderStatusTimeline } from "@/components/orders/OrderStatusTimeline";
 import { OrderExpirationWarning } from "@/components/orders/OrderExpirationWarning";
 import { PaymentLinkTimer } from "@/components/payments/PaymentLinkTimer";
 import {
@@ -88,6 +90,9 @@ import {
   CreditCard,
   RefreshCw,
   ExternalLink,
+  ShoppingCart,
+  Copy,
+  MessageCircle,
 } from "lucide-react";
 import { productService } from "@/services/productService";
 import { getProductImageUrl } from "@/utils/imageUrl";
@@ -125,8 +130,10 @@ const formatDate = (value?: string) => {
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { addItem } = useCart();
   const queryClient = useQueryClient();
 
   const paymentForm = useForm<PaymentFormValues>({
@@ -147,6 +154,7 @@ const OrderDetailPage = () => {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [isUpdatingAddress, setIsUpdatingAddress] = useState(false);
   const [justConfirmedPayment, setJustConfirmedPayment] = useState(false);
+  const [reorderLoading, setReorderLoading] = useState(false);
 
   const orderQuery = useQuery<OrderResponseDTO>({
     queryKey: ["orders", "detail", id],
@@ -173,6 +181,7 @@ const OrderDetailPage = () => {
   const order = orderQuery.data;
   const payment = paymentQuery.data;
   const isPaid = (order?.isPaid ?? order?.paymentStatus === "Paid") || false;
+  const trackingNumber: string | undefined = (order as any)?.trackingNumber || undefined;
 
   // Check if user is seller/admin (can update status and tracking)
   // ✅ Define these BEFORE useQuery hooks to avoid initialization errors
@@ -204,6 +213,27 @@ const OrderDetailPage = () => {
     if (!availableStatuses.length) return;
     statusForm.reset({ status: availableStatuses[0] ?? "" });
     setStatusDialogOpen(true);
+  };
+
+  const handleReorder = async () => {
+    if (!order || !order.items?.length) return;
+    try {
+      setReorderLoading(true);
+      for (const item of order.items) {
+        // Add original quantity for convenience
+        await addItem(String(item.productId), Number(item.quantity) || 1);
+      }
+      // Navigate to cart after adding
+      navigate("/cart");
+    } catch (err: any) {
+      toast({
+        title: "Không thể mua lại",
+        description: err?.message || "Vui lòng thử lại sau",
+        variant: "destructive",
+      });
+    } finally {
+      setReorderLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -630,6 +660,16 @@ const OrderDetailPage = () => {
               <MapPin className="mr-2 h-4 w-4" /> Đổi địa chỉ
             </Button>
           )}
+          {isCustomer && order.items?.length > 0 && (
+            <Button onClick={handleReorder} disabled={reorderLoading}>
+              {reorderLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ShoppingCart className="mr-2 h-4 w-4" />
+              )}
+              Mua lại
+            </Button>
+          )}
           {isCustomer &&
             order.status === "Delivered" &&
             (payment?.status || order.paymentStatus) === "Paid" && (
@@ -773,6 +813,65 @@ const OrderDetailPage = () => {
         </Card>
       )}
 
+      {/* Shipping & Tracking Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Truck className="h-5 w-5" /> Vận chuyển
+          </CardTitle>
+          <CardDescription>
+            Theo dõi tiến trình giao hàng và mã vận chuyển.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Tiến trình</p>
+              <div className="flex items-center gap-2">
+                <OrderStatusBadge status={order.status} />
+                <OrderStatusTimeline status={order.status} />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Mã vận chuyển</p>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{trackingNumber || "--"}</span>
+              {trackingNumber && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => navigator.clipboard.writeText(trackingNumber)}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {trackingNumber && (
+              <Button asChild variant="outline">
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(
+                    `mã vận chuyển ${trackingNumber}`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" /> Tra cứu vận đơn
+                </a>
+              </Button>
+            )}
+            {canManageOrder && order.status === "Confirmed" && (
+              <Button variant="outline" onClick={() => setTrackingDialogOpen(true)}>
+                <Truck className="mr-2 h-4 w-4" /> Cập nhật mã vận chuyển
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Order Information - Full Width */}
       <Card>
         <CardHeader>
@@ -840,6 +939,7 @@ const OrderDetailPage = () => {
                 lineTotal={item.lineTotal}
                 orderStatus={order.status}
                 paymentStatus={payment?.status || order.paymentStatus}
+                autoOpenReview={new URLSearchParams(location.search).get("openReview") === "1"}
               />
             ))
           ) : (
@@ -1112,6 +1212,7 @@ const ProductItemWithImage = ({
   lineTotal,
   orderStatus,
   paymentStatus,
+  autoOpenReview,
 }: {
   item: { productId: string; productName: string };
   quantity: number;
@@ -1119,11 +1220,12 @@ const ProductItemWithImage = ({
   lineTotal: number;
   orderStatus: OrderStatus;
   paymentStatus: PaymentStatus;
+  autoOpenReview?: boolean;
 }) => {
   const [productImage, setProductImage] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
-  const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
@@ -1164,6 +1266,8 @@ const ProductItemWithImage = ({
     user?.role === "Customer" &&
     orderStatus === "Delivered" &&
     normalizedPaymentStatus === "Paid";
+
+  const [showForm, setShowForm] = useState(Boolean(autoOpenReview) && canReview);
 
   // Logging để kiểm tra điều kiện review
   // eslint-disable-next-line no-console
@@ -1352,6 +1456,14 @@ const ProductItemWithImage = ({
             onClick={() => setShowForm((s) => !s)}
           >
             {showForm ? "Đóng" : "Đánh giá"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-2"
+            onClick={() => navigate(`/products/${item.productId}?chat=1`)}
+          >
+            <MessageCircle className="h-4 w-4 mr-1" /> Chat với shop
           </Button>
         </div>
       </div>
